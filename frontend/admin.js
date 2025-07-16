@@ -1,0 +1,208 @@
+const API_BASE = "http://localhost:8000/api";
+
+// --- Admin session kezelés ---
+function setAdminSession(loggedIn) {
+  if (loggedIn) {
+    localStorage.setItem("mtmi_admin_logged_in", "1");
+  } else {
+    localStorage.removeItem("mtmi_admin_logged_in");
+  }
+}
+function isAdminLoggedIn() {
+  return localStorage.getItem("mtmi_admin_logged_in") === "1";
+}
+
+function showAdminListBlock() {
+  document.getElementById("admin-login-block").style.display = "none";
+  const listBlock = document.getElementById("admin-list-block");
+  listBlock.style.display = "";
+  listBlock.classList.add("wide-admin");
+  const listCard = document.querySelector(".admin-list-card");
+  if (listCard) listCard.classList.add("wide-admin");
+  loadAdminList();
+  console.log("Lista nézet: osztályok", listBlock, listCol, listCard);
+}
+function showAdminLoginBlock() {
+  const listBlock = document.getElementById("admin-list-block");
+  listBlock.style.display = "none";
+  listBlock.classList.remove("wide-admin");
+  const listCol = document.querySelector(".admin-list-col");
+  if (listCol) listCol.classList.remove("wide-admin");
+  const listCard = document.querySelector(".admin-list-card");
+  if (listCard) listCard.classList.remove("wide-admin");
+  document.getElementById("admin-login-block").style.display = "";
+  document.getElementById("admin-login-form").reset();
+  console.log("Login nézet: osztályok", listBlock, listCol, listCard);
+}
+
+// --- Oldal betöltéskor: ha már be van lépve, automatikusan a listát mutatjuk ---
+document.addEventListener("DOMContentLoaded", function() {
+  if (isAdminLoggedIn()) {
+    showAdminListBlock();
+  } else {
+    showAdminLoginBlock();
+  }
+});
+
+// --- Admin login ---
+document.getElementById("admin-login-form").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const user = document.getElementById("admin-username").value.trim();
+  const pw = document.getElementById("admin-password").value;
+  // Csak "admin" felhasználónév engedélyezett
+  if (user !== "admin") {
+    document.getElementById("admin-login-error").textContent = "Hibás felhasználónév vagy jelszó!";
+    document.getElementById("admin-login-error").style.display = "block";
+    return;
+  }
+  const resp = await fetch(`${API_BASE}/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: pw })
+  });
+  const res = await resp.json();
+  if (res.success) {
+    setAdminSession(true);
+    showAdminListBlock();
+  } else {
+    setAdminSession(false);
+    document.getElementById("admin-login-error").textContent = "Hibás felhasználónév vagy jelszó!";
+    document.getElementById("admin-login-error").style.display = "block";
+  }
+});
+
+// --- Kilépés gomb ---
+document.addEventListener("DOMContentLoaded", function() {
+  const logoutBtn = document.getElementById("admin-logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", function() {
+      setAdminSession(false);
+      showAdminLoginBlock();
+    });
+  }
+});
+
+// --- Kitöltések listázása ---
+async function loadAdminList() {
+  const resp = await fetch(`${API_BASE}/admin/list`);
+  const list = await resp.json();
+  const tbody = document.getElementById("admin-list-tbody");
+  tbody.innerHTML = "";
+  for (const row of list) {
+    const tr = document.createElement("tr");
+    // Iskola neve kattintható
+    const tdNev = document.createElement("td");
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = row.iskola_nev;
+    link.addEventListener("click", function(ev) {
+      ev.preventDefault();
+      showSummary(row.id);
+    });
+    tdNev.appendChild(link);
+    tr.appendChild(tdNev);
+    // Dátum
+    const tdDatum = document.createElement("td");
+    tdDatum.textContent = row.created_at ? new Date(row.created_at).toLocaleString("hu-HU") : "";
+    tr.appendChild(tdDatum);
+    // Státusz
+    const tdStatus = document.createElement("td");
+    tdStatus.innerHTML = renderStatusIcon(row.submitted);
+    tr.appendChild(tdStatus);
+    // ÚJ: Megtekintés gomb
+    const tdView = document.createElement("td");
+    const viewBtn = document.createElement("a");
+    viewBtn.href = `/kitoltes/${row.id}?adminview=1`;
+    viewBtn.target = "_blank";
+    viewBtn.className = "btn btn-outline-primary btn-sm";
+    viewBtn.textContent = "Megnyitás";
+    tdView.appendChild(viewBtn);
+    tr.appendChild(tdView);
+    tbody.appendChild(tr);
+  }
+}
+
+// --- Státusz ikon renderelése ---
+function renderStatusIcon(submitted) {
+  if (submitted) {
+    return `<span class="status-badge submitted">
+      <svg width="18" height="18" fill="none"><circle cx="9" cy="9" r="9" fill="#d1e7dd"/><path d="M5 9.5l3 3 5-6" stroke="#198754" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Véglegesítve
+    </span>`;
+  } else {
+    return `<span class="status-badge inprogress">
+      <svg width="18" height="18" fill="none"><circle cx="9" cy="9" r="9" fill="#eee"/><path d="M9 5v4l2.5 2.5" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Folyamatban
+    </span>`;
+  }
+}
+
+// --- Összefoglaló nézet megjelenítése ---
+async function showSummary(session_id) {
+  const resp = await fetch(`${API_BASE}/admin/result/${session_id}`);
+  if (!resp.ok) {
+    alert("Nem sikerült letölteni az eredményeket a szerverről.");
+    return;
+  }
+  const res = await resp.json();
+  const data = res.data;
+  // Lemásoljuk az eredeti űrlap HTML-t (feltételezzük, hogy az index.html elérhető)
+  const formHtmlResp = await fetch("/index.html");
+  const formHtmlText = await formHtmlResp.text();
+  // Kinyerjük a <form id="mtmi-form">...</form> tartalmát
+  const formMatch = formHtmlText.match(/<form[^>]*id=["']mtmi-form["'][^>]*>([\s\S]*?)<\/form>/);
+  if (!formMatch) {
+    alert("Nem található az űrlap HTML a forrásban.");
+    return;
+  }
+  const formInner = formMatch[1];
+  // Létrehozunk egy dummy formot a DOM-ban, hogy ki tudjuk tölteni
+  const dummyDiv = document.createElement("div");
+  dummyDiv.innerHTML = `<form id='mtmi-form'>${formInner}</form>`;
+  const formClone = dummyDiv.querySelector("#mtmi-form");
+  // Kitöltjük a mezőket a válaszokkal (ugyanaz a logika, mint a letöltésnél)
+  formClone.querySelectorAll('input, select, textarea').forEach(el => {
+    const key = el.name;
+    if (!key) return;
+    const value = data[key];
+    if (typeof value === 'undefined') return;
+    if (el.type === "checkbox") {
+      if (Array.isArray(value)) {
+        el.checked = value.includes(el.value);
+      } else {
+        el.checked = (el.value == value);
+      }
+      el.disabled = true;
+    } else if (el.type === "radio") {
+      el.checked = (el.value == value);
+      el.disabled = true;
+    } else if (el.tagName === "SELECT") {
+      el.value = value;
+      el.disabled = true;
+    } else if (el.tagName === "TEXTAREA") {
+      el.value = value;
+      el.readOnly = true;
+    } else if (["text","number","email","url","tel"].includes(el.type)) {
+      el.value = value;
+      el.readOnly = true;
+    }
+  });
+  // Minden feltételes/dinamikus blokkot láthatóvá teszünk
+  formClone.querySelectorAll('[style*="display: none"]').forEach(el => { el.style.display = ''; });
+  // Eltávolítjuk a steppereket, navigációt, gombokat
+  formClone.querySelectorAll('.stepper-sidebar, .stepper, .stepper-vertical, .stepper-link, .prev-step, .next-step, button[type="submit"], #thankyou-placeholder, #thankyou-fullscreen, #mtmi-save-btn, .progress, #form-progress, #progress-percent').forEach(el => el.remove());
+  // Minden .form-step-et láthatóvá teszünk
+  formClone.querySelectorAll('.form-step').forEach(el => { el.style.display = ''; el.classList.remove('animate__animated', 'animate__fadeIn', 'animate__fadeInRight', 'animate__fadeInLeft', 'animate__fadeOutLeft', 'animate__fadeOutRight'); });
+  // Teljes HTML oldal generálása
+  let html = `<html><head><meta charset='utf-8'><title>MTMI űrlap eredmények</title>`;
+  html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>`;
+  html += `<link rel='stylesheet' href='/style.css'>`;
+  html += `</head><body class='bg-light'><div class='container py-5'>`;
+  html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
+  html += formClone.innerHTML;
+  html += `</div><script>window.addEventListener('DOMContentLoaded', function() {\n  const data = ${JSON.stringify(data)};\n  document.querySelectorAll('input, select, textarea').forEach(function(el) {\n    const key = el.name;\n    if (!key) return;\n    const value = data[key];\n    if (typeof value === 'undefined') return;\n    if (el.type === \"checkbox\") {\n      if (Array.isArray(value)) {\n        el.checked = value.includes(el.value);\n      } else {\n        el.checked = (el.value == value);\n      }\n      el.disabled = true;\n    } else if (el.type === \"radio\") {\n      el.checked = (el.value == value);\n      el.disabled = true;\n    } else if (el.tagName === \"SELECT\") {\n      el.value = value;\n      el.disabled = true;\n    } else if (el.tagName === \"TEXTAREA\") {\n      el.value = value;\n      el.readOnly = true;\n    } else if ([\"text\",\"number\",\"email\",\"url\",\"tel\"].includes(el.type)) {\n      el.value = value;\n      el.readOnly = true;\n    }\n  });\n});<\/script></body></html>`;
+  // Új ablakban nyitjuk meg a nyomtatható nézetet
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(html);
+  printWindow.document.close();
+} 

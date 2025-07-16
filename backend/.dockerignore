@@ -1,0 +1,6 @@
+__pycache__/
+mtmi_forms.db
+*.pyc
+*.pyo
+*.pyd
+.DS_Store 
