@@ -108,7 +108,7 @@ def submit_form(session_id: str):
             conn.commit()
     return {"status": "ok"} 
 
-ADMIN_PASSWORDS = ["admin", "Sanyika1472"]
+ADMIN_PASSWORDS = ["admin", "Suli2025!"]
 
 @app.post("/api/admin/login")
 def admin_login(data: dict):
