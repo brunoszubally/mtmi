@@ -3,8 +3,8 @@ FROM node:18-slim
 WORKDIR /app
 
 COPY frontend/ /app/frontend/
-COPY server.js /app/
-COPY package*.json /app/
+COPY frontend/server.js /app/
+COPY frontend/package*.json /app/
 
 RUN npm install
 
