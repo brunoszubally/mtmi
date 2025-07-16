@@ -10,7 +10,7 @@ import psycopg2
 from psycopg2.extras import Json
 
 # --- Adatbázis inicializálás ---
-DATABASE_URL = "postgresql://szuballybruno@localhost:5432/mtmi"
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 
 def init_db():
