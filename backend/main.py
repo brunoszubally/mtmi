@@ -146,3 +146,11 @@ def admin_result(session_id: str):
         raise HTTPException(status_code=404, detail="Nincs ilyen űrlap!")
     data = row[0]
     return {"data": data} 
+
+@app.delete("/api/admin/delete/{session_id}")
+def admin_delete(session_id: str):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("DELETE FROM forms WHERE id = %s", (session_id,))
+            conn.commit()
+    return {"status": "deleted"} 

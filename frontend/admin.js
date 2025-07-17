@@ -118,6 +118,24 @@ async function loadAdminList() {
     viewBtn.textContent = "Megnyitás";
     tdView.appendChild(viewBtn);
     tr.appendChild(tdView);
+    // ÚJ: Törlés gomb
+    const tdDelete = document.createElement("td");
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "btn btn-outline-danger btn-sm";
+    deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5.5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6zm3 .5a.5.5 0 0 1 .5-.5.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6zm-7-1A1.5 1.5 0 0 1 5.5 4h5A1.5 1.5 0 0 1 12 5.5V6h1a.5.5 0 0 1 0 1h-1v6A2.5 2.5 0 0 1 8.5 15h-3A2.5 2.5 0 0 1 3 13V7H2a.5.5 0 0 1 0-1h1v-.5zM5.5 5a.5.5 0 0 0-.5.5V6h6v-.5a.5.5 0 0 0-.5-.5h-5z"/></svg>';
+    deleteBtn.title = "Törlés";
+    deleteBtn.addEventListener("click", async function() {
+      if (confirm("Biztosan törlöd ezt a kitöltést?")) {
+        const resp = await fetch(`${API_BASE}/admin/delete/${row.id}`, { method: "DELETE" });
+        if (resp.ok) {
+          loadAdminList();
+        } else {
+          alert("Hiba történt a törlés során!");
+        }
+      }
+    });
+    tdDelete.appendChild(deleteBtn);
+    tr.appendChild(tdDelete);
     tbody.appendChild(tr);
   }
 }
