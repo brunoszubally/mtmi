@@ -20,7 +20,7 @@ function showAdminListBlock() {
   const listCard = document.querySelector(".admin-list-card");
   if (listCard) listCard.classList.add("wide-admin");
   loadAdminList();
-  console.log("Lista nézet: osztályok", listBlock, listCol, listCard);
+  console.log("Lista nézet: osztályok", listBlock, listCard);
 }
 function showAdminLoginBlock() {
   const listBlock = document.getElementById("admin-list-block");
