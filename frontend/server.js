@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const app = express();
 
-const staticDir = path.join(__dirname, 'frontend');
+const staticDir = __dirname;
 
 // Statikus fájlok kiszolgálása
 app.use(express.static(staticDir));

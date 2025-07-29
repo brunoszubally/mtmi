@@ -86,36 +86,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Feltételes alapítvány mező
-  const alapitvanySelect = document.getElementById('alapitvany-select');
-  const alapitvanyLinkDiv = document.getElementById('alapitvany-link');
-  if (alapitvanySelect) {
-    alapitvanySelect.addEventListener('change', function() {
-      if (this.value === 'igen') {
-        alapitvanyLinkDiv.style.display = '';
-        alapitvanyLinkDiv.classList.add('animate__fadeIn');
-      } else {
-        alapitvanyLinkDiv.classList.remove('animate__fadeIn');
-        alapitvanyLinkDiv.style.display = 'none';
-      }
-    });
-  }
+  
+
 
   // 2. blokk: szülői képviselő feltételes logika
-  const szuloKepviseloSelect = document.getElementById('mtmi-szulo-kepviselo-select');
-  const szuloEgyeztetesBlock = document.getElementById('szulo-egyeztetes-block');
-  if (szuloKepviseloSelect && szuloEgyeztetesBlock) {
-    szuloKepviseloSelect.addEventListener('change', function() {
-      if (this.value === 'igen') {
-        szuloEgyeztetesBlock.style.display = '';
-        szuloEgyeztetesBlock.classList.add('animate__fadeIn');
-      } else {
-        szuloEgyeztetesBlock.classList.remove('animate__fadeIn');
-        szuloEgyeztetesBlock.style.display = 'none';
-      }
-    });
-  }
-
   // MTMI csapat tagok dinamikus mezői (2. blokk)
   const csapatLetszamInput = document.getElementById('mtmi-csapat-letszam');
   const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
@@ -142,13 +116,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Név
         const label = document.createElement('label');
         label.className = 'form-label mt-2';
-        label.textContent = `Név ${i}`;
+        label.style.fontWeight = 'bold';
+        if (i === 1) {
+          label.textContent = 'Név 1 - az iskola MTMI felelőse (megegyezhet az iskola MTMI felelős kapcsolattartójával):';
+        } else {
+          label.innerHTML = `Név ${i} <span style=\"font-weight:normal;\">(további csapattagok):</span>`;
+        }
+        csapatTagokDiv.appendChild(label);
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'form-control mb-2';
         input.name = `mtmi_csapat_tag${i}_nev`;
         input.placeholder = `Név ${i}`;
-        csapatTagokDiv.appendChild(label);
         csapatTagokDiv.appendChild(input);
         // Szak/szakpár (checkboxok)
         const szakLabel = document.createElement('label');
@@ -193,32 +172,33 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // 3. blokk: pedagógiai program és MTMI koncepció feltételes logika
-  const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
-  const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
-  if (pedprogSelect && pedprogLeiras) {
-    pedprogSelect.addEventListener('change', function() {
-      if (this.value === 'igen' || this.value === 'reszben') {
-        pedprogLeiras.style.display = '';
-        pedprogLeiras.classList.add('animate__fadeIn');
-      } else {
-        pedprogLeiras.classList.remove('animate__fadeIn');
-        pedprogLeiras.style.display = 'none';
-      }
-    });
-  }
-  const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
-  const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
-  if (koncepcioSelect && koncepcioLeiras) {
-    koncepcioSelect.addEventListener('change', function() {
-      if (this.value === 'igen' || this.value === 'reszben') {
-        koncepcioLeiras.style.display = '';
-        koncepcioLeiras.classList.add('animate__fadeIn');
-      } else {
-        koncepcioLeiras.classList.remove('animate__fadeIn');
-        koncepcioLeiras.style.display = 'none';
-      }
-    });
-  }
+  // Töröld ezt a blokkot:
+  // const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
+  // const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
+  // if (pedprogSelect && pedprogLeiras) {
+  //   pedprogSelect.addEventListener('change', function() {
+  //     if (this.value === 'igen' || this.value === 'reszben') {
+  //       pedprogLeiras.style.display = '';
+  //       pedprogLeiras.classList.add('animate__fadeIn');
+  //     } else {
+  //       pedprogLeiras.classList.remove('animate__fadeIn');
+  //       pedprogLeiras.style.display = 'none';
+  //     }
+  //   });
+  // }
+  // const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
+  // const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
+  // if (koncepcioSelect && koncepcioLeiras) {
+  //   koncepcioSelect.addEventListener('change', function() {
+  //     if (this.value === 'igen' || this.value === 'reszben') {
+  //       koncepcioLeiras.style.display = '';
+  //       koncepcioLeiras.classList.add('animate__fadeIn');
+  //     } else {
+  //       koncepcioLeiras.classList.remove('animate__fadeIn');
+  //       koncepcioLeiras.style.display = 'none';
+  //     }
+  //   });
+  // }
 
   // Kezdő lépés megjelenítése
   showStep(0);
