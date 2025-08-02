@@ -1,0 +1,478 @@
+#welcome-screen, #main-form-content {
+  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  background: #f8fafc;
+  font-family:Poppins;
+}
+#main-form-content {
+  background: linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%) !important;
+  z-index: 2;
+}
+#welcome-screen[style*="display: none"] {
+  z-index: 0 !important;
+  pointer-events: none;
+  opacity: 0;
+}
+#main-form-content[style*="display: none"] {
+  z-index: 0 !important;
+  pointer-events: none;
+  opacity: 0;
+}
+body {
+  background: linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%);
+  min-height: 100vh;
+}
+.card {
+  border-radius: 18px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  background: rgba(255,255,255,0.95);
+}
+.card-body {
+  border-radius: 18px;
+}
+.progress {
+  background: #e3eafc;
+  border-radius: 8px;
+}
+.progress-bar {
+  transition: width 0.5s cubic-bezier(.4,2,.3,1);
+}
+.form-step {
+  min-height: 400px;
+  transition: opacity 0.5s;
+}
+.form-label {
+  font-weight: 600;
+  color: #2a4d69;
+}
+.btn-primary {
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  border: none;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(42,77,105,0.08);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.btn-primary:hover {
+  background: linear-gradient(90deg, #1e3550 0%, #2a4d69 100%);
+  box-shadow: 0 4px 16px rgba(42,77,105,0.15);
+}
+.btn-outline-secondary {
+  border-radius: 6px;
+  font-weight: 500;
+}
+textarea.form-control {
+  min-height: 80px;
+  resize: vertical;
+}
+.stepper .stepper-link {
+  border-radius: 30px !important;
+  font-weight: 600;
+  color: #2a4d69;
+  background: #e3eafc;
+  margin: 0 2px;
+  transition: background 0.3s, color 0.3s;
+}
+.stepper .stepper-link.active, .stepper .stepper-link:focus {
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(42,77,105,0.10);
+}
+.stepper .stepper-link:not(.active):hover {
+  background: #d0e0f7;
+  color: #2a4d69;
+  cursor: pointer;
+}
+.stepper .stepper-link.disabled {
+  background: #f3f3f3 !important;
+  color: #b0b8c1 !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  opacity: 0.7;
+}
+#progress-percent {
+  min-width: 48px;
+  text-align: right;
+  font-size: 1.1em;
+  letter-spacing: 0.5px;
+}
+.stepper-sidebar {
+  min-height: 100%;
+  border-radius: 18px 0 0 18px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(31,38,135,0.04);
+}
+.stepper-vertical .stepper-link {
+  border-radius: 30px !important;
+  font-weight: 600;
+  color: #2a4d69;
+  background: #e3eafc;
+  margin-bottom: 6px;
+  transition: background 0.3s, color 0.3s;
+  padding: 10px 18px 10px 38px;
+  position: relative;
+  font-size: 1.05em;
+}
+.stepper-vertical .stepper-link.active, .stepper-vertical .stepper-link:focus {
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(42,77,105,0.10);
+}
+.stepper-vertical .stepper-link:not(.active):hover {
+  background: #d0e0f7;
+  color: #2a4d69;
+  cursor: pointer;
+}
+.stepper-vertical .stepper-link.disabled {
+  background: #f3f3f3 !important;
+  color: #b0b8c1 !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.stepper-vertical .step-num {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #b3c6e6;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+.stepper-vertical .stepper-link.active .step-num {
+  background: #2a4d69;
+}
+@media (max-width: 991px) {
+  .stepper-sidebar {
+    border-radius: 18px 18px 0 0;
+    border-right: none;
+    border-bottom: 1px solid #e3eafc;
+    box-shadow: none;
+    padding-bottom: 0;
+  }
+  .col-md-4.stepper-sidebar {
+    min-height: unset;
+  }
+}
+@media (max-width: 767px) {
+  .stepper-sidebar {
+    padding: 16px 8px;
+  }
+  .col-md-8.p-5 {
+    padding: 24px 8px !important;
+  }
+}
+#welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+  background: #f8fafc;
+  overflow: hidden;
+  padding-top: 32px;
+  padding-bottom: 120px;
+}
+#welcome-screen .card {
+  border-radius: 1.2rem;
+  max-width: 900px;
+  min-width: 900px;
+  width: 100%;
+  margin-bottom: 0;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+#welcome-screen h1 {
+  letter-spacing: 0.01em;
+}
+#welcome-screen ul {
+  padding-left: 1.2rem;
+}
+#welcome-screen img {
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.08));
+}
+#welcome-screen button {
+  font-size: 1.25rem;
+  border-radius: 2rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 32px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  width: 320px;
+  max-width: 90vw;
+  z-index: 10;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+@media (max-width: 900px) {
+  #welcome-screen .card {
+    max-width: 98vw;
+    min-width: unset;
+  }
+  #welcome-screen button {
+    width: 98vw;
+    left: 1vw;
+    right: 1vw;
+  }
+} 
+#thankyou-fullscreen {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  background: #fff;
+  display: none; /* alapból rejtve */
+}
+#thankyou-fullscreen[style*="display: flex"] {
+  display: flex !important;
+} 
+#thankyou-fullscreen > .d-flex {
+  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  align-items: center !important;
+  justify-content: center !important;
+  display: flex !important;
+  flex-direction: column;
+} 
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+  gap: 0.3em;
+  font-size: 1em;
+}
+.status-badge.inprogress {
+  color: #888;
+}
+.status-badge.submitted {
+  color: #198754;
+} 
+
+/* Csak a lista blokk legyen teljes szélességű */
+#admin-list-block.wide-admin .table-responsive {
+  max-width: 100vw;
+}
+#admin-list-block.wide-admin table {
+  min-width: 1100px;
+}
+#admin-list-block.wide-admin td, #admin-list-block.wide-admin th {
+  word-break: break-word;
+  max-width: 500px;
+}
+#admin-list-block.wide-admin {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: -24px;
+  margin-right: -24px;
+}
+/* Admin oldal: teljes szélesség */
+#admin-container.container {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+#admin-container .row {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+#admin-container .col-xl-6, 
+#admin-container .col-lg-8, 
+#admin-container .col-12 {
+  max-width: 100vw !important;
+  flex: 0 0 100vw !important;
+  width: 100vw !important;
+} 
+
+/* Csak akkor legyen teljes szélesség, ha wide-admin osztály van a konténeren */
+#admin-container.wide-admin.container {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+#admin-container.wide-admin .row {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+#admin-container.wide-admin .col-xl-6, 
+#admin-container.wide-admin .col-lg-8, 
+#admin-container.wide-admin .col-12 {
+  max-width: 100vw !important;
+  flex: 0 0 100vw !important;
+  width: 100vw !important;
+} 
+#admin-list-block.wide-admin .admin-list-col {
+  max-width: 100vw !important;
+  flex: 0 0 100vw !important;
+  width: 100vw !important;
+} 
+/* Modern admin lista kártya */
+.admin-list-card {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  background: #fff;
+}
+.admin-list-card .table-responsive {
+  overflow-x: auto;
+  width: 100%;
+}
+.admin-list-card table {
+  min-width: 900px;
+}
+#admin-logout-btn {
+  margin-left: 16px;
+}
+/* Régi 100vw-s trükkök törlése */
+#admin-list-block.wide-admin .admin-list-card.wide-admin {
+  width: auto !important;
+  max-width: 1400px !important;
+  border-radius: 18px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important;
+} 
+#admin-login-block .card {
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+} 
+
+/* Validációs popup stílusok */
+#validation-popup {
+  z-index: 9999;
+}
+
+#validation-popup .modal-dialog {
+  max-width: 500px;
+}
+
+#validation-popup .modal-content {
+  border-radius: 18px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  background: rgba(255,255,255,0.95);
+}
+
+#validation-popup .modal-header {
+  border-bottom: 1px solid #e3eafc;
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  color: white;
+  border-radius: 18px 18px 0 0;
+}
+
+#validation-popup .modal-title {
+  font-weight: 600;
+  color: white;
+}
+
+#validation-popup .btn-close {
+  filter: invert(1);
+}
+
+#validation-popup .modal-body {
+  padding: 1.5rem;
+}
+
+#validation-popup .modal-body ul {
+  margin-bottom: 0;
+  padding-left: 1.2rem;
+}
+
+#validation-popup .modal-body li {
+  margin-bottom: 0.5rem;
+  color: #2a4d69;
+  font-weight: 500;
+}
+
+#validation-popup .modal-footer {
+  border-top: 1px solid #e3eafc;
+  padding: 1rem 1.5rem;
+}
+
+#validation-popup .btn {
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.5rem 1.5rem;
+}
+
+#validation-popup .btn-primary {
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  border: none;
+}
+
+#validation-popup .btn-primary:hover {
+  background: linear-gradient(90deg, #1e3550 0%, #2a4d69 100%);
+}
+
+#validation-popup .btn-secondary {
+  background: #6c757d;
+  border: none;
+}
+
+#validation-popup .btn-secondary:hover {
+  background: #5a6268;
+} 
+
+/* Kötelező mezők jelzése */
+.required-field {
+  position: relative;
+}
+
+.required-field::after {
+  content: " *";
+  color: #dc3545;
+  font-weight: bold;
+  position: absolute;
+  top: 0;
+  right: -10px;
+}
+
+/* Kötelező mezők input stílusa */
+.form-control:required,
+.form-select:required,
+.form-control[data-original-required="true"],
+.form-select[data-original-required="true"] {
+  border-left: 3px solid #dc3545 !important;
+}
+
+.form-control:required:focus,
+.form-select:required:focus,
+.form-control[data-original-required="true"]:focus,
+.form-select[data-original-required="true"]:focus {
+  border-left: 3px solid #dc3545 !important;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+/* Kötelező mezők placeholder stílusa */
+.form-control:required::placeholder {
+  color: #6c757d;
+  font-style: italic;
+} 
