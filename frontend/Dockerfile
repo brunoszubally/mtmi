@@ -1,11 +1,12 @@
-FROM nginx:alpine
+FROM python:3.9-alpine
 
-# Copy static files to nginx
-COPY . /usr/share/nginx/html/
+WORKDIR /app
 
-# Copy custom nginx config if needed
-# COPY nginx.conf /etc/nginx/nginx.conf
+# Copy static files
+COPY . /app/
 
-EXPOSE 80
+# Expose port
+EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"] 
+# Start simple HTTP server
+CMD ["python", "-m", "http.server", "8080"] 
