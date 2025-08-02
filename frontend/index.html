@@ -6,6 +6,8 @@
   <title>MTMI Pályázati Űrlap</title>
   <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <!-- Animate.css -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
   <link rel="stylesheet" href="/style.css">
@@ -1718,11 +1720,53 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                     <!-- 8. blokk: Befejezés -->
                     <div class="form-step animate__animated" id="step-final" style="display:none;">
                       <h4 class="mb-3">8. Befejezés</h4>
-                  
+                      
+                      <!-- PDF feltöltés szekció -->
+                      <div class="mb-4">
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          <strong>PDF feltöltés (opcionális):</strong> A pályázat során lehetősége van 1 DB MAX 10MB MÉRETŰ PDF FILE FELTÖLTÉSÉRE, mely olyan fotókat vagy dokumentumrészleteket tartalmaz, amiknek a bemutatására a pályázati űrlap keretein belül nem volt lehetőség (pl. azért, mert nincs hozzá külön hivatkozási link). Kérjük, hogy a feltöltött dokumentumon belül legyen egyértelmű, hogy az adott rész melyik ponthoz tartozik!
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">PDF dokumentum feltöltése</label>
+                          <div class="input-group">
+                            <input type="file" class="form-control" id="pdf-upload" accept=".pdf" style="display: none;">
+                            <button type="button" class="btn btn-outline-primary" id="pdf-upload-btn">
+                              <i class="bi bi-file-earmark-pdf"></i> PDF kiválasztása
+                            </button>
+                            <span class="input-group-text" id="pdf-filename">Nincs kiválasztott fájl</span>
+                          </div>
+                          <small class="form-text text-muted">Maximum 10MB méretű PDF fájl</small>
+                        </div>
+                        
+                        <div id="pdf-preview" class="mb-3" style="display: none;">
+                          <div class="card">
+                            <div class="card-body">
+                              <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                  <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                  <span id="pdf-preview-name"></span>
+                                  <small class="text-muted" id="pdf-preview-size"></small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="pdf-remove-btn">
+                                  <i class="bi bi-trash"></i> Törlés
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div id="pdf-upload-progress" class="progress mb-3" style="display: none;">
+                          <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        
+                        <div id="pdf-upload-status" class="alert" style="display: none;"></div>
+                      </div>
+                      
                       <p class="lead" id="thankyou-placeholder">Köszönjük a kitöltést! Az adatokat sikeresen mentettük.</p>
                       <div class="d-flex justify-content-between">
                         <button type="button" class="btn btn-outline-secondary btn-lg prev-step">Vissza</button>
-                        <button type="submit" class="btn btn-success btn-lg">Véglegesítés</button>
+                        <button type="button" class="btn btn-success btn-lg" id="finalize-btn">Véglegesítés</button>
                       </div>
                     </div>
                   </form>

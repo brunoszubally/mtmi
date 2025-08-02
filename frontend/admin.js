@@ -1,4 +1,4 @@
-const API_BASE = "https://mtmi.onrender.com/api";
+const API_BASE = "http://localhost:8000/api";
 
 // --- Admin session kezelés ---
 function setAdminSession(loggedIn) {
@@ -111,6 +111,42 @@ async function loadAdminList() {
     const tdStatus = document.createElement("td");
     tdStatus.innerHTML = renderStatusIcon(row.submitted);
     tr.appendChild(tdStatus);
+    // PDF ikon
+    const tdPdf = document.createElement("td");
+    if (row.has_pdf) {
+      const pdfLink = document.createElement("a");
+      pdfLink.href = `${API_BASE.replace('/api', '')}/uploads/${row.id}_*.pdf`;
+      pdfLink.target = "_blank";
+      pdfLink.innerHTML = '<i class="bi bi-file-earmark-pdf text-danger"></i>';
+      pdfLink.title = "PDF megtekintése";
+      pdfLink.style.cursor = "pointer";
+      pdfLink.addEventListener("click", function(e) {
+        e.preventDefault();
+        // Lekérjük a pontos PDF fájl nevét
+        fetch(`${API_BASE}/admin/result/${row.id}`)
+          .then(resp => resp.json())
+          .then(data => {
+            if (data.pdf_file_path) {
+              // URL encoding a fájlnévhez
+              const encodedPath = encodeURIComponent(data.pdf_file_path);
+              const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+              console.log("PDF URL:", pdfUrl);
+              window.open(pdfUrl, '_blank');
+            } else {
+              alert("PDF fájl nem található!");
+            }
+          })
+          .catch(err => {
+            console.error("Hiba a PDF lekérdezése során:", err);
+            alert("Hiba a PDF megnyitása során!");
+          });
+      });
+      tdPdf.appendChild(pdfLink);
+    } else {
+      tdPdf.innerHTML = '<i class="bi bi-file-earmark-pdf text-muted"></i>';
+      tdPdf.title = "Nincs PDF";
+    }
+    tr.appendChild(tdPdf);
     // ÚJ: Megtekintés gomb
     const tdView = document.createElement("td");
     const viewBtn = document.createElement("a");

@@ -3,7 +3,7 @@ function getSessionIdFromUrl() {
     return m ? m[1] : null;
 }
 
-const API_BASE = "https://mtmi.onrender.com/api"; // Állítsd át, ha máshol fut a backend!
+const API_BASE = "http://localhost:8000/api"; // Helyi fejlesztési környezet
 const FORM_ID = "mtmi-form";
 const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";
@@ -73,7 +73,7 @@ function showStep(idx, direction = 1) {
   // Közvetlenül beállítjuk a required attribútumokat az aktuális lépésben
   if (currentStepElement) {
     currentStepElement.querySelectorAll("input, select, textarea").forEach(el => {
-      if (el.hasAttribute('required') || el.dataset.originalRequired === "true") {
+      if (el.dataset.originalRequired === "true") {
         el.required = true;
       }
     });
@@ -528,6 +528,13 @@ document.addEventListener('DOMContentLoaded', function() {
           if (resp.ok) {
               const res = await resp.json();
               console.log('loadForm: Adatok betöltve:', res.data);
+              console.log('loadForm: PDF fájl:', res.pdf_file_path);
+              
+              // PDF betöltése, ha van
+              if (res.pdf_file_path) {
+                loadPdfFromData(res.pdf_file_path);
+              }
+              
               // --- ADMINVIEW workaround ---
               const urlParams = new URLSearchParams(window.location.search);
               const adminView = urlParams.get('adminview');
@@ -670,70 +677,83 @@ document.addEventListener('DOMContentLoaded', function() {
           }
       }
       saveBtn.addEventListener("click", () => saveForm(false));
+      
+      // PDF feltöltés kezelése
+      setupPdfUpload();
   });
+});
 
-  document.getElementById("mtmi-form").addEventListener("submit", async function(e) {
-    console.log("[SUBMIT] Esemény indult");
-    e.preventDefault(); // Mindig az első sor!
-    // Gyors fix: minden nem látható mezőről levesszük a required attribútumot
-    document.querySelectorAll(".form-step[style*='display: none'] input, .form-step[style*='display: none'] select, .form-step[style*='display: none'] textarea").forEach(el => {
-      el.required = false;
-    });
-
-    // --- VÉGLEGESÍTÉS: backend submit meghívása ---
-    let session_id = localStorage.getItem("mtmi_session_id");
-    const urlSession = getSessionIdFromUrl();
-    if (urlSession) session_id = urlSession;
-    console.log("[SUBMIT] session_id:", session_id);
-    if (session_id) {
-      try {
-        const resp = await fetch(`${API_BASE}/submit/${session_id}`, { method: "POST" });
-        console.log("[SUBMIT] Backend válasz status:", resp.status);
-        const respText = await resp.text();
-        console.log("[SUBMIT] Backend válasz body:", respText);
-      } catch (err) {
-        console.error("[SUBMIT] Backend submit hiba:", err);
-      }
-    } else {
-      console.warn("[SUBMIT] Nincs session_id!");
-    }
-
-    // --- Köszönőképernyő mutatása ---
-    // Elrejtem minden fő tartalmat
-    document.getElementById("main-form-content").style.display = "none";
-    document.getElementById("welcome-screen").style.display = "none";
-    if(document.getElementById("step-final")) document.getElementById("step-final").style.display = "block";
-    document.getElementById("thankyou-fullscreen").style.display = "flex";
-    document.body.style.overflow = "auto";
-    window.scrollTo(0,0);
-
-    // DOM állapot logolása
-    console.log("[SUBMIT] main-form-content display:", document.getElementById("main-form-content").style.display);
-    console.log("[SUBMIT] welcome-screen display:", document.getElementById("welcome-screen").style.display);
-    console.log("[SUBMIT] step-final display:", document.getElementById("step-final") ? document.getElementById("step-final").style.display : "nincs");
-    console.log("[SUBMIT] thankyou-fullscreen display:", document.getElementById("thankyou-fullscreen").style.display);
-
-    // Főoldalra vissza gomb SPA élmény
-    const backBtn = document.querySelector("#thankyou-fullscreen a.btn");
-    if (backBtn) {
-      backBtn.addEventListener("click", function(ev) {
-        ev.preventDefault();
-        document.getElementById("thankyou-fullscreen").style.display = "none";
-        document.getElementById("welcome-screen").style.display = "";
-        document.body.style.overflow = "auto";
-        window.scrollTo(0,0);
+// Véglegesítés gomb eseménykezelő
+document.addEventListener("DOMContentLoaded", () => {
+  const finalizeBtn = document.getElementById("finalize-btn");
+  if (finalizeBtn) {
+    finalizeBtn.addEventListener("click", async function(e) {
+      console.log("[FINALIZE] Esemény indult");
+      e.preventDefault();
+      
+      // Először minden mezőről eltávolítjuk a required attribútumot
+      document.querySelectorAll("input, select, textarea").forEach(el => {
+        el.required = false;
       });
-    }
-  });
+      
+      // Késleltetés, hogy a DOM frissüljön
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // --- VÉGLEGESÍTÉS: backend submit meghívása ---
+      let session_id = localStorage.getItem("mtmi_session_id");
+      const urlSession = getSessionIdFromUrl();
+      if (urlSession) session_id = urlSession;
+      console.log("[FINALIZE] session_id:", session_id);
+      if (session_id) {
+        try {
+          const resp = await fetch(`${API_BASE}/submit/${session_id}`, { method: "POST" });
+          console.log("[FINALIZE] Backend válasz status:", resp.status);
+          const respText = await resp.text();
+          console.log("[FINALIZE] Backend válasz body:", respText);
+        } catch (err) {
+          console.error("[FINALIZE] Backend submit hiba:", err);
+        }
+      } else {
+        console.warn("[FINALIZE] Nincs session_id!");
+      }
+
+      // --- Köszönőképernyő mutatása ---
+      // Elrejtem minden fő tartalmat
+      document.getElementById("main-form-content").style.display = "none";
+      document.getElementById("welcome-screen").style.display = "none";
+      if(document.getElementById("step-final")) document.getElementById("step-final").style.display = "block";
+      document.getElementById("thankyou-fullscreen").style.display = "flex";
+      document.body.style.overflow = "auto";
+      window.scrollTo(0,0);
+
+      // DOM állapot logolása
+      console.log("[FINALIZE] main-form-content display:", document.getElementById("main-form-content").style.display);
+      console.log("[FINALIZE] welcome-screen display:", document.getElementById("welcome-screen").style.display);
+      console.log("[FINALIZE] step-final display:", document.getElementById("step-final") ? document.getElementById("step-final").style.display : "nincs");
+      console.log("[FINALIZE] thankyou-fullscreen display:", document.getElementById("thankyou-fullscreen").style.display);
+
+      // Főoldalra vissza gomb SPA élmény
+      const backBtn = document.querySelector("#thankyou-fullscreen a.btn");
+      if (backBtn) {
+        backBtn.addEventListener("click", function(ev) {
+          ev.preventDefault();
+          document.getElementById("thankyou-fullscreen").style.display = "none";
+          document.getElementById("welcome-screen").style.display = "";
+          document.body.style.overflow = "auto";
+          window.scrollTo(0,0);
+        });
+      }
+    });
+  }
 }); 
 
 function updateRequiredAttributes() {
   document.querySelectorAll(".form-step").forEach(step => {
-    const visible = step.style.display !== "none";
+    const visible = step.style.display !== "none" && step.style.display !== "";
     step.querySelectorAll("input, select, textarea").forEach(el => {
       if (visible) {
         // Látható lépésekben visszaállítjuk az eredeti required attribútumokat
-        if (el.dataset.originalRequired === "true" || el.hasAttribute('required')) {
+        if (el.dataset.originalRequired === "true") {
           el.required = true;
         }
       } else {
@@ -762,7 +782,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateRequiredAttributes();
 }); 
 
-document.querySelector("button[type='submit']").addEventListener("click", updateRequiredAttributes); 
+// Régi submit gomb eseménykezelő eltávolítva, mert most a véglegesítés gombot használjuk 
 
 // --- Vissza a főoldalra gomb mindenhol ---
 function setupBackToWelcome(selector) {
@@ -1041,5 +1061,183 @@ function fillRequiredFields() {
         firstEmptyField.focus();
       }
     }, 300);
+  }
+}
+
+// --- PDF feltöltés kezelése ---
+function setupPdfUpload() {
+  const pdfUpload = document.getElementById('pdf-upload');
+  const pdfUploadBtn = document.getElementById('pdf-upload-btn');
+  const pdfFilename = document.getElementById('pdf-filename');
+  const pdfPreview = document.getElementById('pdf-preview');
+  const pdfPreviewName = document.getElementById('pdf-preview-name');
+  const pdfPreviewSize = document.getElementById('pdf-preview-size');
+  const pdfRemoveBtn = document.getElementById('pdf-remove-btn');
+  const pdfUploadProgress = document.getElementById('pdf-upload-progress');
+  const pdfUploadStatus = document.getElementById('pdf-upload-status');
+  
+  if (!pdfUpload || !pdfUploadBtn) return;
+  
+  // PDF kiválasztás gomb
+  pdfUploadBtn.addEventListener('click', () => {
+    pdfUpload.click();
+  });
+  
+  // PDF fájl kiválasztása
+  pdfUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Ellenőrizzük a fájl típusát
+    if (!file.type.includes('pdf')) {
+      showPdfStatus('Csak PDF fájlok tölthetők fel!', 'danger');
+      return;
+    }
+    
+    // Ellenőrizzük a fájl méretét (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showPdfStatus('A fájl mérete nem lehet nagyobb 10MB-nál!', 'danger');
+      return;
+    }
+    
+    // Fájl adatok megjelenítése
+    pdfFilename.textContent = file.name;
+    pdfPreviewName.textContent = file.name;
+    pdfPreviewSize.textContent = `(${formatFileSize(file.size)})`;
+    pdfPreview.style.display = 'block';
+    pdfUploadStatus.style.display = 'none';
+    
+    // Automatikus feltöltés
+    uploadPdfFile(file);
+  });
+  
+  // PDF törlés
+  pdfRemoveBtn.addEventListener('click', () => {
+    pdfUpload.value = '';
+    pdfFilename.textContent = 'Nincs kiválasztott fájl';
+    pdfPreview.style.display = 'none';
+    pdfUploadStatus.style.display = 'none';
+    deletePdfFile();
+  });
+}
+
+// PDF fájl feltöltése
+async function uploadPdfFile(file) {
+  const pdfUploadProgress = document.getElementById('pdf-upload-progress');
+  const progressBar = pdfUploadProgress.querySelector('.progress-bar');
+  
+  pdfUploadProgress.style.display = 'block';
+  progressBar.style.width = '0%';
+  progressBar.textContent = '0%';
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  let session_id = localStorage.getItem(SESSION_KEY);
+  const urlSession = getSessionIdFromUrl();
+  if (urlSession) session_id = urlSession;
+  
+  if (!session_id) {
+    showPdfStatus('Nincs session_id, nem tudom feltölteni a fájlt!', 'danger');
+    return;
+  }
+  
+  try {
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        progressBar.style.width = percentComplete + '%';
+        progressBar.textContent = percentComplete + '%';
+      }
+    });
+    
+    xhr.addEventListener('load', () => {
+      pdfUploadProgress.style.display = 'none';
+      
+      if (xhr.status === 200) {
+        const response = JSON.parse(xhr.responseText);
+        showPdfStatus('PDF sikeresen feltöltve!', 'success');
+      } else {
+        const error = JSON.parse(xhr.responseText);
+        showPdfStatus(error.detail || 'Hiba a feltöltés során!', 'danger');
+      }
+    });
+    
+    xhr.addEventListener('error', () => {
+      pdfUploadProgress.style.display = 'none';
+      showPdfStatus('Hálózati hiba a feltöltés során!', 'danger');
+    });
+    
+    xhr.open('POST', `${API_BASE}/upload-pdf/${session_id}`);
+    xhr.send(formData);
+    
+  } catch (error) {
+    pdfUploadProgress.style.display = 'none';
+    showPdfStatus('Hiba a feltöltés során!', 'danger');
+  }
+}
+
+// PDF fájl törlése
+async function deletePdfFile() {
+  let session_id = localStorage.getItem(SESSION_KEY);
+  const urlSession = getSessionIdFromUrl();
+  if (urlSession) session_id = urlSession;
+  
+  if (!session_id) return;
+  
+  try {
+    const response = await fetch(`${API_BASE}/delete-pdf/${session_id}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.ok) {
+      showPdfStatus('PDF sikeresen törölve!', 'success');
+    } else {
+      showPdfStatus('Hiba a törlés során!', 'danger');
+    }
+  } catch (error) {
+    showPdfStatus('Hálózati hiba a törlés során!', 'danger');
+  }
+}
+
+// PDF státusz megjelenítése
+function showPdfStatus(message, type) {
+  const pdfUploadStatus = document.getElementById('pdf-upload-status');
+  if (!pdfUploadStatus) return;
+  
+  pdfUploadStatus.className = `alert alert-${type}`;
+  pdfUploadStatus.textContent = message;
+  pdfUploadStatus.style.display = 'block';
+  
+  // Automatikus elrejtés 5 másodperc után
+  setTimeout(() => {
+    pdfUploadStatus.style.display = 'none';
+  }, 5000);
+}
+
+// Fájl méret formázása
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// PDF betöltése meglévő adatokból
+function loadPdfFromData(pdfFilePath) {
+  if (!pdfFilePath) return;
+  
+  const pdfFilename = document.getElementById('pdf-filename');
+  const pdfPreview = document.getElementById('pdf-preview');
+  const pdfPreviewName = document.getElementById('pdf-preview-name');
+  
+  if (pdfFilename && pdfPreview && pdfPreviewName) {
+    const filename = pdfFilePath.split('/').pop();
+    pdfFilename.textContent = filename;
+    pdfPreviewName.textContent = filename;
+    pdfPreview.style.display = 'block';
   }
 } 

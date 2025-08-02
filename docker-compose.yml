@@ -18,6 +18,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://user:password@postgres:5432/mtmi
+    volumes:
+      - backend_uploads:/app/uploads
     depends_on:
       - postgres
 
@@ -31,4 +33,5 @@ services:
       - backend
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  backend_uploads: 
