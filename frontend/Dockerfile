@@ -1,11 +1,11 @@
-FROM node:18-slim
+FROM nginx:alpine
 
-WORKDIR /app
+# Copy static files to nginx
+COPY . /usr/share/nginx/html/
 
-COPY . /app/
+# Copy custom nginx config if needed
+# COPY nginx.conf /etc/nginx/nginx.conf
 
-RUN npm install
+EXPOSE 80
 
-EXPOSE 8080
-
-CMD ["node", "server.js"] 
+CMD ["nginx", "-g", "daemon off;"] 

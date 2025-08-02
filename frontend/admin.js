@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "https://mtmi.onrender.com/api";
 
 // --- Admin session kezelés ---
 function setAdminSession(loggedIn) {

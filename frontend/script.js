@@ -3,7 +3,7 @@ function getSessionIdFromUrl() {
     return m ? m[1] : null;
 }
 
-const API_BASE = "http://localhost:8000/api"; // Helyi fejlesztési környezet
+const API_BASE = "https://mtmi.onrender.com/api"; // Production API
 const FORM_ID = "mtmi-form";
 const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";
