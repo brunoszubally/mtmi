@@ -22,16 +22,24 @@ if not os.path.exists(UPLOAD_DIR):
 def init_db():
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
+            # Create table if not exists
             c.execute('''
                 CREATE TABLE IF NOT EXISTS forms (
                     id TEXT PRIMARY KEY,
                     data JSONB NOT NULL,
-                    pdf_file_path TEXT,
                     created_at TIMESTAMP NOT NULL,
                     updated_at TIMESTAMP NOT NULL,
                     submitted INTEGER DEFAULT 0
                 )
             ''')
+            
+            # Add pdf_file_path column if it doesn't exist
+            try:
+                c.execute('ALTER TABLE forms ADD COLUMN pdf_file_path TEXT')
+                print("Added pdf_file_path column")
+            except Exception as e:
+                print(f"Column might already exist: {e}")
+            
             conn.commit()
 
 init_db()
