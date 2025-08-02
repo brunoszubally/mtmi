@@ -53,8 +53,8 @@
                       <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="2" type="button"><span class="step-num">2</span> MTMI tantárgyak, elemek a pedagógiai programban</button></li>
                       <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="3" type="button"><span class="step-num">3</span> Saját MTMI programkínálat</button></li>
                       <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="4" type="button"><span class="step-num">4</span> MTMI versenyek, pályázatok, kutatások</button></li>
-                      <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="5" type="button"><span class="step-num">5</span> Lányok az MTMI-ban</button></li>
-                      <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="6" type="button"><span class="step-num">6</span> MTMI kapcsolatrendszer</button></li>
+                      <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="5" type="button"><span class="step-num">5</span> A lányok érdeklődésének felkeltése az MTMI programok iránt</button></li>
+                      <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="6" type="button"><span class="step-num">6</span> MTMI kapcsolatrendszer működtetése</button></li>
                       <li class="nav-item mb-2"><button class="nav-link stepper-link w-100 text-start" data-step="7" type="button"><span class="step-num">7</span> Pedagógusok ösztönzése</button></li>
                       <li class="nav-item"><button class="nav-link stepper-link w-100 text-start" data-step="8" type="button"><span class="step-num">8</span> Befejezés</button></li>
                     </ul>
@@ -71,7 +71,7 @@
                   </div>
                   <form id="mtmi-form">
                     <!-- 0. blokk: Alapadatok -->
-                    <div class="form-step animate__animated animate__fadeIn" id="step-0">
+                    <div class="form-step animate__animated" id="step-0" style="display:none;">
                       <h4 class="mb-3">0. Alapadatok</h4>
                       <div class="mb-3">
                         <label class="form-label">Pályázó iskola neve</label>
@@ -146,19 +146,19 @@
                         <div class="row mb-2 align-items-center">
                           <label class="col-4 col-form-label">Név</label>
                           <div class="col-8">
-                            <input type="text" class="form-control" name="mtmi_felelos_kapcsolattarto_neve" maxlength="500">
+                            <input type="text" class="form-control" name="mtmi_felelos_kapcsolattarto_neve" maxlength="500" required>
                           </div>
                         </div>
                         <div class="row mb-2 align-items-center">
                           <label class="col-4 col-form-label">Beosztás / munkakör</label>
                           <div class="col-8">
-                            <input type="text" class="form-control" name="mtmi_felelos_kapcsolattarto_beosztas" maxlength="500">
+                            <input type="text" class="form-control" name="mtmi_felelos_kapcsolattarto_beosztas" maxlength="500" required>
                           </div>
                         </div>
                         <div class="row mb-2 align-items-center">
                           <label class="col-4 col-form-label">Telefonszám 1</label>
                           <div class="col-8">
-                            <input type="tel" class="form-control" name="mtmi_felelos_kapcsolattarto_telefonszam1" maxlength="100">
+                            <input type="tel" class="form-control" name="mtmi_felelos_kapcsolattarto_telefonszam1" maxlength="100" required>
                           </div>
                         </div>
                         <div class="row mb-2 align-items-center">
@@ -170,7 +170,7 @@
                         <div class="row mb-2 align-items-center">
                           <label class="col-4 col-form-label">E-mail cím 1</label>
                           <div class="col-8">
-                            <input type="email" class="form-control" name="mtmi_felelos_kapcsolattarto_email1" maxlength="200">
+                            <input type="email" class="form-control" name="mtmi_felelos_kapcsolattarto_email1" maxlength="200" required>
                           </div>
                         </div>
                         <div class="row mb-2 align-items-center">
@@ -185,13 +185,13 @@
                         <div class="row mb-2 align-items-center">
                           <label class="col-4 col-form-label">Név</label>
                           <div class="col-8">
-                            <input type="text" class="form-control" name="intezmenyvezeto_kapcsolattarto_neve" maxlength="500">
+                            <input type="text" class="form-control" name="intezmenyvezeto_kapcsolattarto_neve" maxlength="500" required>
                           </div>
                         </div>
                         <div class="row mb-2 align-items-center">
                           <label class="col-4 col-form-label">Beosztás</label>
                           <div class="col-8">
-                            <input type="text" class="form-control" name="intezmenyvezeto_kapcsolattarto_beosztas" maxlength="500">
+                            <input type="text" class="form-control" name="intezmenyvezeto_kapcsolattarto_beosztas" maxlength="500" required>
                           </div>
                         </div>
                         <div class="row mb-2 align-items-center">
@@ -209,7 +209,7 @@
                         <div class="row mb-2 align-items-center">
                           <label class="col-4 col-form-label">E-mail cím 1</label>
                           <div class="col-8">
-                            <input type="email" class="form-control" name="intezmenyvezeto_kapcsolattarto_email1" maxlength="200">
+                            <input type="email" class="form-control" name="intezmenyvezeto_kapcsolattarto_email1" maxlength="200" required>
                           </div>
                         </div>
                         <div class="row mb-2 align-items-center">
@@ -220,6 +220,11 @@
                         </div>
                       </div>
                       <div class="mb-3">
+                        <label class="form-label">Az iskolai honlap linkje:</label>
+                        <input type="url" class="form-control" name="iskola_honlap_link" maxlength="500" placeholder="https://..." required>
+                      </div>
+                     
+                      <div class="mb-3">
                         <label class="form-label">Rendelkezik az iskola működő alapítvánnyal?</label>
                         <select class="form-select" name="iskola_mukodo_alapitvany" id="alapitvany-select" required>
                           <option value="">Válasszon...</option>
@@ -227,11 +232,6 @@
                           <option value="nem">nem</option>
                         </select>
                         
-                      </div>
-                     
-                      <div class="mb-3">
-                        <label class="form-label">Az iskolai honlap linkje:</label>
-                        <input type="url" class="form-control" name="iskola_honlap_link" maxlength="500" placeholder="https://...">
                       </div>
                     
                       <div class="d-flex justify-content-end">
@@ -248,17 +248,645 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Az iskola MTMI csapatának létszáma (Itt az MTMI tárgyakat tanító tanárok közül csak azon kollégák számát kérjük megadni, akik a saját tantárgyi területükön túl együttműködnek a többi MTMI tantárgy vagy munkaközösség tagjaival.)</label>
-                        <input type="number" class="form-control mb-2" name="mtmi_csapat_letszam" id="mtmi-csapat-letszam" min="1" max="8" placeholder="Csapat létszáma (1-8)">
-                        <div id="mtmi-csapat-tagok"></div>
-                        <textarea class="form-control mb-2" name="mtmi_csapat_kozos_tevekenyseg" placeholder="MTMI csapat közös tevékenységeinek bemutatása"></textarea>
-                        <input type="url" class="form-control mb-2" name="mtmi_csapat_link" placeholder="Link(ek) megadása az MTMI csapat bemutatásához és a tevékenységekhez">
+                        <input type="number" class="form-control mb-2" name="mtmi_csapat_letszam" id="mtmi-csapat-letszam" min="1" max="8" placeholder="Csapat létszáma (1-8)" required>
+                        <div id="mtmi-csapat-tagok">
+                          <!-- Csapattag 1 -->
+                          <div class="csapat-tag-block" id="csapat-tag-1" style="display: none;">
+                            <label class="form-label mt-2" style="font-weight: bold;">Név 1 - az iskola MTMI felelőse (megegyezhet az iskola MTMI felelős kapcsolattartójával):</label>
+                            <input type="text" class="form-control mb-2" name="mtmi_csapat_tag1_nev" placeholder="Név 1" required>
+                            <label class="form-label">Tanított szak/szakpár</label>
+                            <div class="row">
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="matematika" id="csapat1-szak-matematika" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-matematika">Matematika</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="fizika" id="csapat1-szak-fizika" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-fizika">Fizika</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="kemia" id="csapat1-szak-kemia" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-kemia">Kémia</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="biologia" id="csapat1-szak-biologia" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-biologia">Biológia</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="foldrajz" id="csapat1-szak-foldrajz" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-foldrajz">Földrajz</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="digitalis_kultura" id="csapat1-szak-digitalis_kultura" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-digitalis_kultura">Digitális kultúra</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="kornyezetismeret" id="csapat1-szak-kornyezetismeret" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-kornyezetismeret">Környezetismeret</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="termeszettudomany" id="csapat1-szak-termeszettudomany" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-termeszettudomany">Természettudomány</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="integralt_termeszettudomany" id="csapat1-szak-integralt_termeszettudomany" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="technika" id="csapat1-szak-technika" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-technika">Technika és tervezés</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag1_szak" value="egyeb" id="csapat1-szak-egyeb" data-required="true">
+                                  <label class="form-check-label" for="csapat1-szak-egyeb">Egyéb</label>
+                                </div>
+                              </div>
+                            </div>
+                            <label class="form-label mt-1">Tevékenységek</label>
+                            <textarea class="form-control mb-2" name="mtmi_csapat_tag1_tevekenyseg" placeholder="Tevékenységek" maxlength="2000" required></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                          
+                          <!-- Csapattag 2 -->
+                          <div class="csapat-tag-block" id="csapat-tag-2" style="display: none;">
+                            <label class="form-label mt-2" style="font-weight: bold;">Név 2 <span style="font-weight:normal;">(további csapattagok):</span></label>
+                            <input type="text" class="form-control mb-2" name="mtmi_csapat_tag2_nev" placeholder="Név 2">
+                            <label class="form-label">Tanított szak/szakpár</label>
+                            <div class="row">
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="matematika" id="csapat2-szak-matematika">
+                                  <label class="form-check-label" for="csapat2-szak-matematika">Matematika</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="fizika" id="csapat2-szak-fizika">
+                                  <label class="form-check-label" for="csapat2-szak-fizika">Fizika</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="kemia" id="csapat2-szak-kemia">
+                                  <label class="form-check-label" for="csapat2-szak-kemia">Kémia</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="biologia" id="csapat2-szak-biologia">
+                                  <label class="form-check-label" for="csapat2-szak-biologia">Biológia</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="foldrajz" id="csapat2-szak-foldrajz">
+                                  <label class="form-check-label" for="csapat2-szak-foldrajz">Földrajz</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="digitalis_kultura" id="csapat2-szak-digitalis_kultura">
+                                  <label class="form-check-label" for="csapat2-szak-digitalis_kultura">Digitális kultúra</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="kornyezetismeret" id="csapat2-szak-kornyezetismeret">
+                                  <label class="form-check-label" for="csapat2-szak-kornyezetismeret">Környezetismeret</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="termeszettudomany" id="csapat2-szak-termeszettudomany">
+                                  <label class="form-check-label" for="csapat2-szak-termeszettudomany">Természettudomány</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="integralt_termeszettudomany" id="csapat2-szak-integralt_termeszettudomany">
+                                  <label class="form-check-label" for="csapat2-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="technika" id="csapat2-szak-technika">
+                                  <label class="form-check-label" for="csapat2-szak-technika">Technika és tervezés</label>
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="form-check">
+                                  <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag2_szak" value="egyeb" id="csapat2-szak-egyeb">
+                                  <label class="form-check-label" for="csapat2-szak-egyeb">Egyéb</label>
+                                </div>
+                              </div>
+                            </div>
+                                                         <label class="form-label maaat-1">Tevékenységek</label>
+                             <textarea class="form-control mb-2" name="mtmi_csapat_tag2_tevekenyseg" placeholder="Tevékenységek" maxlength="2000"></textarea>
+                             <small class="form-text text-muted">max. 2000 karakter</small>
+                           </div>
+                           
+                           <!-- Csapattag 3 -->
+                           <div class="csapat-tag-block" id="csapat-tag-3" style="display: none;">
+                             <label class="form-label mt-2" style="font-weight: bold;">Név 3 <span style="font-weight:normal;">(további csapattagok):</span></label>
+                             <input type="text" class="form-control mb-2" name="mtmi_csapat_tag3_nev" placeholder="Név 3">
+                             <label class="form-label">Tanított szak/szakpár</label>
+                             <div class="row">
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="matematika" id="csapat3-szak-matematika">
+                                   <label class="form-check-label" for="csapat3-szak-matematika">Matematika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="fizika" id="csapat3-szak-fizika">
+                                   <label class="form-check-label" for="csapat3-szak-fizika">Fizika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-ch eck-input" name="mtmi_csapat_tag3_szak" value="kemia" id="csapat3-szak-kemia">
+                                   <label class="form-check-label" for="csapat3-szak-kemia">Kémia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="biologia" id="csapat3-szak-biologia">
+                                   <label class="form-check-label" for="csapat3-szak-biologia">Biológia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="foldrajz" id="csapat3-szak-foldrajz">
+                                   <label class="form-check-label" for="csapat3-szak-foldrajz">Földrajz</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="digitalis_kultura" id="csapat3-szak-digitalis_kultura">
+                                   <label class="form-check-label" for="csapat3-szak-digitalis_kultura">Digitális kultúra</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="kornyezetismeret" id="csapat3-szak-kornyezetismeret">
+                                   <label class="form-check-label" for="csapat3-szak-kornyezetismeret">Környezetismeret</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="termeszettudomany" id="csapat3-szak-termeszettudomany">
+                                   <label class="form-check-label" for="csapat3-szak-termeszettudomany">Természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="integralt_termeszettudomany" id="csapat3-szak-integralt_termeszettudomany">
+                                   <label class="form-check-label" for="csapat3-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="technika" id="csapat3-szak-technika">
+                                   <label class="form-check-label" for="csapat3-szak-technika">Technika és tervezés</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag3_szak" value="egyeb" id="csapat3-szak-egyeb">
+                                   <label class="form-check-label" for="csapat3-szak-egyeb">Egyéb</label>
+                                 </div>
+                               </div>
+                             </div>
+                                                         <label class="form-label mt-1">Tevékenységek</label>
+                            <textarea class="form-control mb-2" name="mtmi_csapat_tag3_tevekenyseg" placeholder="Tevékenységek" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                           </div>
+                           
+                           <!-- Csapattag 4 -->
+                           <div class="csapat-tag-block" id="csapat-tag-4" style="display: none;">
+                             <label class="form-label mt-2" style="font-weight: bold;">Név 4 <span style="font-weight:normal;">(további csapattagok):</span></label>
+                             <input type="text" class="form-control mb-2" name="mtmi_csapat_tag4_nev" placeholder="Név 4">
+                             <label class="form-label">Tanított szak/szakpár</label>
+                             <div class="row">
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="matematika" id="csapat4-szak-matematika">
+                                   <label class="form-check-label" for="csapat4-szak-matematika">Matematika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="fizika" id="csapat4-szak-fizika">
+                                   <label class="form-check-label" for="csapat4-szak-fizika">Fizika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="kemia" id="csapat4-szak-kemia">
+                                   <label class="form-check-label" for="csapat4-szak-kemia">Kémia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="biologia" id="csapat4-szak-biologia">
+                                   <label class="form-check-label" for="csapat4-szak-biologia">Biológia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="foldrajz" id="csapat4-szak-foldrajz">
+                                   <label class="form-check-label" for="csapat4-szak-foldrajz">Földrajz</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="digitalis_kultura" id="csapat4-szak-digitalis_kultura">
+                                   <label class="form-check-label" for="csapat4-szak-digitalis_kultura">Digitális kultúra</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="kornyezetismeret" id="csapat4-szak-kornyezetismeret">
+                                   <label class="form-check-label" for="csapat4-szak-kornyezetismeret">Környezetismeret</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="termeszettudomany" id="csapat4-szak-termeszettudomany">
+                                   <label class="form-check-label" for="csapat4-szak-termeszettudomany">Természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="integralt_termeszettudomany" id="csapat4-szak-integralt_termeszettudomany">
+                                   <label class="form-check-label" for="csapat4-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="technika" id="csapat4-szak-technika">
+                                   <label class="form-check-label" for="csapat4-szak-technika">Technika és tervezés</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag4_szak" value="egyeb" id="csapat4-szak-egyeb">
+                                   <label class="form-check-label" for="csapat4-szak-egyeb">Egyéb</label>
+                                 </div>
+                               </div>
+                             </div>
+                                                         <label class="form-label mt-1">Tevékenységek</label>
+                            <textarea class="form-control mb-2" name="mtmi_csapat_tag4_tevekenyseg" placeholder="Tevékenységek" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                           </div>
+                           
+                           <!-- Csapattag 5 -->
+                           <div class="csapat-tag-block" id="csapat-tag-5" style="display: none;">
+                             <label class="form-label mt-2" style="font-weight: bold;">Név 5 <span style="font-weight:normal;">(további csapattagok):</span></label>
+                             <input type="text" class="form-control mb-2" name="mtmi_csapat_tag5_nev" placeholder="Név 5">
+                             <label class="form-label">Tanított szak/szakpár</label>
+                             <div class="row">
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="matematika" id="csapat5-szak-matematika">
+                                   <label class="form-check-label" for="csapat5-szak-matematika">Matematika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="fizika" id="csapat5-szak-fizika">
+                                   <label class="form-check-label" for="csapat5-szak-fizika">Fizika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="kemia" id="csapat5-szak-kemia">
+                                   <label class="form-check-label" for="csapat5-szak-kemia">Kémia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="biologia" id="csapat5-szak-biologia">
+                                   <label class="form-check-label" for="csapat5-szak-biologia">Biológia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="foldrajz" id="csapat5-szak-foldrajz">
+                                   <label class="form-check-label" for="csapat5-szak-foldrajz">Földrajz</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="digitalis_kultura" id="csapat5-szak-digitalis_kultura">
+                                   <label class="form-check-label" for="csapat5-szak-digitalis_kultura">Digitális kultúra</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="kornyezetismeret" id="csapat5-szak-kornyezetismeret">
+                                   <label class="form-check-label" for="csapat5-szak-kornyezetismeret">Környezetismeret</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="termeszettudomany" id="csapat5-szak-termeszettudomany">
+                                   <label class="form-check-label" for="csapat5-szak-termeszettudomany">Természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="integralt_termeszettudomany" id="csapat5-szak-integralt_termeszettudomany">
+                                   <label class="form-check-label" for="csapat5-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="technika" id="csapat5-szak-technika">
+                                   <label class="form-check-label" for="csapat5-szak-technika">Technika és tervezés</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag5_szak" value="egyeb" id="csapat5-szak-egyeb">
+                                   <label class="form-check-label" for="csapat5-szak-egyeb">Egyéb</label>
+                                 </div>
+                               </div>
+                             </div>
+                                                         <label class="form-label mt-1">Tevékenységek</label>
+                            <textarea class="form-control mb-2" name="mtmi_csapat_tag5_tevekenyseg" placeholder="Tevékenységek" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                           </div>
+                           
+                           <!-- Csapattag 6 -->
+                           <div class="csapat-tag-block" id="csapat-tag-6" style="display: none;">
+                             <label class="form-label mt-2" style="font-weight: bold;">Név 6 <span style="font-weight:normal;">(további csapattagok):</span></label>
+                             <input type="text" class="form-control mb-2" name="mtmi_csapat_tag6_nev" placeholder="Név 6">
+                             <label class="form-label">Tanított szak/szakpár</label>
+                             <div class="row">
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="matematika" id="csapat6-szak-matematika">
+                                   <label class="form-check-label" for="csapat6-szak-matematika">Matematika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="fizika" id="csapat6-szak-fizika">
+                                   <label class="form-check-label" for="csapat6-szak-fizika">Fizika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="kemia" id="csapat6-szak-kemia">
+                                   <label class="form-check-label" for="csapat6-szak-kemia">Kémia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="biologia" id="csapat6-szak-biologia">
+                                   <label class="form-check-label" for="csapat6-szak-biologia">Biológia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="foldrajz" id="csapat6-szak-foldrajz">
+                                   <label class="form-check-label" for="csapat6-szak-foldrajz">Földrajz</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="digitalis_kultura" id="csapat6-szak-digitalis_kultura">
+                                   <label class="form-check-label" for="csapat6-szak-digitalis_kultura">Digitális kultúra</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="kornyezetismeret" id="csapat6-szak-kornyezetismeret">
+                                   <label class="form-check-label" for="csapat6-szak-kornyezetismeret">Környezetismeret</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="termeszettudomany" id="csapat6-szak-termeszettudomany">
+                                   <label class="form-check-label" for="csapat6-szak-termeszettudomany">Természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="integralt_termeszettudomany" id="csapat6-szak-integralt_termeszettudomany">
+                                   <label class="form-check-label" for="csapat6-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="technika" id="csapat6-szak-technika">
+                                   <label class="form-check-label" for="csapat6-szak-technika">Technika és tervezés</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag6_szak" value="egyeb" id="csapat6-szak-egyeb">
+                                   <label class="form-check-label" for="csapat6-szak-egyeb">Egyéb</label>
+                                 </div>
+                               </div>
+                             </div>
+                                                         <label class="form-label mt-1">Tevékenységek</label>
+                            <textarea class="form-control mb-2" name="mtmi_csapat_tag6_tevekenyseg" placeholder="Tevékenységek" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                           </div>
+                           
+                           <!-- Csapattag 7 -->
+                           <div class="csapat-tag-block" id="csapat-tag-7" style="display: none;">
+                             <label class="form-label mt-2" style="font-weight: bold;">Név 7 <span style="font-weight:normal;">(további csapattagok):</span></label>
+                             <input type="text" class="form-control mb-2" name="mtmi_csapat_tag7_nev" placeholder="Név 7">
+                             <label class="form-label">Tanított szak/szakpár</label>
+                             <div class="row">
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="matematika" id="csapat7-szak-matematika">
+                                   <label class="form-check-label" for="csapat7-szak-matematika">Matematika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="fizika" id="csapat7-szak-fizika">
+                                   <label class="form-check-label" for="csapat7-szak-fizika">Fizika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="kemia" id="csapat7-szak-kemia">
+                                   <label class="form-check-label" for="csapat7-szak-kemia">Kémia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="biologia" id="csapat7-szak-biologia">
+                                   <label class="form-check-label" for="csapat7-szak-biologia">Biológia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="foldrajz" id="csapat7-szak-foldrajz">
+                                   <label class="form-check-label" for="csapat7-szak-foldrajz">Földrajz</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="digitalis_kultura" id="csapat7-szak-digitalis_kultura">
+                                   <label class="form-check-label" for="csapat7-szak-digitalis_kultura">Digitális kultúra</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="kornyezetismeret" id="csapat7-szak-kornyezetismeret">
+                                   <label class="form-check-label" for="csapat7-szak-kornyezetismeret">Környezetismeret</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="termeszettudomany" id="csapat7-szak-termeszettudomany">
+                                   <label class="form-check-label" for="csapat7-szak-termeszettudomany">Természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="integralt_termeszettudomany" id="csapat7-szak-integralt_termeszettudomany">
+                                   <label class="form-check-label" for="csapat7-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="technika" id="csapat7-szak-technika">
+                                   <label class="form-check-label" for="csapat7-szak-technika">Technika és tervezés</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag7_szak" value="egyeb" id="csapat7-szak-egyeb">
+                                   <label class="form-check-label" for="csapat7-szak-egyeb">Egyéb</label>
+                                 </div>
+                               </div>
+                             </div>
+                                                         <label class="form-label mt-1">Tevékenységek</label>
+                            <textarea class="form-control mb-2" name="mtmi_csapat_tag7_tevekenyseg" placeholder="Tevékenységek" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                           </div>
+                           
+                           <!-- Csapattag 8 -->
+                           <div class="csapat-tag-block" id="csapat-tag-8" style="display: none;">
+                             <label class="form-label mt-2" style="font-weight: bold;">Név 8 <span style="font-weight:normal;">(további csapattagok):</span></label>
+                             <input type="text" class="form-control mb-2" name="mtmi_csapat_tag8_nev" placeholder="Név 8">
+                             <label class="form-label">Tanított szak/szakpár</label>
+                             <div class="row">
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="matematika" id="csapat8-szak-matematika">
+                                   <label class="form-check-label" for="csapat8-szak-matematika">Matematika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="fizika" id="csapat8-szak-fizika">
+                                   <label class="form-check-label" for="csapat8-szak-fizika">Fizika</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="kemia" id="csapat8-szak-kemia">
+                                   <label class="form-check-label" for="csapat8-szak-kemia">Kémia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="biologia" id="csapat8-szak-biologia">
+                                   <label class="form-check-label" for="csapat8-szak-biologia">Biológia</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="foldrajz" id="csapat8-szak-foldrajz">
+                                   <label class="form-check-label" for="csapat8-szak-foldrajz">Földrajz</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="digitalis_kultura" id="csapat8-szak-digitalis_kultura">
+                                   <label class="form-check-label" for="csapat8-szak-digitalis_kultura">Digitális kultúra</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="kornyezetismeret" id="csapat8-szak-kornyezetismeret">
+                                   <label class="form-check-label" for="csapat8-szak-kornyezetismeret">Környezetismeret</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="termeszettudomany" id="csapat8-szak-termeszettudomany">
+                                   <label class="form-check-label" for="csapat8-szak-termeszettudomany">Természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="integralt_termeszettudomany" id="csapat8-szak-integralt_termeszettudomany">
+                                   <label class="form-check-label" for="csapat8-szak-integralt_termeszettudomany">Integrált természettudomány</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="technika" id="csapat8-szak-technika">
+                                   <label class="form-check-label" for="csapat8-szak-technika">Technika és tervezés</label>
+                                 </div>
+                               </div>
+                               <div class="col-6 col-md-4">
+                                 <div class="form-check">
+                                   <input type="checkbox" class="form-check-input" name="mtmi_csapat_tag8_szak" value="egyeb" id="csapat8-szak-egyeb">
+                                   <label class="form-check-label" for="csapat8-szak-egyeb">Egyéb</label>
+                                 </div>
+                               </div>
+                             </div>
+                                                         <label class="form-label mt-1">Tevékenységek</label>
+                            <textarea class="form-control mb-2" name="mtmi_csapat_tag8_tevekenyseg" placeholder="Tevékenységek" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                           </div>
+                         </div>
+                        <label class="form-label">MTMI csapat közös tevékenységeinek bemutatása</label>
+                        <textarea class="form-control mb-2" name="mtmi_csapat_kozos_tevekenyseg" maxlength="2000"></textarea>
+                        <small class="form-text text-muted">max. 2000 karakter</small>
+                        <label class="form-label">Link(ek) megadása az MTMI csapat bemutatásához és a tevékenységekhez</label>
+                        <input type="url" class="form-control mb-2" name="mtmi_csapat_link" placeholder="https://..." maxlength="2000">
+                        <small class="form-text text-muted">max. 2000 karakter</small>
                       </div>
                       <div class="alert alert-info" style="font-size: 0.98em;">
                         1.2 Az iskola vállalja, hogy felkér egy MTMI célokért felelős szülői képviselőt, aki évente két alkalommal egyeztet az MTMI csapat által kidolgozott éves programról, elsősorban továbbtanulási és pályaválasztási céllal, valamint szülői visszajelzés céljából. 
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Az iskola rendelkezik MTMI célokért felelős szülői képviselővel</label>
-                        <select class="form-select" name="mtmi_szulo_kepviselo" id="mtmi-szulo-kepviselo-select">
+                        <select class="form-select" name="mtmi_szulo_kepviselo" id="mtmi-szulo-kepviselo-select" required>
                           <option value="">Válasszon...</option>
                           <option value="igen">igen</option>
                           <option value="nem">nem</option>
@@ -296,7 +924,8 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           <option value="nem">nem valósul meg</option>
                         </select>
                         <label class="form-label">Kérjük, fejtse ki szövegszerűen: hogyan, milyen formában és időközönként valósul meg a szülőkkel való egyeztetés az MTMI célokról! Ha a fent említetteken túl további gyakorlatok és elvek is megvalósulnak, kérjük, sorolja fel azokat is!</label>
-                        <textarea class="form-control mb-2" name="szulo_egyeztetes_szoveg"></textarea>
+                        <textarea class="form-control mb-2" name="szulo_egyeztetes_szoveg" maxlength="2000"></textarea>
+                        <small class="form-text text-muted">max. 2000 karakter</small>
                   
                       </div>
                       <div class="d-flex justify-content-between">
@@ -312,7 +941,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                       </div>
                       <div class="mb-3">
                         <label class="form-label">A pedagógiai program megfogalmaz MTMI tartalmakat?</label>
-                        <select class="form-select" name="pedprog_mtmi_tartalom" id="pedprog-mtmi-tartalom-select" required>
+                        <select class="form-select" name="pedprog_mtmi_tartalom" id="pedprog-mtmi-tartalom-select">
                           <option value="">Válasszon...</option>
                           <option value="igen">Igen</option>
                           <option value="reszben">Részben</option>
@@ -323,15 +952,16 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                         <label class="form-label">Kérjük, írja le szövegszerűen a pedagógiai program ide vonatkozó lényeges elemeit!</label>
                         <textarea class="form-control mb-2" name="pedprog_mtmi_leiras" maxlength="2000"></textarea>
                         <small class="form-text text-muted">max. 2000 karakter</small>
-                        <label class="form-label">Link(ek) megadása az iskola pedagógiai programjához:</label>
-                        <input type="url" class="form-control mb-2" name="pedprog_mtmi_link" placeholder="https://..." maxlength="500">
+                        <label class="form-label">Az iskola pedagógia programja elérhető az iskola honlapján. Link(ek) megadása az iskola pedagógiai programjához:</label>
+                                                  <input type="url" class="form-control mb-2" name="pedprog_mtmi_link" placeholder="https://..." maxlength="2000">
+                          <small class="form-text text-muted">max. 2000 karakter</small>
                       </div>
                       <div class="alert alert-info" style="font-size: 0.98em;">
                         2.2 Az iskola megfogalmaz egy a pedagógiai programjához illeszkedő MTMI koncepciót, amit az iskola honlapján elérhetővé tesz.
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Az iskolának van MTMI koncepciója?</label>
-                        <select class="form-select" name="mtmi_koncepcio" id="mtmi-koncepcio-select" required>
+                        <select class="form-select" name="mtmi_koncepcio" id="mtmi-koncepcio-select">
                           <option value="">Válasszon...</option>
                           <option value="igen">Igen</option>
                           <option value="reszben">Részben</option>
@@ -344,14 +974,15 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                         <small class="form-text text-muted">max. 2000 karakter</small>
                         <div class="mb-3">
                           <label class="form-label">Az iskola MTMI koncepciója elérhető az iskola honlapján. Link(ek) megadása az iskola MTMI koncepciójához:</label>
-                          <input type="url" class="form-control" name="mtmi_koncepcio_link" maxlength="500" placeholder="https://...">
+                          <input type="url" class="form-control" name="mtmi_koncepcio_link" maxlength="2000" placeholder="https://...">
+                          <small class="form-text text-muted">max. 2000 karakter</small>
                         </div>
+                      </div>
                       <div class="d-flex justify-content-between">
                         <button type="button" class="btn btn-outline-secondary btn-lg prev-step">Vissza</button>
                         <button type="button" class="btn btn-primary btn-lg next-step">Következő</button>
                       </div>
                     </div>
-                  </div>
                     <!-- 3. blokk: Saját MTMI programkínálat -->
                     <div class="form-step animate__animated" id="step-3" style="display:none;">
                       <h4 class="mb-3">3. Saját MTMI programkínálat</h4>
@@ -363,7 +994,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                               3.1.1 Az iskola MTMI csapata bemutatja az iskola MTMI-fókuszú szakkör- és versenyfelkészítés kínálatát. Az iskola MTMI szakkörkínálata elérhető az iskola honlapján.
                             </div>
                             <label class="form-label">Az iskola MTMI-fókuszú szakköreinek száma:</label>
-                            <input type="number" class="form-control mb-2" name="mtmi_szakkorok_szama" maxlength="100">
+                            <input type="number" class="form-control mb-2" name="mtmi_szakkorok_szama" maxlength="100" required>
                             <label class="form-label">Kérjük, jelölje meg, mely tantárgyakat érintő MTMI-fókuszú szakköri kínálata van az iskolának (beleértve a versenyfelkészítő foglalkozásokat is):</label>
                             <div class="row mb-2">
                             <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="matematika" id="szakkor-matematika"><label class="form-check-label" for="szakkor-matematika">Matematika</label></div></div>
@@ -376,24 +1007,23 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                             <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="termeszettudomany" id="szakkor-termeszettudomany"><label class="form-check-label" for="szakkor-termeszettudomany">Természettudomány</label></div></div>
                             <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="integralt_termeszettudomany" id="szakkor-integralt_termeszettudomany"><label class="form-check-label" for="szakkor-integralt_termeszettudomany">Integrált természettudomány</label></div></div>
                             <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="technika" id="szakkor-technika"><label class="form-check-label" for="szakkor-technika">Technika és tervezés</label></div></div>
-                            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="egyeb" id="szakkor-egyeb"><label class="form-check-label" for="szakkor-egyeb">Egyéb</label></div></div>
-                            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="egyeb2" id="szakkor-egyeb2"><label class="form-check-label" for="szakkor-egyeb2">Egyéb 2</label></div></div>
-                            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="egyeb3" id="szakkor-egyeb3"><label class="form-check-label" for="szakkor-egyeb3">Egyéb 3</label></div></div>
+
                           </div>
                           <div class="mb-2">
                             <label class="form-label">Kérjük, adja meg a szakkörökön résztvevő diákok számát:</label>
-                            <input type="number" class="form-control mb-2" name="mtmi_szakkor_diakok_szama" min="0" max="10000">
+                            <input type="number" class="form-control mb-2" name="mtmi_szakkor_diakok_szama" min="0" max="10000" required>
                           </div>
                           <div class="mb-2">
                             <label class="form-label">Kérjük, adja meg a szakkört tartó tanárok számát:</label>
-                            <input type="number" class="form-control mb-2" name="mtmi_szakkor_tanarok_szama" min="0" max="1000">
+                            <input type="number" class="form-control mb-2" name="mtmi_szakkor_tanarok_szama" min="0" max="1000" required>
                           </div>
                           <label class="form-label">Kérjük, sorolja fel / röviden mutassa be az iskolai szakköröket!</label>
                           <textarea class="form-control mb-2" name="mtmi_szakkorok_bemutatasa" maxlength="2000"></textarea>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                           <div style="margin-top: 0.5rem;"></div>
                           <label class="form-label">Link(ek) megadása az iskola szakkörkínálatához:</label>
-                          <input type="url" class="form-control mb-2" name="mtmi_szakkorok_link" maxlength="500">
+                          <input type="url" class="form-control mb-2" name="mtmi_szakkorok_link" maxlength="2000">
+                          <small class="form-text text-muted">max. 2000 karakter</small>
                         </div>
                         <!-- 3.1.2 -->
                         <div class="mb-3">
@@ -406,22 +1036,27 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI nyílt napok:</label>
                             <textarea class="form-control mb-2" name="mtmi_nyilt_napok" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI projektnapok:</label>
                             <textarea class="form-control mb-2" name="mtmi_projektnapok" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI szakmai gyakorlatok:</label>
                             <textarea class="form-control mb-2" name="mtmi_szakmai_gyakorlatok" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Tanórán kívüli MTMI rendezvények az eddig felsoroltakon kívül:</label>
                             <textarea class="form-control mb-2" name="mtmi_tanoran_kivuli_rendezvenyek" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Link(ek) megadása az iskolai MTMI nyílt nap(ok), az iskolai MTMI projektnap(ok), az iskolai MTMI szakmai gyakorlatok, a tanórán kívüli egyéb MTMI rendezvények bemutatásához/eléréséhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_nyilt_napok_link" maxlength="500" placeholder="saját szöveg beírása">
+                            <input type="url" class="form-control mb-2" name="mtmi_nyilt_napok_link" maxlength="2000" placeholder="saját szöveg beírása">
+                          <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Az iskola MTMI-fókuszú legalább egy évfolyamot érintő egyéb tevékenységeinek száma (a fenti tevékenységeket összesítve):</label>
@@ -436,141 +1071,147 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Legalább egy interdiszciplináris MTMI projekt megvalósul az iskolában.</label>
-                            <select class="form-select mb-2" name="mtmi_interdiszciplinaris_projekt" id="mtmi-interdiszciplinaris-projekt-select">
+                            <select class="form-select mb-2" name="mtmi_interdiszciplinaris_projekt" id="mtmi-interdiszciplinaris-projekt-select" onchange="document.getElementById('mtmi-interdiszciplinaris-projekt-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                               <option value="">Válasszon...</option>
                               <option value="igen">Igen</option>
                               <option value="nem">Nem</option>
                             </select>
                           </div>
-                          <div class="mb-2">
-                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Kérjük, mutassa be és írja le <span style='text-decoration: underline;'>űen</span> a projektet vagy projekteket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_interdiszciplinaris_projekt_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <div class="form-text text-muted mb-2">max. 2000 karakter</div>
-                          </div>
-                          <div class="mb-2">
-                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Link(ek) megadása az interdiszciplináris MTMI projekt(ek) bemutatásához/eléréséhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_interdiszciplinaris_projekt_link" maxlength="500" placeholder="saját szöveg beírása">
-                          </div>szövegszer
-                        </div>
-                      </div>
-                      <!-- 3.2 Pályaorientációs program, szakmai tanácsadás az MTMI területen -->
-                      <div>
-                        <h5 class="mb-2">3.2. Pályaorientációs program, szakmai tanácsadás az MTMI területen</h5>
-                        <!-- 3.2.1 -->
-                        <div class="mb-3">
-                          <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                            3.2.1 Az iskola a pályaválasztásért felelős személyen keresztül tájékoztatást nyújt tanulóinak az MTMI tanulmányokról és karrierprofilokról. A pályaválasztért felelős személy MTMI tevékenysége elérhető az iskola honlapján.
-                          </div>
-                          <label class="form-label">Megvalósul az iskolában?</label>
-                          <select class="form-select mb-2" name="mtmi_palyaorientacio_megvalosul" id="mtmi-palyaorientacio-megvalosul-select" onchange="document.getElementById('mtmi-palyaorientacio-megvalosul-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-palyaorientacio-megvalosul-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a megvalósulást! (Milyen formában és időközönként, mely évfolyamokat érintően történik stb.)</label>
-                            <textarea class="form-control mb-2" name="mtmi_palyaorientacio_megvalosulas_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <div class="form-text text-muted mb-2">max. 2000 karakter</div>
-                            <label class="form-label">Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_palyaorientacio_megvalosulas_link" maxlength="500">
+                          <div id="mtmi-interdiszciplinaris-projekt-block">
+                            <div class="mb-2">
+                              <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Kérjük, mutassa be és írja le szövegszerűen a projektet vagy projekteket!</label>
+                              <textarea class="form-control mb-2" name="mtmi_interdiszciplinaris_projekt_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                              <div class="form-text text-muted mb-2">max. 2000 karakter</div>
+                            </div>
+                            <div class="mb-2">
+                              <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Link(ek) megadása az interdiszciplináris MTMI projekt(ek) bemutatásához/eléréséhez:</label>
+                              <input type="url" class="form-control mb-2" name="mtmi_interdiszciplinaris_projekt_link" maxlength="2000" placeholder="saját szöveg beírása">
+                              <small class="form-text text-muted">max. 2000 karakter</small>
+                            </div>
                           </div>
                         </div>
-                        <!-- 3.2.2 -->
-                        <div class="mb-3">
-                          <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                            3.2.2 Az iskola diákjainak lehetősége van kapcsolattartásra az iskola pályaválasztási felelősével az MTMI lehetőségek terén.
-                          </div>
-                          <label class="form-label">Megvalósul az iskolában?</label>
-                          <select class="form-select mb-2" name="mtmi_diakok_kapcsolattartas" id="mtmi-diakok-kapcsolattartas-select" onchange="document.getElementById('mtmi-diakok-kapcsolattartas-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-diakok-kapcsolattartas-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a megvalósulást! (Milyen formában, hol érhető el, mely évfolyamokat érinti stb.)</label>
-                            <textarea class="form-control mb-2" name="mtmi_diakok_kapcsolattartas_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <div class="form-text text-muted mb-2">max. 2000 karakter</div>
-                            <label class="form-label">Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_diakok_kapcsolattartas_link" maxlength="500">
-                          </div>
-                        </div>
-                        <!-- 3.2.3 -->
-                        <div class="mb-3">
-                          <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                            3.2.3 Az iskola alumni szervezetével segíti az MTMI-témájú orientációs programokat, melyekről a honlapon is beszámol.
-                          </div>
-                          <label class="form-label">Megvalósul az iskolában?</label>
-                          <select class="form-select mb-2" name="mtmi_alumni_programok" id="mtmi-alumni-programok-select" onchange="document.getElementById('mtmi-alumni-programok-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-alumni-programok-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a megvalósulást! (Milyen formában, hogyan stb.)</label>
-                            <textarea class="form-control mb-2" name="mtmi_alumni_programok_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <div class="form-text text-muted mb-2">max. 2000 karakter</div>
-                            <label class="form-label">Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_alumni_programok_link" maxlength="500">
-                          </div>
-                        </div>
-                        <!-- 3.2.4 -->
-                        <div class="mb-3">
-                          <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                            3.2.4 Az iskola használ valamilyen online pályaorientációs programo(ka)t vagy platformot, és ez látható honlapján.
-                          </div>
-                          <label class="form-label">Megvalósul az iskolában?</label>
-                          <select class="form-select mb-2" name="mtmi_online_palyaorientacio" id="mtmi-online-palyaorientacio-select" onchange="document.getElementById('mtmi-online-palyaorientacio-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-online-palyaorientacio-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját (mit és hogyan használ)!</label>
-                            <textarea class="form-control mb-2" name="mtmi_online_palyaorientacio_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <div class="form-text text-muted mb-2">max. 2000 karakter</div>
-                            <label class="form-label">Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_online_palyaorientacio_link" maxlength="500">
-                      </div>
-                    </div>
-                        <!-- 3.2.5 -->
-                      <div class="mb-3">
-                          <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                            3.2.5 Az iskola együttműködik a szervezett pályaválasztási folyamatban érdekelt felekkel, és velük együtt pályaorientációs napokat szervez (vállalatok, kamarák, oktatási intézmények, ifjúsági karrier-támogatás, egyetemek és felsőoktatási intézmények stb.) Az iskola ezen tevékenységéről beszámol honlapján.
-                          </div>
-                          <label class="form-label">Megvalósul az iskolában?</label>
-                          <select class="form-select mb-2" name="mtmi_egyuttmukodes_palyaorientacio" id="mtmi-egyuttmukodes-palyaorientacio-select" onchange="document.getElementById('mtmi-egyuttmukodes-palyaorientacio-block').style.display = (this.value === 'igen' || this.value === 'reszben') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="reszben">Részben</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-egyuttmukodes-palyaorientacio-block" style="display:none;">
-                            <label class="form-label">Az iskola támogatja az MTMI-hez kapcsolódó egyetemi vagy nyári szakmai gyakorlatokon és/vagy táborokon való részvételt.</label>
-                            <select class="form-select mb-2" name="mtmi_egyetemi_gyakorlatok" id="mtmi-egyetemi-gyakorlatok-select">
+                        
+                        <!-- 3.2 blokk: Pályaorientációs program, szakmai tanácsadás az MTMI területen -->
+                        <h4 class="mb-3">3.2. Pályaorientációs program, szakmai tanácsadás az MTMI területen</h4>
+                        <div>
+                          <h5 class="mb-2">3.2. Pályaorientációs program, szakmai tanácsadás az MTMI területen</h5>
+                          <!-- 3.2.1 -->
+                          <div class="mb-3">
+                            <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                              3.2.1. Az iskola a pályaválasztásért felelős személy, az osztályfőnökök, a szaktanárok bevonásával tájékoztatást nyújt tanulóinak az MTMI tanulmányokról és karrierprofilokról. A pályaválasztért felelős személy MTMI tevékenysége elérhető az iskola honlapján.
+                            </div>
+                            <label class="form-label">A tájékoztatás az MTMI tanulmányokról és karrierlehetőségekről megvalósul az iskolában.</label>
+                            <select class="form-select mb-2" name="mtmi_palyaorientacio_megvalosul" id="mtmi-palyaorientacio-megvalosul-select" onchange="document.getElementById('mtmi-palyaorientacio-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                               <option value="">Válasszon...</option>
                               <option value="igen">Igen</option>
                               <option value="nem">Nem</option>
                             </select>
-                            <label class="form-label">Az iskola a tanév során céglátogatásokat, MTMI-fókuszú karrierbemutatókon való részvételt szervez, illetve támogat.</label>
-                            <select class="form-select mb-2" name="mtmi_ceglatogatasok" id="mtmi-ceglatogatasok-select">
+                            <div id="mtmi-palyaorientacio-megvalosul-block">
+                              <label class="form-label">Kérjük, mutassa be a megvalósulást! (Milyen formában és időközönként, mely évfolyamokat érintően történik stb.)</label>
+                              <textarea class="form-control mb-2" name="mtmi_palyaorientacio_megvalosulas_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                              <div class="form-text text-muted mb-2">max. 2000 karakter</div>
+                              <label class="form-label">Link(ek) megadása:</label>
+                              <input type="url" class="form-control mb-2" name="mtmi_palyaorientacio_megvalosulas_link" maxlength="2000">
+                              <small class="form-text text-muted">max. 2000 karakter</small>
+                            </div>
+                          </div>
+                          <!-- 3.2.2 -->
+                          <div class="mb-3">
+                            <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                              3.2.2 Az iskola diákjainak lehetősége van kapcsolattartásra az iskola pályaválasztásért felelős személyével az MTMI lehetőségek terén.
+                            </div>
+                            <label class="form-label">Megvalósul az iskolában?</label>
+                            <select class="form-select mb-2" name="mtmi_diakok_kapcsolattartas" id="mtmi-diakok-kapcsolattartas-select" onchange="document.getElementById('mtmi-diakok-kapcsolattartas-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                               <option value="">Válasszon...</option>
                               <option value="igen">Igen</option>
                               <option value="nem">Nem</option>
                             </select>
-                            <label class="form-label">Az év folyamán megfelelő évfolyamokban a pályaválasztásban érdekelt felek (vállalatok, kamarák, oktatási intézmények, alumnik, szülők stb.) bemutatják az MTMI szakmák lehetőségeit.</label>
-                            <select class="form-select mb-2" name="mtmi_szakmak_bemutatasa" id="mtmi-szakmak-bemutatasa-select">
+                            <div id="mtmi-diakok-kapcsolattartas-block">
+                              <label class="form-label">Kérjük, mutassa be a megvalósulást! (Milyen formában, hol érhető el, mely évfolyamokat érinti stb.)</label>
+                              <textarea class="form-control mb-2" name="mtmi_diakok_kapcsolattartas_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                              <div class="form-text text-muted mb-2">max. 2000 karakter</div>
+                            </div>
+                          </div>
+                          <!-- 3.2.3 -->
+                          <div class="mb-3">
+                            <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                              3.2.3 Az iskola alumni szervezetével segíti az MTMI-témájú orientációs programokat, melyekről a honlapon is beszámol.
+                            </div>
+                            <label class="form-label">MTMI-témájú alumni programok megvalósulnak az iskolában.</label>
+                            <select class="form-select mb-2" name="mtmi_alumni_programok" id="mtmi-alumni-programok-select" onchange="document.getElementById('mtmi-alumni-programok-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                               <option value="">Válasszon...</option>
                               <option value="igen">Igen</option>
                               <option value="nem">Nem</option>
                             </select>
-                            <label class="form-label">Kérjük, fejtse ki, hogy a fenti pontok hogyan, milyen formában valósulnak meg az önök intézményében!</label>
-                            <textarea class="form-control mb-2" name="mtmi_egyuttmukodes_palyaorientacio_leiras" maxlength="2000"></textarea>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Kérjük, sorolja fel (és szükség esetén fejtse ki) az iskola egyéb, fentebb nem említett pályaorientációs programjait!</label>
-                            <textarea class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok" maxlength="2000"></textarea>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a pályaorientációs programokhoz:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok_link" maxlength="500">
+                            <div id="mtmi-alumni-programok-block">
+                              <label class="form-label">Kérjük, mutassa be a megvalósulást! (Milyen formában, hogyan stb.)</label>
+                              <textarea class="form-control mb-2" name="mtmi_alumni_programok_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                              <div class="form-text text-muted mb-2">max. 2000 karakter</div>
+                              <label class="form-label">Link(ek) megadása:</label>
+                              <input type="url" class="form-control mb-2" name="mtmi_alumni_programok_link" maxlength="2000">
+                              <small class="form-text text-muted">max. 2000 karakter</small>
+                            </div>
+                          </div>
+                          <!-- 3.2.4 -->
+                          <div class="mb-3">
+                            <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                              3.2.4 Az iskola használ valamilyen online pályaorientációs programo(ka)t vagy platformot, és ez látható honlapján.
+                            </div>
+                            <label class="form-label">Online pályorientációs programok használata megvalósul az iskolában.</label>
+                            <select class="form-select mb-2" name="mtmi_online_palyaorientacio" id="mtmi-online-palyaorientacio-select" onchange="document.getElementById('mtmi-online-palyaorientacio-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                              <option value="">Válasszon...</option>
+                              <option value="igen">Igen</option>
+                              <option value="nem">Nem</option>
+                            </select>
+                            <div id="mtmi-online-palyaorientacio-block">
+                              <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját (mit és hogyan használ)!</label>
+                              <textarea class="form-control mb-2" name="mtmi_online_palyaorientacio_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                              <div class="form-text text-muted mb-2">max. 2000 karakter</div>
+                              <label class="form-label">Link(ek) megadása:</label>
+                              <input type="url" class="form-control mb-2" name="mtmi_online_palyaorientacio_link" maxlength="2000">
+                              <small class="form-text text-muted">max. 2000 karakter</small>
+                            </div>
+                          </div>
+                          <!-- 3.2.5 -->
+                          <div class="mb-3">
+                            <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                              3.2.5 Az iskola együttműködik a szervezett pályaválasztási folyamatban érdekelt felekkel, és velük együtt pályaorientációs napokat szervez (vállalatok, kamarák, oktatási intézmények, ifjúsági karrier-támogatás, egyetemek és felsőoktatási intézmények stb.) Az iskola ezen tevékenységéről beszámol honlapján.
+                            </div>
+                            <label class="form-label">A szervezett pályaválasztási folyamatban érdekelt felekkel való együttműködés pályaorientációs napok szervezése céljából megvalósul az iskolában.</label>
+                            <select class="form-select mb-2" name="mtmi_egyuttmukodes_palyaorientacio" id="mtmi-egyuttmukodes-palyaorientacio-select">
+                              <option value="">Válasszon...</option>
+                              <option value="igen">Igen</option>
+                              <option value="nem">Nem</option>
+                            </select>
+                            <div id="mtmi-egyuttmukodes-palyaorientacio-block">
+                              <label class="form-label">Az iskola támogatja az MTMI-hez kapcsolódó egyetemi vagy nyári szakmai gyakorlatokon és/vagy táborokon való részvételt.</label>
+                              <select class="form-select mb-2" name="mtmi_egyetemi_gyakorlatok" id="mtmi-egyetemi-gyakorlatok-select">
+                                <option value="">Válasszon...</option>
+                                <option value="igen">Igen</option>
+                                <option value="nem">Nem</option>
+                              </select>
+                              <label class="form-label">Az iskola a tanév során céglátogatásokat, MTMI-fókuszú karrierbemutatókon való részvételt szervez, illetve támogat.</label>
+                              <select class="form-select mb-2" name="mtmi_ceglatogatasok" id="mtmi-ceglatogatasok-select">
+                                <option value="">Válasszon...</option>
+                                <option value="igen">Igen</option>
+                                <option value="nem">Nem</option>
+                              </select>
+                              <label class="form-label">Az év folyamán megfelelő évfolyamokban a pályaválasztásban érdekelt felek (vállalatok, kamarák, oktatási intézmények, alumnik, szülők stb.) bemutatják az MTMI szakmák lehetőségeit.</label>
+                              <select class="form-select mb-2" name="mtmi_szakmak_bemutatasa" id="mtmi-szakmak-bemutatasa-select">
+                                <option value="">Válasszon...</option>
+                                <option value="igen">Igen</option>
+                                <option value="nem">Nem</option>
+                              </select>
+                              <label class="form-label">Kérjük, fejtse ki, hogy a fenti pontok hogyan, milyen formában valósulnak meg az önök intézményében!</label>
+                              <textarea class="form-control mb-2" name="mtmi_egyuttmukodes_palyaorientacio_leiras" maxlength="2000"></textarea>
+                              <small class="form-text text-muted">max. 2000 karakter</small>
+                              <label class="form-label">Kérjük, sorolja fel (és szükség esetén fejtse ki) az iskola egyéb, fentebb nem említett pályaorientációs programjait!</label>
+                              <textarea class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok" maxlength="2000"></textarea>
+                              <small class="form-text text-muted">max. 2000 karakter</small>
+                              <label class="form-label">Link(ek) megadása a pályaorientációs programokhoz:</label>
+                              <input type="url" class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok_link" maxlength="2000">
+                              <small class="form-text text-muted">max. 2000 karakter</small>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -596,7 +1237,8 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                             <textarea class="form-control mb-2" name="mtmi_versenyek_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása a versenyekhez, pályázatokhoz, kutatásokhoz:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_versenyek_link" maxlength="500">
+                            <input type="url" class="form-control mb-2" name="mtmi_versenyek_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                         <div class="mb-3">
@@ -611,7 +1253,8 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                             <textarea class="form-control mb-2" name="mtmi_versenyeken_reszvetel_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása a részvételhez, eredményekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_versenyeken_reszvetel_link" maxlength="500">
+                            <input type="url" class="form-control mb-2" name="mtmi_versenyeken_reszvetel_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                         <div class="mb-3">
@@ -626,7 +1269,8 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                             <textarea class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása a részvételhez, eredményekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_link" maxlength="500">
+                            <input type="url" class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                       </div>
@@ -644,7 +1288,8 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                             <textarea class="form-control mb-2" name="mtmi_eredmenyek_eleresek_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása az elismerésekhez, díjakhoz, oklevelekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_eredmenyek_eleresek_link" maxlength="500">
+                            <input type="url" class="form-control mb-2" name="mtmi_eredmenyek_eleresek_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                       </div>
@@ -655,37 +1300,63 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                     </div>
                     <!-- 5. blokk: Lányok az MTMI-ban -->
                     <div class="form-step animate__animated" id="step-5" style="display:none;">
-                      <h4 class="mb-3">5. Lányok az MTMI-ban</h4>
+                      <h4 class="mb-3">5. A lányok érdeklődésének felkeltése az MTMI programok iránt</h4>
+                      <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                        5.1 Az iskola meghívja a MTMI szakmák női példaképeit, különösen a MTMI nagyköveteket vagy anyákat, hogy beszéljenek a szakmájukról és a pályaválasztásról, és erről beszámol a honlapján.
+                      </div>
                       <div>
-                        <h5 class="mb-2">5.1. Lányok részvétele az MTMI programokban</h5>
                         <div class="mb-3">
-                          <label class="form-label fw-bold">5.1.1 Az iskola kiemelt figyelmet fordít a lányok MTMI programokban való részvételére?</label>
-                          <select class="form-select mb-2" name="lanyok_mtmi_kiemelt_figyelem" id="lanyok-mtmi-kiemelt-figyelem-select" onchange="document.getElementById('lanyok-mtmi-kiemelt-figyelem-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                          <label class="form-label fw-bold">Női MTMI példaképek meghívása megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="lanyok_mtmi_kiemelt_figyelem" id="lanyok-mtmi-kiemelt-figyelem-select" onchange="document.getElementById('lanyok-mtmi-kiemelt-figyelem-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="lanyok-mtmi-kiemelt-figyelem-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be, milyen formában, milyen programokkal, milyen arányban vesznek részt lányok az MTMI programokban!</label>
+                          <div id="lanyok-mtmi-kiemelt-figyelem-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
                             <textarea class="form-control mb-2" name="lanyok_mtmi_reszvetel_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a lányok MTMI programokban való részvételéhez:</label>
-                            <input type="url" class="form-control mb-2" name="lanyok_mtmi_reszvetel_link" maxlength="500">
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="lanyok_mtmi_reszvetel_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
+                                                  </div>
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          5.2 Az iskola részt vesz kifejezetten lányok számára szervezett programokon, amelynek középpontjában a MTMI területek állnak, és erről beszámol honlapján.
                         </div>
-                      <div class="mb-3">
-                          <label class="form-label fw-bold">5.1.2 Az iskola szervez kifejezetten lányoknak szóló MTMI programokat, eseményeket?</label>
-                          <select class="form-select mb-2" name="lanyoknak_szolo_mtmi_programok" id="lanyoknak-szolo-mtmi-programok-select" onchange="document.getElementById('lanyoknak-szolo-mtmi-programok-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Lányok számára szervezett MTMI programokon való részvétel megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="lanyoknak_szolo_mtmi_programok" id="lanyoknak-szolo-mtmi-programok-select" onchange="document.getElementById('lanyoknak-szolo-mtmi-programok-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="lanyoknak-szolo-mtmi-programok-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a lányoknak szóló MTMI programokat, eseményeket!</label>
+                          <div id="lanyoknak-szolo-mtmi-programok-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
                             <textarea class="form-control mb-2" name="lanyoknak_szolo_mtmi_programok_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a lányoknak szóló MTMI programokhoz, eseményekhez:</label>
-                            <input type="url" class="form-control mb-2" name="lanyoknak_szolo_mtmi_programok_link" maxlength="500">
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="lanyoknak_szolo_mtmi_programok_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          5.3 Az iskola évente szervez tevékenységet a lányoknak az MTMI területek népszerűsítésére vagy támogatására, és erről beszámol honlapján.
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Lányoknak szóló MTMI-t népszerűsítő programok szervezése megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="lanyok_mtmi_nepszerusito" id="lanyok-mtmi-nepszerusito-select" onchange="document.getElementById('lanyok-mtmi-nepszerusito-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="lanyok-mtmi-nepszerusito-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="lanyok_mtmi_nepszerusito_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="lanyok_mtmi_nepszerusito_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                       </div>
@@ -696,69 +1367,135 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                     </div>
                     <!-- 6. blokk: MTMI kapcsolatrendszer -->
                     <div class="form-step animate__animated" id="step-6" style="display:none;">
-                      <h4 class="mb-3">6. MTMI kapcsolatrendszer</h4>
+                      <h4 class="mb-3">6. MTMI kapcsolatrendszer működtetése</h4>
                       <div>
-                        <h5 class="mb-2">6.1. Kapcsolatok, együttműködések, partnerek</h5>
+                        <h5 class="mb-2">6.1. Kapcsolat fenntartása MTMI-fókuszú üzleti partnerekkel</h5>
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          6.1.1 Az iskola kapcsolatot tart fenn legalább egy vállalattal, vagy az illetékes ipari és kereskedelmi kamarával vagy egy munkaadói és kereskedelmi szövetséggel, melynek célja, hogy a diákok megismerhessenek MTMI területhez kapcsolódó cégeket céglátogatások keretein belül (iskolai csoportok látogatnak cégeket). Az iskola az erről szóló beszámolókat elérhetővé teszi honlapján.
+                        </div>
                         <div class="mb-3">
-                          <label class="form-label fw-bold">6.1.1 Az iskola együttműködik MTMI területen cégekkel, egyetemekkel, kutatóintézetekkel, múzeumokkal, egyéb partnerekkel?</label>
-                          <select class="form-select mb-2" name="mtmi_kapcsolatok_egyuttmukodes" id="mtmi-kapcsolatok-egyuttmukodes-select" onchange="document.getElementById('mtmi-kapcsolatok-egyuttmukodes-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                          <label class="form-label fw-bold">Diákok számára szervezett céglátogatások megvalósulnak az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_kapcsolatok_egyuttmukodes" id="mtmi-kapcsolatok-egyuttmukodes-select" onchange="document.getElementById('mtmi-kapcsolatok-egyuttmukodes-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="mtmi-kapcsolatok-egyuttmukodes-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a kapcsolatrendszert, együttműködéseket, partnereket, közös programokat!</label>
+                          <div id="mtmi-kapcsolatok-egyuttmukodes-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
                             <textarea class="form-control mb-2" name="mtmi_kapcsolatok_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a kapcsolatrendszerhez, együttműködésekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_kapcsolatok_link" maxlength="500">
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_kapcsolatok_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
+
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          6.1.2 Az iskola kapcsolatot tart fenn legalább egy vállalattal, az illetékes ipari és
+                          kereskedelmi kamarával vagy egy munkaadói és kereskedelmi szövetséggel, melynek célja,
+                          hogy az érdeklődő cégek MTMI témájú előadásokat/workshopokat tartsanak az
+                          iskolában (cégek képviselői látogatnak el iskolákba). Az iskola az erről szóló beszámolókat
+                          elérhetővé teszi honlapján.
+                        </div>
+                        
                         <div class="mb-3">
-                          <label class="form-label fw-bold">6.1.2 Az iskola szervez közös programokat, projekteket partnerekkel?</label>
-                          <select class="form-select mb-2" name="mtmi_kozos_programok" id="mtmi-kozos-programok-select" onchange="document.getElementById('mtmi-kozos-programok-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                          <label class="form-label fw-bold">MTMI témában szervezett céges iskolai előadások megvalósulnak az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_ceges_eloadasok" id="mtmi-ceges-eloadasok-select" onchange="document.getElementById('mtmi-ceges-eloadasok-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="mtmi-kozos-programok-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a közös programokat, projekteket, eredményeket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_kozos_programok_bemutatasa" maxlength="2000"></textarea>
+                          <div id="mtmi-ceges-eloadasok-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_ceges_eloadasok_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a közös programokhoz, projektekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_kozos_programok_link" maxlength="500">
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_ceges_eloadasok_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
+                        
+                        <h5 class="mb-2">6.2. Az MTMI szakmai partnerek bevonása az MTMI programok megvalósításába</h5>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          6.2.1 Az iskola a technikai és természettudományos múzeumok látogatását beépíti az éves
+                          MTMI tervezetbe, és ez honlapján is elérhető.
+                        </div>
+                        
                         <div class="mb-3">
-                          <label class="form-label fw-bold">6.1.3 Az iskola tagja valamilyen MTMI szakmai hálózatnak, szövetségnek?</label>
-                          <select class="form-select mb-2" name="mtmi_szakmai_halozat" id="mtmi-szakmai-halozat-select" onchange="document.getElementById('mtmi-szakmai-halozat-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                          <label class="form-label fw-bold">Múzeumlátogatások megvalósulnak az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_muzeumlatogatasok" id="mtmi-muzeumlatogatasok-select" onchange="document.getElementById('mtmi-muzeumlatogatasok-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="mtmi-szakmai-halozat-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a szakmai hálózatokat, szövetségeket, tagságokat!</label>
-                            <textarea class="form-control mb-2" name="mtmi_szakmai_halozat_bemutatasa" maxlength="2000"></textarea>
+                          <div id="mtmi-muzeumlatogatasok-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_muzeumlatogatasok_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a szakmai hálózatokhoz, szövetségekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_szakmai_halozat_link" maxlength="500">
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_muzeumlatogatasok_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
-                      <div class="mb-3">
-                          <label class="form-label fw-bold">6.1.4 Az iskola részt vesz-e nemzetközi MTMI együttműködésekben, projektekben?</label>
-                          <select class="form-select mb-2" name="mtmi_nemzetkozi_egyuttmukodes" id="mtmi-nemzetkozi-egyuttmukodes-select" onchange="document.getElementById('mtmi-nemzetkozi-egyuttmukodes-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          6.2.2 Az iskola részt vesz „Kutatók éjszakája" jellegű, regionális vagy országos MTMI-
+                          fókuszú rendezvényeken, ami honlapján is megtalálható.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">MTMI-fókuszú rendezvényeken való részvétel megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_rendezvenyek_reszvetel" id="mtmi-rendezvenyek-reszvetel-select" onchange="document.getElementById('mtmi-rendezvenyek-reszvetel-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="mtmi-nemzetkozi-egyuttmukodes-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be a nemzetközi együttműködéseket, projekteket, eredményeket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_nemzetkozi_egyuttmukodes_bemutatasa" maxlength="2000"></textarea>
+                          <div id="mtmi-rendezvenyek-reszvetel-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_rendezvenyek_reszvetel_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a nemzetközi együttműködésekhez, projektekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_nemzetkozi_egyuttmukodes_link" maxlength="500">
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_rendezvenyek_reszvetel_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          6.2.3 Az iskola egy szomszédos egyetem vagy másik iskola laboratóriumait évi egy vagy
+                          több alkalommal meglátogatja, esetleg használja is, melyről honlapján is tájékoztatást ad.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Egyetemi / iskolai laboratóriumok látogatása megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_laboratoriumok_latogatasa" id="mtmi-laboratoriumok-latogatasa-select" onchange="document.getElementById('mtmi-laboratoriumok-latogatasa-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="mtmi-laboratoriumok-latogatasa-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_laboratoriumok_latogatasa_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                            <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_laboratoriumok_latogatasa_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Kérjük, ha van ilyen, sorolja fel (és szükség esetén fejtse ki) az iskola egyéb, fentebb nem említett MTMI partnerprogramjait!</label>
+                          <textarea class="form-control mb-2" name="mtmi_egyeb_partnerprogramok" maxlength="2000"></textarea>
+                          <small class="form-text text-muted">max. 2000 karakter</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label">Link(ek) megadása:</label>
+                          <input type="url" class="form-control mb-2" name="mtmi_egyeb_partnerprogramok_link" maxlength="2000">
+                          <small class="form-text text-muted">max. 2000 karakter</small>
+                        </div>
+                        
                       </div>
                       <div class="d-flex justify-content-between">
                         <button type="button" class="btn btn-outline-secondary btn-lg prev-step">Vissza</button>
@@ -770,51 +1507,208 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                       <h4 class="mb-3">7. Pedagógusok ösztönzése az MTMI program megvalósításához</h4>
                       <div>
                         <h5 class="mb-2">7.1. Pedagógusok motiválása, továbbképzése, digitális eszközök, tanulási módszerek</h5>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          Az iskolában létezik egy MTMI tanulást népszerűsítő struktúra, melyről a honlapján is
+                          beszámol; ez a következőket foglalja magában:
+                          7.1.1 Rendszeresen használják a digitális eszközöket / digitális módszereket az MTMI
+                          tanórákon.
+                        </div>
+                        
                         <div class="mb-3">
-                          <label class="form-label fw-bold">7.1.1 Az iskola ösztönzi, támogatja a pedagógusokat az MTMI programban való részvételre?</label>
-                          <select class="form-select mb-2" name="pedagogusok_osztonzese" id="pedagogusok-osztonzese-select" onchange="document.getElementById('pedagogusok-osztonzese-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_digitalis_eszkozok_megvalosul" id="mtmi-digitalis-eszkozok-megvalosul-select" onchange="document.getElementById('mtmi-digitalis-eszkozok-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
+                            <option value="reszben">Részben</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="pedagogusok-osztonzese-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be, hogyan ösztönzik, támogatják a pedagógusokat az MTMI programban való részvételre!</label>
-                            <textarea class="form-control mb-2" name="pedagogusok_osztonzese_bemutatasa" maxlength="2000"></textarea>
+                          <div id="mtmi-digitalis-eszkozok-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét formáját/formáit a fentiek vonatkozásában!</label>
+                            <textarea class="form-control mb-2" name="mtmi_digitalis_eszkozok_megvalosul_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a pedagógusok ösztönzéséhez:</label>
-                            <input type="url" class="form-control mb-2" name="pedagogusok_osztonzese_link" maxlength="500">
                           </div>
                         </div>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.1.2 Az iskola törekszik a korszerű felszereltség és modern és motiváló körülmények
+                          megteremtésére
+                        </div>
+                        
                         <div class="mb-3">
-                          <label class="form-label fw-bold">7.1.2 Az iskola támogatja a pedagógusok továbbképzését, szakmai fejlődését?</label>
-                          <select class="form-select mb-2" name="pedagogusok_tovabbkepzese" id="pedagogusok-tovabbkepzese-select" onchange="document.getElementById('pedagogusok-tovabbkepzese-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_korszeru_felszereltseg_megvalosul" id="mtmi-korszeru-felszereltseg-megvalosul-select" onchange="document.getElementById('mtmi-korszeru-felszereltseg-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="reszben">Részben</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="mtmi-korszeru-felszereltseg-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_korszeru_felszereltseg_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.1.3 Az iskola fenntart kiállítótereket a tanulói munkák/projektek számára.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_kiallitoterek_megvalosul" id="mtmi-kiallitoterek-megvalosul-select" onchange="document.getElementById('mtmi-kiallitoterek-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="pedagogusok-tovabbkepzese-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be, hogyan támogatják a pedagógusok továbbképzését, szakmai fejlődését!</label>
-                            <textarea class="form-control mb-2" name="pedagogusok_tovabbkepzese_bemutatasa" maxlength="2000"></textarea>
+                          <div id="mtmi-kiallitoterek-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_kiallitoterek_megvalosul_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a továbbképzésekhez, szakmai fejlődéshez:</label>
-                            <input type="url" class="form-control mb-2" name="pedagogusok_tovabbkepzese_link" maxlength="500">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label">Link(ek) megadása:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_kiallitoterek_megvalosul_link" maxlength="2000">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
-                      <div class="mb-3">
-                          <label class="form-label fw-bold">7.1.3 Az iskola támogatja a digitális eszközök, új tanulási módszerek alkalmazását?</label>
-                          <select class="form-select mb-2" name="pedagogusok_digitalis_eszkozok" id="pedagogusok-digitalis-eszkozok-select" onchange="document.getElementById('pedagogusok-digitalis-eszkozok-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.1.4 Az iskola ösztönzi a diákokat az aktív tanulásra. A tanulási folyamatban szerephez jut a
+                          projektmódszer, a páros- és csoportmunka, a problémamegoldás, interaktivitás, a diákok
+                          autonómiája. Az értékelésben fontos szerephez jut a diákok önreflexiója, a pedagógusok
+                          visszajelzése folyamatos, támogató.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_aktiv_tanulas_megvalosul" id="mtmi-aktiv-tanulas-megvalosul-select" onchange="document.getElementById('mtmi-aktiv-tanulas-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="reszben">Részben</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="mtmi-aktiv-tanulas-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét formáját/formáit a fentiek vonatkozásában!</label>
+                            <textarea class="form-control mb-2" name="mtmi_aktiv_tanulas_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.1.5 Az iskola az MTMI oktatás során használ digitális tananyagokat, feladatlapokat és
+                          méréseket.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_digitalis_tananyagok_megvalosul" id="mtmi-digitalis-tananyagok-megvalosul-select" onchange="document.getElementById('mtmi-digitalis-tananyagok-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="reszben">Részben</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="mtmi-digitalis-tananyagok-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_digitalis_tananyagok_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        
+                        <h5 class="mb-2">7.2. Releváns továbbképzéseken való tanári részvétel támogatása</h5>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.2.1 Az iskola vezetése megteremti a MTMI területekhez kapcsolódó továbbképzéseken
+                          vagy nemzetközi konferenciákon való részvételhez szükséges időkeretet.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_tovabbkepzesek_idokeret_megvalosul" id="mtmi-tovabbkepzesek-idokeret-megvalosul-select" onchange="document.getElementById('mtmi-tovabbkepzesek-idokeret-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="reszben">Részben</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="mtmi-tovabbkepzesek-idokeret-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósítás konkrét formáját/formáit a fentiek vonatkozásában (az elmúlt 3 év tevékenységeinek bemutatásával)!</label>
+                            <textarea class="form-control mb-2" name="mtmi_tovabbkepzesek_idokeret_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.2.2 Az iskola támogatja az éves továbbképzési programban a Nemzeti Közszolgálati
+                          Egyetem és az Oktatási Hivatal MTMI témájú továbbképzéseken való pedagógusi részvételt.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_egyetem_oktatasi_hivatal_tovabbkepzesek_megvalosul" id="mtmi-egyetem-oktatasi-hivatal-tovabbkepzesek-megvalosul-select" onchange="document.getElementById('mtmi-egyetem-oktatasi-hivatal-tovabbkepzesek-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="pedagogusok-digitalis-eszkozok-block" style="display:none;">
-                            <label class="form-label">Kérjük, mutassa be, hogyan támogatják a digitális eszközök, új tanulási módszerek alkalmazását!</label>
-                            <textarea class="form-control mb-2" name="pedagogusok_digitalis_eszkozok_bemutatasa" maxlength="2000"></textarea>
+                          <div id="mtmi-egyetem-oktatasi-hivatal-tovabbkepzesek-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét formáját/formáit a fentiek vonatkozásában!</label>
+                            <textarea class="form-control mb-2" name="mtmi_egyetem_oktatasi_hivatal_tovabbkepzesek_megvalosul_bemutatasa" maxlength="2000"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a digitális eszközökhöz, tanulási módszerekhez:</label>
-                            <input type="url" class="form-control mb-2" name="pedagogusok_digitalis_eszkozok_link" maxlength="500">
                           </div>
                         </div>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.2.3 Az iskola kihasználja a MTMI területén meglévő továbbképzési programokat. A
+                          tanárok tartanak és részt vesznek az iskolán belüli és regionális, MTMI területekre
+                          összpontosító továbbképzéseken, műhelymunkákon.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_tovabbkepzesi_programok_megvalosul" id="mtmi-tovabbkepzesi-programok-megvalosul-select" onchange="document.getElementById('mtmi-tovabbkepzesi-programok-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block'; document.getElementById('mtmi-tovabbkepzesi-programok-link-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="mtmi-tovabbkepzesi-programok-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_tovabbkepzesi_programok_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        
+                        <div class="mb-3" id="mtmi-tovabbkepzesi-programok-link-block">
+                          <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                          <input type="url" class="form-control mb-2" name="mtmi_tovabbkepzesi_programok_link" maxlength="2000">
+                          <small class="form-text text-muted">max. 2000 karakter</small>
+                        </div>
+                        
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          7.2.4 Az MTMI tantárgyakat tanító pedagógusok egyéni teljesítményértékelési céljai között
+                          szerepelnek MTMI célok vagy az MTMI program megvalósítását segítő célok.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_pedagogusok_teljesitmenyertekeles_megvalosul" id="mtmi-pedagogusok-teljesitmenyertekeles-megvalosul-select" onchange="document.getElementById('mtmi-pedagogusok-teljesitmenyertekeles-megvalosul-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="reszben">Részben</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                          <div id="mtmi-pedagogusok-teljesitmenyertekeles-megvalosul-block">
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
+                            <textarea class="form-control mb-2" name="mtmi_pedagogusok_teljesitmenyertekeles_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Kérjük, ha van ilyen, sorolja fel (és szükség esetén fejtse ki) az iskola egyéb, fentebb nem említett MTMI-témájú továbbképzési programjait/lehetőségeit!</label>
+                          <textarea class="form-control mb-2" name="mtmi_egyeb_tovabbkepzesi_programok" maxlength="2000"></textarea>
+                          <small class="form-text text-muted">max. 2000 karakter</small>
+                        </div>
+                        
                       </div>
                       <div class="d-flex justify-content-between">
                         <button type="button" class="btn btn-outline-secondary btn-lg prev-step">Vissza</button>

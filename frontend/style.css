@@ -365,3 +365,114 @@ textarea.form-control {
   margin-left: auto;
   margin-right: auto;
 } 
+
+/* Validációs popup stílusok */
+#validation-popup {
+  z-index: 9999;
+}
+
+#validation-popup .modal-dialog {
+  max-width: 500px;
+}
+
+#validation-popup .modal-content {
+  border-radius: 18px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  background: rgba(255,255,255,0.95);
+}
+
+#validation-popup .modal-header {
+  border-bottom: 1px solid #e3eafc;
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  color: white;
+  border-radius: 18px 18px 0 0;
+}
+
+#validation-popup .modal-title {
+  font-weight: 600;
+  color: white;
+}
+
+#validation-popup .btn-close {
+  filter: invert(1);
+}
+
+#validation-popup .modal-body {
+  padding: 1.5rem;
+}
+
+#validation-popup .modal-body ul {
+  margin-bottom: 0;
+  padding-left: 1.2rem;
+}
+
+#validation-popup .modal-body li {
+  margin-bottom: 0.5rem;
+  color: #2a4d69;
+  font-weight: 500;
+}
+
+#validation-popup .modal-footer {
+  border-top: 1px solid #e3eafc;
+  padding: 1rem 1.5rem;
+}
+
+#validation-popup .btn {
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.5rem 1.5rem;
+}
+
+#validation-popup .btn-primary {
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  border: none;
+}
+
+#validation-popup .btn-primary:hover {
+  background: linear-gradient(90deg, #1e3550 0%, #2a4d69 100%);
+}
+
+#validation-popup .btn-secondary {
+  background: #6c757d;
+  border: none;
+}
+
+#validation-popup .btn-secondary:hover {
+  background: #5a6268;
+} 
+
+/* Kötelező mezők jelzése */
+.required-field {
+  position: relative;
+}
+
+.required-field::after {
+  content: " *";
+  color: #dc3545;
+  font-weight: bold;
+  position: absolute;
+  top: 0;
+  right: -10px;
+}
+
+/* Kötelező mezők input stílusa */
+.form-control:required,
+.form-select:required,
+.form-control[data-original-required="true"],
+.form-select[data-original-required="true"] {
+  border-left: 3px solid #dc3545 !important;
+}
+
+.form-control:required:focus,
+.form-select:required:focus,
+.form-control[data-original-required="true"]:focus,
+.form-select[data-original-required="true"]:focus {
+  border-left: 3px solid #dc3545 !important;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+/* Kötelező mezők placeholder stílusa */
+.form-control:required::placeholder {
+  color: #6c757d;
+  font-style: italic;
+} 

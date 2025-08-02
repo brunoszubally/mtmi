@@ -1,4 +1,3 @@
-// --- Globális segédfüggvény ---
 function getSessionIdFromUrl() {
     const m = window.location.pathname.match(/kitoltes\/(\w[\w-]*)/);
     return m ? m[1] : null;
@@ -8,6 +7,91 @@ const API_BASE = "https://mtmi.onrender.com/api"; // Állítsd át, ha máshol f
 const FORM_ID = "mtmi-form";
 const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";
+
+// Globális változók a wizard-hoz
+let currentStep = 0;
+let steps = [];
+
+// Globális showStep függvény
+function showStep(idx, direction = 1) {
+  console.log('showStep called with idx:', idx, 'direction:', direction);
+  console.log('steps length:', steps.length);
+  console.log('currentStep before:', currentStep);
+  
+  currentStep = idx; // Frissítjük a currentStep változót
+  
+  console.log('currentStep after:', currentStep);
+  
+  steps.forEach((step, i) => {
+    if (i === idx) {
+      step.style.display = '';
+      step.classList.remove('animate__fadeOutLeft', 'animate__fadeOutRight', 'animate__fadeInRight', 'animate__fadeInLeft');
+      step.classList.add(direction > 0 ? 'animate__fadeInRight' : 'animate__fadeInLeft');
+    } else {
+      if (step.style.display !== 'none') {
+        step.classList.remove('animate__fadeInRight', 'animate__fadeInLeft');
+        step.classList.add(direction > 0 ? 'animate__fadeOutLeft' : 'animate__fadeOutRight');
+        setTimeout(() => { step.style.display = 'none'; }, 400);
+      } else {
+        step.style.display = 'none';
+      }
+    }
+  });
+  // Progress bar és százalék frissítés
+  const progressBar = document.getElementById('form-progress');
+  const progressPercent = document.getElementById('progress-percent');
+  const stepperLinks = Array.from(document.querySelectorAll('.stepper- link'));
+  if (progressBar && progressPercent) {
+    const percent = Math.round(((idx+1)/steps.length)*100);
+    progressBar.style.width = percent + '%';
+    progressPercent.textContent = percent + '%';
+  }
+  
+  // Stepper linkek frissítése
+  if (stepperLinks.length > 0) {
+    stepperLinks.forEach((link, i) => {
+      link.classList.remove('active');
+      if (i === idx) {
+        link.classList.add('active');
+      }
+    });
+  }
+  
+  // Required attribútumok frissítése
+  updateRequiredAttributes();
+  
+  // Beállítjuk a data-original-required attribútumokat minden lépésben
+  const currentStepElement = document.querySelector(`#step-${idx}`);
+  if (currentStepElement) {
+    currentStepElement.querySelectorAll("input, select, textarea").forEach(el => {
+      if (el.hasAttribute('required') && !el.dataset.originalRequired) {
+        el.dataset.originalRequired = "true";
+      }
+    });
+  }
+  
+  // Közvetlenül beállítjuk a required attribútumokat az aktuális lépésben
+  if (currentStepElement) {
+    currentStepElement.querySelectorAll("input, select, textarea").forEach(el => {
+      if (el.hasAttribute('required') || el.dataset.originalRequired === "true") {
+        el.required = true;
+      }
+    });
+  }
+  
+  // Ha az 1. blokkra váltunk, csak akkor generáljuk újra a csapattagokat, ha még nincsenek
+  if (idx === 1) {
+    const csapatLetszamInput = document.getElementById('mtmi-csapat-letszam');
+    const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
+    if (csapatLetszamInput && csapatTagokDiv && csapatLetszamInput.value) {
+      // Csak akkor generáljuk újra, ha még nincsenek csapattagok
+      if (csapatTagokDiv.children.length === 0) {
+        const event = new Event('input');
+        csapatLetszamInput.dispatchEvent(event);
+      }
+    }
+  }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
   var startBtn = document.getElementById('start-form-btn');
@@ -23,54 +107,78 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.style.overflow = 'hidden';
   }
   // Wizard léptetés
-  const steps = Array.from(document.querySelectorAll('.form-step'));
-  let currentStep = 0;
+  steps = Array.from(document.querySelectorAll('.form-step'));
+  console.log('Steps found:', steps.length);
+  steps.forEach((step, index) => {
+    console.log(`Step ${index}:`, step.id);
+  });
+  currentStep = 0;
   const progressBar = document.getElementById('form-progress');
   const progressPercent = document.getElementById('progress-percent');
   const stepperLinks = Array.from(document.querySelectorAll('.stepper-link'));
 
-  function showStep(idx, direction = 1) {
-    steps.forEach((step, i) => {
-      if (i === idx) {
-        step.style.display = '';
-        step.classList.remove('animate__fadeOutLeft', 'animate__fadeOutRight', 'animate__fadeInRight', 'animate__fadeInLeft');
-        step.classList.add(direction > 0 ? 'animate__fadeInRight' : 'animate__fadeInLeft');
-      } else {
-        if (step.style.display !== 'none') {
-          step.classList.remove('animate__fadeInRight', 'animate__fadeInLeft');
-          step.classList.add(direction > 0 ? 'animate__fadeOutLeft' : 'animate__fadeOutRight');
-          setTimeout(() => { step.style.display = 'none'; }, 400);
-        } else {
-          step.style.display = 'none';
-        }
-      }
-    });
-    // Progress bar és százalék frissítés
-    const percent = Math.round(((idx+1)/steps.length)*100);
-    progressBar.style.width = percent + '%';
-    progressPercent.textContent = percent + '%';
-    // Stepper linkek frissítése
-    stepperLinks.forEach((link, i) => {
-      link.classList.remove('active');
-      if (i === idx) {
-        link.classList.add('active');
-      }
-    });
-  }
-
   document.querySelectorAll('.next-step').forEach(btn => {
     btn.addEventListener('click', function() {
+      // Validáció az aktuális lépésben
+      const currentStepElement = steps[currentStep];
+      const requiredFields = currentStepElement.querySelectorAll('[required]');
+      const emptyRequiredFields = [];
+      
+      requiredFields.forEach(field => {
+        let isEmpty = false;
+        
+        if (field.type === 'checkbox') {
+          // Checkbox esetén ellenőrizzük, hogy van-e kiválasztott opció
+          const checkboxGroup = field.name;
+          const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
+          isEmpty = checkboxes.length === 0;
+        } else if (field.type === 'select-one') {
+          // Select esetén ellenőrizzük, hogy van-e kiválasztott érték
+          isEmpty = !field.value || field.value === '';
+        } else {
+          // Input mezők esetén ellenőrizzük, hogy van-e érték
+          isEmpty = !field.value.trim();
+        }
+        
+        if (isEmpty) {
+          emptyRequiredFields.push(field);
+        }
+      });
+      
+      // Checkbox validáció a data-required attribútummal rendelkező elemekre
+      const dataRequiredCheckboxes = currentStepElement.querySelectorAll('input[data-required="true"]');
+      const checkedGroups = new Set();
+      dataRequiredCheckboxes.forEach(checkbox => {
+        const checkboxGroup = checkbox.name;
+        if (!checkedGroups.has(checkboxGroup)) {
+          const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
+          if (checkboxes.length === 0) {
+            emptyRequiredFields.push(checkbox);
+          }
+          checkedGroups.add(checkboxGroup);
+        }
+      });
+      
+      if (emptyRequiredFields.length > 0) {
+        // Popup megjelenítése
+        showValidationPopup(emptyRequiredFields);
+        return;
+      }
+      
+      // Ha nincs hiányzó kötelező mező, folytatjuk
       if (currentStep < steps.length - 1) {
+        // Automatikus mentés a következő lépésre lépés előtt
+        saveForm(true);
         showStep(currentStep + 1, 1);
-        currentStep++;
       }
     });
   });
   document.querySelectorAll('.prev-step').forEach(btn => {
     btn.addEventListener('click', function() {
       if (currentStep > 0) {
+        // Automatikus mentés a visszalépés előtt
+        saveForm(true);
         showStep(currentStep - 1, -1);
-        currentStep--;
       }
     });
   });
@@ -79,9 +187,10 @@ document.addEventListener('DOMContentLoaded', function() {
   stepperLinks.forEach((link, i) => {
     link.addEventListener('click', function() {
       if (i !== currentStep) {
+        // Automatikus mentés a stepper navigáció előtt
+        saveForm(true);
         const direction = i > currentStep ? 1 : -1;
         showStep(i, direction);
-        currentStep = i;
       }
     });
   });
@@ -90,115 +199,59 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
   // 2. blokk: szülői képviselő feltételes logika
-  // MTMI csapat tagok dinamikus mezői (2. blokk)
+  // MTMI csapat tagok megjelenítése a létszám alapján
   const csapatLetszamInput = document.getElementById('mtmi-csapat-letszam');
-  const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
-  const szakok = [
-    { value: 'matematika', label: 'Matematika' },
-    { value: 'fizika', label: 'Fizika' },
-    { value: 'kemia', label: 'Kémia' },
-    { value: 'biologia', label: 'Biológia' },
-    { value: 'foldrajz', label: 'Földrajz' },
-    { value: 'digitalis_kultura', label: 'Digitális kultúra' },
-    { value: 'kornyezetismeret', label: 'Környezetismeret' },
-    { value: 'termeszettudomany', label: 'Természettudomány' },
-    { value: 'integralt_termeszettudomany', label: 'Integrált természettudomány' },
-    { value: 'technika', label: 'Technika és tervezés' },
-    { value: 'egyeb', label: 'Egyéb' }
-  ];
-  if (csapatLetszamInput && csapatTagokDiv) {
+  if (csapatLetszamInput) {
     csapatLetszamInput.addEventListener('input', function() {
       let n = parseInt(this.value, 10);
       if (isNaN(n) || n < 1) n = 1;
       if (n > 8) n = 8;
-      csapatTagokDiv.innerHTML = '';
-      for (let i = 1; i <= n; i++) {
-        // Név
-        const label = document.createElement('label');
-        label.className = 'form-label mt-2';
-        label.style.fontWeight = 'bold';
-        if (i === 1) {
-          label.textContent = 'Név 1 - az iskola MTMI felelőse (megegyezhet az iskola MTMI felelős kapcsolattartójával):';
-        } else {
-          label.innerHTML = `Név ${i} <span style=\"font-weight:normal;\">(további csapattagok):</span>`;
+      
+      // Minden csapattag blokkot elrejtünk
+      for (let i = 1; i <= 8; i++) {
+        const block = document.getElementById(`csapat-tag-${i}`);
+        if (block) {
+          block.style.display = 'none';
         }
-        csapatTagokDiv.appendChild(label);
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'form-control mb-2';
-        input.name = `mtmi_csapat_tag${i}_nev`;
-        input.placeholder = `Név ${i}`;
-        csapatTagokDiv.appendChild(input);
-        // Szak/szakpár (checkboxok)
-        const szakLabel = document.createElement('label');
-        szakLabel.className = 'form-label';
-        szakLabel.textContent = 'Tanított szak/szakpár';
-        csapatTagokDiv.appendChild(szakLabel);
-        const szakRow = document.createElement('div');
-        szakRow.className = 'row';
-        szakok.forEach((szak, idx) => {
-          const col = document.createElement('div');
-          col.className = 'col-6 col-md-4';
-          const formCheck = document.createElement('div');
-          formCheck.className = 'form-check';
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.className = 'form-check-input';
-          checkbox.name = `mtmi_csapat_tag${i}_szak`;
-          checkbox.value = szak.value;
-          checkbox.id = `csapat${i}-szak-${szak.value}`;
-          const checkboxLabel = document.createElement('label');
-          checkboxLabel.className = 'form-check-label';
-          checkboxLabel.setAttribute('for', `csapat${i}-szak-${szak.value}`);
-          checkboxLabel.textContent = szak.label;
-          formCheck.appendChild(checkbox);
-          formCheck.appendChild(checkboxLabel);
-          col.appendChild(formCheck);
-          szakRow.appendChild(col);
-        });
-        csapatTagokDiv.appendChild(szakRow);
-        // Tevékenységek
-        const tevLabel = document.createElement('label');
-        tevLabel.className = 'form-label mt-1';
-        tevLabel.textContent = 'Tevékenységek';
-        const tevInput = document.createElement('textarea');
-        tevInput.className = 'form-control mb-2';
-        tevInput.name = `mtmi_csapat_tag${i}_tevekenyseg`;
-        tevInput.placeholder = 'Tevékenységek';
-        csapatTagokDiv.appendChild(tevLabel);
-        csapatTagokDiv.appendChild(tevInput);
+      }
+      
+      // Csak az első n blokkot jelenítjük meg
+      for (let i = 1; i <= n; i++) {
+        const block = document.getElementById(`csapat-tag-${i}`);
+        if (block) {
+          block.style.display = 'block';
+        }
       }
     });
   }
 
   // 3. blokk: pedagógiai program és MTMI koncepció feltételes logika
-  // Töröld ezt a blokkot:
-  // const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
-  // const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
-  // if (pedprogSelect && pedprogLeiras) {
-  //   pedprogSelect.addEventListener('change', function() {
-  //     if (this.value === 'igen' || this.value === 'reszben') {
-  //       pedprogLeiras.style.display = '';
-  //       pedprogLeiras.classList.add('animate__fadeIn');
-  //     } else {
-  //       pedprogLeiras.classList.remove('animate__fadeIn');
-  //       pedprogLeiras.style.display = 'none';
-  //     }
-  //   });
-  // }
-  // const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
-  // const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
-  // if (koncepcioSelect && koncepcioLeiras) {
-  //   koncepcioSelect.addEventListener('change', function() {
-  //     if (this.value === 'igen' || this.value === 'reszben') {
-  //       koncepcioLeiras.style.display = '';
-  //       koncepcioLeiras.classList.add('animate__fadeIn');
-  //     } else {
-  //       koncepcioLeiras.classList.remove('animate__fadeIn');
-  //       koncepcioLeiras.style.display = 'none';
-  //     }
-  //   });
-  // }
+  const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
+  const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
+  if (pedprogSelect && pedprogLeiras) {
+    pedprogSelect.addEventListener('change', function() {
+      if (this.value === 'igen' || this.value === 'reszben') {
+        pedprogLeiras.style.display = '';
+        pedprogLeiras.classList.add('animate__fadeIn');
+      } else {
+        pedprogLeiras.classList.remove('animate__fadeIn');
+        pedprogLeiras.style.display = 'none';
+      }
+    });
+  }
+  const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
+  const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
+  if (koncepcioSelect && koncepcioLeiras) {
+    koncepcioSelect.addEventListener('change', function() {
+      if (this.value === 'igen' || this.value === 'reszben') {
+        koncepcioLeiras.style.display = '';
+        koncepcioLeiras.classList.add('animate__fadeIn');
+      } else {
+        koncepcioLeiras.classList.remove('animate__fadeIn');
+        koncepcioLeiras.style.display = 'none';
+      }
+    });
+  }
 
   // Kezdő lépés megjelenítése
   showStep(0);
@@ -208,47 +261,206 @@ document.addEventListener('DOMContentLoaded', function() {
   // Segédfüggvény: űrlap adatainak kiolvasása objektumba
   function getFormData(form) {
       const data = {};
-      const formData = new FormData(form);
-      for (const [key, value] of formData.entries()) {
-          // Többszörös checkboxok kezelése tömbként
-          if (data[key]) {
-              if (Array.isArray(data[key])) {
-                  data[key].push(value);
-              } else {
-                  data[key] = [data[key], value];
+      
+      // Összes mező összegyűjtése a teljes dokumentumból
+      const allInputs = document.querySelectorAll('input, select, textarea');
+      console.log('getFormData: Found', allInputs.length, 'inputs');
+      
+      allInputs.forEach(el => {
+          if (!el.name) return;
+          
+          if (el.type === 'checkbox') {
+              // Checkbox-ok esetében mindig tömböt hozunk létre
+              if (!data[el.name]) {
+                  data[el.name] = [];
+              }
+              if (el.checked && el.value && el.value.trim() !== '') {
+                  data[el.name].push(el.value);
+                  console.log('getFormData: Added checkbox', el.name, 'value', el.value);
+              }
+          } else if (el.type === 'radio') {
+              if (el.checked) {
+                  data[el.name] = el.value;
               }
           } else {
-              data[key] = value;
+              if (el.value && el.value.trim() !== '') {
+                  data[el.name] = el.value;
+              }
           }
-      }
+      });
+      
+      console.log('getFormData: Final data:', data);
       return data;
   }
 
   // Segédfüggvény: űrlap feltöltése objektumból
   function setFormData(form, data) {
+      try {
+          console.log('setFormData: Kezdem a betöltést, adatok:', data);
       for (const [key, value] of Object.entries(data)) {
-          const el = form.elements[key];
-          if (!el) continue;
-          if (el.type === "checkbox" || el.type === "radio") {
-              if (Array.isArray(value)) {
-                  for (const v of value) {
-                      const box = form.querySelector(`[name='${key}'][value='${v}']`);
-                      if (box) box.checked = true;
-                  }
-              } else {
-                  const box = form.querySelector(`[name='${key}'][value='${value}']`);
-                  if (box) box.checked = true;
-              }
+          if (Array.isArray(value)) {
+              // Checkbox-ok esetében minden checkbox-ot alapértelmezetten false-ra állítunk
+              // De csak a statikus checkbox-okat kezeljük itt (nem a dinamikusakat)
+              const checkboxes = form.querySelectorAll(`[name='${key}']`);
+              checkboxes.forEach(checkbox => {
+                  checkbox.checked = value.includes(checkbox.value);
+              });
           } else {
-              el.value = value;
+              const el = form.elements[key];
+              if (!el) continue;
+              if (el.type === "radio") {
+                  const radio = form.querySelector(`[name='${key}'][value='${value}']`);
+                  if (radio) radio.checked = true;
+              } else {
+                  el.value = value;
+              }
           }
       }
-      // --- ÚJ: minden select, checkbox, radio mezőre triggereljük a change/input eseményt ---
-      ["change", "input"].forEach(eventType => {
-          form.querySelectorAll("select, input[type=checkbox], input[type=radio]").forEach(el => {
-              el.dispatchEvent(new Event(eventType, { bubbles: true }));
+      
+      // Dinamikusan generált mezők betöltése
+      const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
+      if (csapatTagokDiv) {
+          csapatTagokDiv.querySelectorAll('input, textarea').forEach(el => {
+              if (el.name && data[el.name] && typeof data[el.name] === 'string' && data[el.name].trim() !== '') {
+                  el.value = data[el.name];
+              }
           });
+          
+          // Checkbox-ok betöltése
+          csapatTagokDiv.querySelectorAll('input[type="checkbox"]').forEach(el => {
+              if (el.name && data[el.name] && Array.isArray(data[el.name])) {
+                  // Csak akkor pipáljuk ki, ha az érték nem üres
+                  if (el.value && el.value.trim() !== '') {
+                      el.checked = data[el.name].includes(el.value);
+                  } else {
+                      el.checked = false;
+                  }
+              } else {
+                  // Ha nincs adat, akkor ne legyen kipipálva
+                  el.checked = false;
+              }
+          });
+      }
+      
+      // --- ÚJ: minden select, checkbox, radio mezőre triggereljük a change/input eseményt ---
+      // De csak akkor, ha nem automatikus betöltés közben vagyunk
+      if (!window.isLoadingForm) {
+          ["change", "input"].forEach(eventType => {
+              form.querySelectorAll("select, input[type=checkbox], input[type=radio]").forEach(el => {
+                  el.dispatchEvent(new Event(eventType, { bubbles: true }));
+              });
+          });
+      }
+      
+      // --- ÚJ: Ha van csapat létszám adat, megjelenítjük a csapattagokat ---
+      console.log('setFormData: Ellenőrzöm a csapat létszámot:', data.mtmi_csapat_letszam, typeof data.mtmi_csapat_letszam);
+      if (data.mtmi_csapat_letszam && data.mtmi_csapat_letszam !== '') {
+          console.log('setFormData: Van csapat létszám adat:', data.mtmi_csapat_letszam);
+          try {
+              // Azonnal megjelenítjük a csapattagokat
+              let n = parseInt(data.mtmi_csapat_letszam, 10);
+              if (isNaN(n) || n < 1) n = 1;
+              if (n > 8) n = 8;
+              
+              console.log('Megjelenítjük a csapattagokat:', n);
+              console.log('DOM elemek keresése...');
+              
+              // Minden csapattag blokkot elrejtünk
+              console.log('Elrejtés kezdete...');
+              for (let i = 1; i <= 8; i++) {
+                const block = document.getElementById(`csapat-tag-${i}`);
+                if (block) {
+                  block.style.display = 'none';
+                  console.log(`Elrejtettük: csapat-tag-${i}`);
+                } else {
+                  console.log(`Nem találtuk: csapat-tag-${i}`);
+                }
+              }
+              
+              // Csak az első n blokkot jelenítjük meg
+              for (let i = 1; i <= n; i++) {
+                const block = document.getElementById(`csapat-tag-${i}`);
+                if (block) {
+                  block.style.display = 'block';
+                  console.log(`Megjelenítettük: csapat-tag-${i}`);
+                } else {
+                  console.log(`Nem találtuk: csapat-tag-${i}`);
+                }
+              }
+              console.log('Csapattagok megjelenítése befejezve');
+          } catch (error) {
+              console.error('Hiba a csapattagok megjelenítése közben:', error);
+          }
+      } else {
+          console.log('setFormData: Nincs csapat létszám adat');
+      }
+      
+      // --- ÚJ: Feltételes mezők megjelenítésének triggerelése ---
+      const conditionalSelects = [
+          'mtmi-szulo-kepviselo-select',
+          'mtmi-palyaorientacio-megvalosul-select',
+          'mtmi-diakok-kapcsolattartas-select',
+          'mtmi-alumni-programok-select',
+          'mtmi-online-palyaorientacio-select',
+          'mtmi-egyuttmukodes-palyaorientacio-select',
+          'mtmi-versenyek-szervezese-select',
+          'mtmi-versenyeken-reszvetel-select',
+          'mtmi-orszagos-nemzetkozi-reszvetel-select',
+          'mtmi-eredmenyek-eleresek-select',
+          'lanyok-mtmi-kiemelt-figyelem-select',
+          'lanyoknak-szolo-mtmi-programok-select',
+          'mtmi-kapcsolatok-egyuttmukodes-select',
+          'mtmi-kozos-programok-select',
+          'mtmi-szakmai-halozat-select',
+          'mtmi-nemzetkozi-egyuttmukodes-select',
+          'pedagogusok-osztonzese-select',
+          'pedagogusok-tovabbkepzese-select',
+          'pedagogusok-digitalis-eszkozok-select'
+      ];
+      
+      conditionalSelects.forEach(selectId => {
+          const select = document.getElementById(selectId);
+          if (select && data[select.name]) {
+              setTimeout(() => {
+                  const event = new Event('change');
+                  select.dispatchEvent(event);
+              }, 150);
+          }
       });
+      
+      // Pedagógiai program feltételes megjelenítés
+      const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
+      const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
+      if (pedprogSelect && pedprogLeiras && data.pedprog_mtmi_tartalom) {
+          setTimeout(() => {
+              const event = new Event('change');
+              pedprogSelect.dispatchEvent(event);
+          }, 200);
+      }
+      
+      // MTMI koncepció feltételes megjelenítés
+      const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
+      const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
+      if (koncepcioSelect && koncepcioLeiras && data.mtmi_koncepcio) {
+          setTimeout(() => {
+              const event = new Event('change');
+              koncepcioSelect.dispatchEvent(event);
+          }, 250);
+      }
+      
+      // Interdiszciplináris projekt feltételes megjelenítés
+      const interdiszciplinarisSelect = document.getElementById('mtmi-interdiszciplinaris-projekt-select');
+      const interdiszciplinarisBlock = document.getElementById('mtmi-interdiszciplinaris-projekt-block');
+      if (interdiszciplinarisSelect && interdiszciplinarisBlock && data.mtmi_interdiszciplinaris_projekt) {
+          setTimeout(() => {
+              const event = new Event('change');
+              interdiszciplinarisSelect.dispatchEvent(event);
+          }, 300);
+      }
+      console.log('setFormData: Függvény befejezve');
+      } catch (error) {
+          console.error('setFormData: Hiba történt:', error);
+      }
   }
 
   // Generált link megjelenítése
@@ -257,12 +469,12 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!box) {
           box = document.createElement("div");
           box.id = LINK_BOX_ID;
-          box.className = "alert alert-info mt-3";
+          box.className = "alert alert-success mt-3";
           const form = document.getElementById(FORM_ID);
           form.parentNode.insertBefore(box, form);
       }
       const url = window.location.origin + `/kitoltes/${session_id}`;
-      box.innerHTML = `<b>Az űrlapod elérhető ezen a linken 30 napig (vagy amíg nem törlöd):</b><br><a href='${url}' target='_blank'>${url}</a>`;
+      box.innerHTML = `<b>Az űrlapod elérhető ezen a linken:</b><br><a href='${url}' target='_blank'>${url}</a>`;
   }
 
   // Mentés a backendre
@@ -302,14 +514,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Betöltés a backendről
   async function loadForm() {
+      console.log('loadForm: Kezdem a betöltést');
       let session_id = localStorage.getItem(SESSION_KEY);
       const urlSession = getSessionIdFromUrl();
       if (urlSession) session_id = urlSession;
-      if (!session_id) return;
+      if (!session_id) {
+          console.log('loadForm: Nincs session_id');
+          return;
+      }
+      console.log('loadForm: Session_id:', session_id);
       try {
           const resp = await fetch(`${API_BASE}/load/${session_id}`);
           if (resp.ok) {
               const res = await resp.json();
+              console.log('loadForm: Adatok betöltve:', res.data);
               // --- ADMINVIEW workaround ---
               const urlParams = new URLSearchParams(window.location.search);
               const adminView = urlParams.get('adminview');
@@ -333,7 +551,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
               }
               const form = document.getElementById(FORM_ID);
+              console.log('loadForm: Meghívom a setFormData-t');
+              window.isLoadingForm = true;
               setFormData(form, res.data);
+              window.isLoadingForm = false;
+              console.log('loadForm: setFormData befejezve');
+              
+              // Dinamikusan generált mezők adatainak betöltése késleltetéssel
+              setTimeout(() => {
+                  const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
+                  if (csapatTagokDiv) {
+                      window.isLoadingForm = true;
+                      // Csak a dinamikus mezők adatait töltjük be
+                      csapatTagokDiv.querySelectorAll('input, textarea').forEach(el => {
+                          if (el.name && res.data[el.name] && typeof res.data[el.name] === 'string' && res.data[el.name].trim() !== '') {
+                              el.value = res.data[el.name];
+                          }
+                      });
+                      
+                      // Checkbox-ok betöltése
+                      csapatTagokDiv.querySelectorAll('input[type="checkbox"]').forEach(el => {
+                          if (el.name && res.data[el.name] && Array.isArray(res.data[el.name])) {
+                              // Csak akkor pipáljuk ki, ha az érték nem üres
+                              if (el.value && el.value.trim() !== '') {
+                                  el.checked = res.data[el.name].includes(el.value);
+                              } else {
+                                  el.checked = false;
+                              }
+                          } else {
+                              el.checked = false;
+                          }
+                      });
+                      window.isLoadingForm = false;
+                  }
+              }, 200);
+              
               showLink(session_id);
               // --- ADMINVIEW: minden mező readonly/disabled, mentés/véglegesítés gombok elrejtése ---
               if (adminView) {
@@ -391,8 +643,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mainForm) mainForm.style.display = "";
       }
       // Automatikus mentés minden mező változásakor
-      form.addEventListener("input", () => saveForm(true));
-      form.addEventListener("change", () => saveForm(true));
+      form.addEventListener("input", () => {
+          if (!window.isLoadingForm) {
+              saveForm(true);
+          }
+      });
+      form.addEventListener("change", () => {
+          if (!window.isLoadingForm) {
+              saveForm(true);
+          }
+      });
       // Manuális mentés gomb hozzáadása
       let saveBtn = document.getElementById("mtmi-save-btn");
       if (!saveBtn) {
@@ -401,7 +661,13 @@ document.addEventListener('DOMContentLoaded', function() {
           saveBtn.type = "button";
           saveBtn.className = "btn btn-warning mb-3 me-2";
           saveBtn.textContent = "Mentés";
-          form.parentNode.insertBefore(saveBtn, form);
+          // A progress bar fölé helyezzük a mentés gombot
+          const progressContainer = document.querySelector('.d-flex.align-items-center.mb-4');
+          if (progressContainer) {
+              progressContainer.parentNode.insertBefore(saveBtn, progressContainer);
+          } else {
+              form.parentNode.insertBefore(saveBtn, form);
+          }
       }
       saveBtn.addEventListener("click", () => saveForm(false));
   });
@@ -466,20 +732,33 @@ function updateRequiredAttributes() {
     const visible = step.style.display !== "none";
     step.querySelectorAll("input, select, textarea").forEach(el => {
       if (visible) {
-        // Csak akkor legyen required, ha eredetileg is az volt (opcionális finomítás)
-        if (el.dataset.originalRequired === "true") el.required = true;
+        // Látható lépésekben visszaállítjuk az eredeti required attribútumokat
+        if (el.dataset.originalRequired === "true" || el.hasAttribute('required')) {
+          el.required = true;
+        }
       } else {
+        // Nem látható lépésekben eltávolítjuk a required attribútumot
         el.required = false;
       }
     });
   });
 }
 
-// Eredeti required attribútumok mentése (egyszer, DOMContentLoaded-nál)
-document.addEventListener("DOMContentLoaded", () => {
+// Eredeti required attribútumok mentése (azonnal, amikor a script betöltődik)
+(function() {
+  // Minden mezőt ellenőrizzünk, függetlenül attól, hogy látható-e
   document.querySelectorAll("input, select, textarea").forEach(el => {
-    el.dataset.originalRequired = el.required ? "true" : "false";
+    // Ha van required attribútum az HTML-ben, akkor beállítjuk
+    if (el.hasAttribute('required')) {
+      el.dataset.originalRequired = "true";
+    } else {
+      el.dataset.originalRequired = "false";
+    }
   });
+})();
+
+// DOMContentLoaded eseményben csak frissítjük a required attribútumokat
+document.addEventListener("DOMContentLoaded", () => {
   updateRequiredAttributes();
 }); 
 
@@ -607,3 +886,160 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 }); 
+
+// Validációs popup megjelenítése
+function showValidationPopup(emptyFields) {
+  // Egyedi mezőnevek összegyűjtése (duplikációk elkerülése)
+  const uniqueFieldNames = new Set();
+  const fieldLabels = [];
+  
+  // Mezőnév leképezés
+  const fieldNameMapping = {
+    'mtmi_felelos_kapcsolattarto_neve': 'MTMI felelős kapcsolattartó neve',
+    'mtmi_felelos_kapcsolattarto_beosztas': 'MTMI felelős kapcsolattartó beosztása',
+    'mtmi_felelos_kapcsolattarto_telefonszam1': 'MTMI felelős kapcsolattartó telefonszáma',
+    'mtmi_felelos_kapcsolattarto_email1': 'MTMI felelős kapcsolattartó e-mail címe',
+    'intezmenyvezeto_kapcsolattarto_neve': 'Intézményvezető kapcsolattartó neve',
+    'intezmenyvezeto_kapcsolattarto_beosztas': 'Intézményvezető kapcsolattartó beosztása',
+    'intezmenyvezeto_kapcsolattarto_email1': 'Intézményvezető kapcsolattartó e-mail címe',
+    'iskola_honlap_link': 'Iskolai honlap linkje',
+    'iskola_mukodo_alapitvany': 'Iskola működő alapítványa',
+    'iskola_mtmi_tanari_letszama': 'MTMI tanári létszám',
+    'mtmi_csapat_letszam': 'MTMI csapat létszáma',
+    'mtmi_csapat_kozos_tevekenyseg': 'MTMI csapat közös tevékenységei',
+    'mtmi_szulo_kepviselo': 'MTMI szülői képviselő',
+    'mtmi_csapat_tag1_nev': 'Név 1 - az iskola MTMI felelőse',
+    'mtmi_csapat_tag1_tevekenyseg': 'Tevékenységek (1. csapattag)',
+    'mtmi_csapat_tag1_szak': 'Tanított szak/szakpár (1. csapattag)'
+  };
+  
+  emptyFields.forEach(field => {
+    let label = '';
+    
+    // Label keresése különböző helyeken
+    const labelElement = field.closest('.mb-3')?.querySelector('label') || 
+                        field.closest('.row')?.querySelector('label') ||
+                        field.closest('.form-check')?.querySelector('label') ||
+                        field.previousElementSibling?.tagName === 'LABEL' ? field.previousElementSibling : null;
+    
+    if (labelElement) {
+      label = labelElement.textContent.trim();
+    } else {
+      // Ha nincs label, akkor a mezőnév leképezést használjuk
+      label = fieldNameMapping[field.name] || field.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    // Duplikációk elkerülése
+    if (!uniqueFieldNames.has(label)) {
+      uniqueFieldNames.add(label);
+      fieldLabels.push(label);
+    }
+  });
+  
+  // Popup HTML létrehozása
+  const popupHTML = `
+    <div id="validation-popup" class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Kötelező mezők kitöltése</h5>
+            <button type="button" class="btn-close" onclick="closeValidationPopup()"></button>
+          </div>
+          <div class="modal-body">
+            <p>A következő kötelező mezők nincsenek kitöltve:</p>
+            <ul>
+              ${fieldLabels.map(label => `<li>${label}</li>`).join('')}
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="skipToNextStep()">
+              Még visszatérek ide
+            </button>
+            <button type="button" class="btn btn-primary" onclick="fillRequiredFields()">
+              Kitöltöm a kötelező mezőket
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Popup hozzáadása a body-hoz
+  document.body.insertAdjacentHTML('beforeend', popupHTML);
+  
+  // Popup megjelenítése
+  const popup = document.getElementById('validation-popup');
+  popup.style.display = 'block';
+}
+
+// Popup bezárása
+function closeValidationPopup() {
+  const popup = document.getElementById('validation-popup');
+  if (popup) {
+    popup.remove();
+  }
+  // NE folytassuk a következő lépésre, csak zárjuk be a popup-ot
+}
+
+// "Még visszatérek ide" gomb kezelése
+function skipToNextStep() {
+  const popup = document.getElementById('validation-popup');
+  if (popup) {
+    popup.remove();
+  }
+  // Folytassuk a következő lépésre
+  if (currentStep < steps.length - 1) {
+    showStep(currentStep + 1, 1);
+  }
+}
+
+// Kötelező mezők kitöltése gomb kezelése
+function fillRequiredFields() {
+  closeValidationPopup();
+  
+  // Az első üres kötelező mezőre fókuszálás
+  const currentStepElement = steps[currentStep];
+  const requiredFields = currentStepElement.querySelectorAll('[required]');
+  let firstEmptyField = null;
+  
+  // Keressük meg az első üres kötelező mezőt
+  for (let field of requiredFields) {
+    let isEmpty = false;
+    
+    if (field.type === 'checkbox') {
+      // Checkbox esetén ellenőrizzük, hogy van-e kiválasztott opció
+      const checkboxGroup = field.name;
+      const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
+      isEmpty = checkboxes.length === 0;
+    } else if (field.type === 'select-one') {
+      // Select esetén ellenőrizzük, hogy van-e kiválasztott érték
+      isEmpty = !field.value || field.value === '';
+    } else {
+      // Input mezők esetén ellenőrizzük, hogy van-e érték
+      isEmpty = !field.value.trim();
+    }
+    
+    if (isEmpty) {
+      firstEmptyField = field;
+      break;
+    }
+  }
+  
+  if (firstEmptyField) {
+    // Scroll a mezőhöz
+    firstEmptyField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Kis késleltetés után fókuszálás
+    setTimeout(() => {
+      if (firstEmptyField.type === 'checkbox') {
+        // Checkbox esetén az első checkbox-ra fókuszálunk
+        const firstCheckbox = currentStepElement.querySelector(`input[name="${firstEmptyField.name}"]`);
+        if (firstCheckbox) {
+          firstCheckbox.focus();
+        }
+      } else {
+        firstEmptyField.focus();
+      }
+    }, 300);
+  }
+} 
