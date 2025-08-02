@@ -195,23 +195,27 @@ def admin_login(data: dict):
 
 @app.get("/api/admin/list")
 def admin_list():
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor() as c:
-            c.execute("SELECT id, data, created_at, submitted, pdf_file_path FROM forms ORDER BY created_at DESC")
-            rows = c.fetchall()
-    result = []
-    for row in rows:
-        id, data_json, created_at, submitted, pdf_file_path = row
-        data = data_json
-        iskola_nev = data.get("palyazo_iskola_neve", "(nincs megadva)")
-        result.append({
-            "id": id,
-            "iskola_nev": iskola_nev,
-            "created_at": created_at,
-            "submitted": submitted,
-            "has_pdf": pdf_file_path is not None
-        })
-    return result
+    try:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT id, data, created_at, submitted, pdf_file_path FROM forms ORDER BY created_at DESC")
+                rows = c.fetchall()
+        result = []
+        for row in rows:
+            id, data_json, created_at, submitted, pdf_file_path = row
+            data = data_json
+            iskola_nev = data.get("palyazo_iskola_neve", "(nincs megadva)")
+            result.append({
+                "id": id,
+                "iskola_nev": iskola_nev,
+                "created_at": created_at,
+                "submitted": submitted,
+                "has_pdf": pdf_file_path is not None
+            })
+        return result
+    except Exception as e:
+        print(f"Database error: {e}")
+        return {"error": str(e), "database_url": DATABASE_URL}
 
 @app.get("/api/admin/result/{session_id}")
 def admin_result(session_id: str):
