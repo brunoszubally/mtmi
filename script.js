@@ -596,13 +596,18 @@ document.addEventListener('DOMContentLoaded', function() {
               showLink(session_id);
               // --- ADMINVIEW: minden mező readonly/disabled, mentés/véglegesítés gombok elrejtése ---
               if (adminView) {
+                console.log("Admin view detected - making all fields readonly");
                 form.querySelectorAll('input, select, textarea, button').forEach(el => {
                   if (el.type === "checkbox" || el.type === "radio") {
                     el.disabled = true;
+                    el.style.pointerEvents = "none";
                   } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
                     el.disabled = true;
+                    el.style.pointerEvents = "none";
                   } else if (["text","number","email","url","tel"].includes(el.type)) {
                     el.readOnly = true;
+                    el.style.backgroundColor = "#f8f9fa";
+                    el.style.pointerEvents = "none";
                   } else if (el.type === "submit" || el.type === "button") {
                     el.style.display = "none";
                   }
@@ -613,6 +618,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Véglegesítés gomb elrejtése
                 const submitBtn = form.querySelector("button[type='submit']");
                 if (submitBtn) submitBtn.style.display = "none";
+                // PDF feltöltés gombok elrejtése
+                const pdfUploadBtn = document.getElementById("pdf-upload-btn");
+                const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
+                if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
+                if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
+                // Navigációs gombok elrejtése
+                document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
+                  btn.style.display = "none";
+                });
+                console.log("Admin view - all fields made readonly");
               }
           }
       } catch (e) {
@@ -640,6 +655,43 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener("DOMContentLoaded", () => {
       const form = document.getElementById(FORM_ID);
       if (!form) return;
+      
+      // Admin view ellenőrzés és alkalmazása
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminView = urlParams.get('adminview');
+      if (adminView) {
+        console.log("Admin view detected on page load");
+        // Késleltetett alkalmazás, hogy a form betöltődjön
+        setTimeout(() => {
+          form.querySelectorAll('input, select, textarea, button').forEach(el => {
+            if (el.type === "checkbox" || el.type === "radio") {
+              el.disabled = true;
+              el.style.pointerEvents = "none";
+            } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+              el.disabled = true;
+              el.style.pointerEvents = "none";
+            } else if (["text","number","email","url","tel"].includes(el.type)) {
+              el.readOnly = true;
+              el.style.backgroundColor = "#f8f9fa";
+              el.style.pointerEvents = "none";
+            } else if (el.type === "submit" || el.type === "button") {
+              el.style.display = "none";
+            }
+          });
+          // Gombok elrejtése
+          const saveBtn = document.getElementById("mtmi-save-btn");
+          const pdfUploadBtn = document.getElementById("pdf-upload-btn");
+          const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
+          if (saveBtn) saveBtn.style.display = "none";
+          if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
+          if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
+          document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
+            btn.style.display = "none";
+          });
+          console.log("Admin view applied on page load");
+        }, 1000);
+      }
+      
       // Betöltés session_id alapján
       loadForm();
       const session_id = getSessionIdFromUrl() || localStorage.getItem("mtmi_session_id");

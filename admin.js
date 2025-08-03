@@ -258,18 +258,110 @@ async function showSummary(session_id) {
   });
   // Minden feltételes/dinamikus blokkot láthatóvá teszünk
   formClone.querySelectorAll('[style*="display: none"]').forEach(el => { el.style.display = ''; });
-  // Eltávolítjuk a steppereket, navigációt, gombokat
-  formClone.querySelectorAll('.stepper-sidebar, .stepper, .stepper-vertical, .stepper-link, .prev-step, .next-step, button[type="submit"], #thankyou-placeholder, #thankyou-fullscreen, #mtmi-save-btn, .progress, #form-progress, #progress-percent').forEach(el => el.remove());
+  // Eltávolítjuk a steppereket, navigációt, gombokat és PDF feltöltési szekciót
+  formClone.querySelectorAll('.stepper-sidebar, .stepper, .stepper-vertical, .stepper-link, .prev-step, .next-step, button[type="submit"], #thankyou-placeholder, #thankyou-fullscreen, #mtmi-save-btn, .progress, #form-progress, #progress-percent, #pdf-upload, #pdf-upload-btn, #pdf-filename, #pdf-preview, #pdf-remove-btn, #pdf-upload-progress, #pdf-upload-status, #finalize-btn').forEach(el => el.remove());
   // Minden .form-step-et láthatóvá teszünk
   formClone.querySelectorAll('.form-step').forEach(el => { el.style.display = ''; el.classList.remove('animate__animated', 'animate__fadeIn', 'animate__fadeInRight', 'animate__fadeInLeft', 'animate__fadeOutLeft', 'animate__fadeOutRight'); });
   // Teljes HTML oldal generálása
   let html = `<html><head><meta charset='utf-8'><title>MTMI űrlap eredmények</title>`;
   html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>`;
+  html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css' rel='stylesheet'>`;
   html += `<link rel='stylesheet' href='/style.css'>`;
+  html += `<style>
+    /* Az összefoglaló nézetben eltávolítjuk a min-height-ot és a felesleges térközöket */
+    .form-step {
+      min-height: auto !important;
+    }
+    #step-final {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+    }
+    #step-final .mb-4, #step-final .mb-5 {
+      margin-bottom: 1rem !important;
+    }
+  </style>`;
   html += `</head><body class='bg-light'><div class='container py-5'>`;
+  // PDF link hozzáadása, ha van
+  let pdfLinkHtml = '';
+  if (res.pdf_file_path) {
+    const encodedPath = encodeURIComponent(res.pdf_file_path);
+    const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+    pdfLinkHtml = `
+      <div class="text-center mb-4">
+        <a href="${pdfUrl}" target="_blank" class="btn btn-outline-danger">
+          <i class="bi bi-file-earmark-pdf"></i> PDF megtekintése
+        </a>
+      </div>
+    `;
+  }
+  
   html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
   html += formClone.innerHTML;
-  html += `</div><script>window.addEventListener('DOMContentLoaded', function() {\n  const data = ${JSON.stringify(data)};\n  document.querySelectorAll('input, select, textarea').forEach(function(el) {\n    const key = el.name;\n    if (!key) return;\n    const value = data[key];\n    if (typeof value === 'undefined') return;\n    if (el.type === \"checkbox\") {\n      if (Array.isArray(value)) {\n        el.checked = value.includes(el.value);\n      } else {\n        el.checked = (el.value == value);\n      }\n      el.disabled = true;\n    } else if (el.type === \"radio\") {\n      el.checked = (el.value == value);\n      el.disabled = true;\n    } else if (el.tagName === \"SELECT\") {\n      el.value = value;\n      el.disabled = true;\n    } else if (el.tagName === \"TEXTAREA\") {\n      el.value = value;\n      el.readOnly = true;\n    } else if ([\"text\",\"number\",\"email\",\"url\",\"tel\"].includes(el.type)) {\n      el.value = value;\n      el.readOnly = true;\n    }\n  });\n});<\/script></body></html>`;
+  // PDF link a form után, de még a container-en belül
+  if (res.pdf_file_path) {
+    const encodedPath = encodeURIComponent(res.pdf_file_path);
+    const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+    html += `
+      <div class="text-center mt-4 mb-4">
+        <a href="${pdfUrl}" target="_blank" class="btn btn-outline-danger btn-lg">
+          <i class="bi bi-file-earmark-pdf"></i> PDF megtekintése
+        </a>
+      </div>
+    `;
+  }
+  html += `</div><script>
+    // Azonnal alkalmazzuk a readonly beállításokat
+    const data = ${JSON.stringify(data)};
+    document.querySelectorAll('input, select, textarea').forEach(function(el) {
+      const key = el.name;
+      if (!key) return;
+      const value = data[key];
+      if (typeof value === 'undefined') return;
+      if (el.type === "checkbox") {
+        if (Array.isArray(value)) {
+          el.checked = value.includes(el.value);
+        } else {
+          el.checked = (el.value == value);
+        }
+        el.disabled = true;
+        el.style.pointerEvents = "none";
+      } else if (el.type === "radio") {
+        el.checked = (el.value == value);
+        el.disabled = true;
+        el.style.pointerEvents = "none";
+      } else if (el.tagName === "SELECT") {
+        el.value = value;
+        el.disabled = true;
+        el.style.pointerEvents = "none";
+      } else if (el.tagName === "TEXTAREA") {
+        el.value = value;
+        el.readOnly = true;
+        el.style.backgroundColor = "#f8f9fa";
+        el.style.pointerEvents = "none";
+      } else if (["text","number","email","url","tel"].includes(el.type)) {
+        el.value = value;
+        el.readOnly = true;
+        el.style.backgroundColor = "#f8f9fa";
+        el.style.pointerEvents = "none";
+      }
+    });
+    // Extra biztonság: minden mező readonly
+    setTimeout(function() {
+      document.querySelectorAll('input, select, textarea').forEach(function(el) {
+        if (el.type === "checkbox" || el.type === "radio") {
+          el.disabled = true;
+          el.style.pointerEvents = "none";
+        } else if (el.tagName === "SELECT") {
+          el.disabled = true;
+          el.style.pointerEvents = "none";
+        } else {
+          el.readOnly = true;
+          el.style.backgroundColor = "#f8f9fa";
+          el.style.pointerEvents = "none";
+        }
+      });
+    }, 100);
+  </script></body></html>`;
   // Új ablakban nyitjuk meg a nyomtatható nézetet
   const printWindow = window.open("", "_blank");
   printWindow.document.write(html);
