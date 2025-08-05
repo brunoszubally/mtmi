@@ -996,7 +996,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                               3.1.1 Az iskola MTMI csapata bemutatja az iskola MTMI-fókuszú szakkör- és versenyfelkészítés kínálatát. Az iskola MTMI szakkörkínálata elérhető az iskola honlapján.
                             </div>
                             <label class="form-label">Az iskola MTMI-fókuszú szakköreinek száma:</label>
-                            <input type="number" class="form-control mb-2" name="mtmi_szakkorok_szama" maxlength="100" required>
+                            <input type="number" class="form-control mb-2" name="mtmi_szakkorok_szama" min="0" max="1000" required>
                             <label class="form-label">Kérjük, jelölje meg, mely tantárgyakat érintő MTMI-fókuszú szakköri kínálata van az iskolának (beleértve a versenyfelkészítő foglalkozásokat is):</label>
                             <div class="row mb-2">
                             <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="mtmi_szakkor_tantargyak" value="matematika" id="szakkor-matematika"><label class="form-check-label" for="szakkor-matematika">Matematika</label></div></div>
@@ -1062,7 +1062,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Az iskola MTMI-fókuszú legalább egy évfolyamot érintő egyéb tevékenységeinek száma (a fenti tevékenységeket összesítve):</label>
-                            <input type="text" class="form-control mb-2" name="mtmi_egyeb_tevekenysegek_szama" maxlength="100" placeholder="saját szöveg beírása">
+                            <input type="number" class="form-control mb-2" name="mtmi_egyeb_tevekenysegek_szama" min="0" max="1000" placeholder="Szám megadása" required>
                           </div>
                         </div>
                         <!-- 3.1.3 -->

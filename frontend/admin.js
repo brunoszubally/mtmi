@@ -266,10 +266,57 @@ async function showSummary(session_id) {
   let html = `<html><head><meta charset='utf-8'><title>MTMI űrlap eredmények</title>`;
   html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>`;
   html += `<link rel='stylesheet' href='/style.css'>`;
+  html += `<style>
+    /* Textarea automatikus méretezése a tartalomhoz */
+    textarea {
+      resize: none !important;
+      min-height: 100px !important;
+      overflow: visible !important;
+    }
+    /* Hosszú szövegek esetén automatikus magasság beállítása */
+    textarea[readonly] {
+      height: auto !important;
+      min-height: 100px;
+      overflow: visible !important;
+    }
+    /* JavaScript által beállított magasság felülírja a CSS-t */
+    textarea[style*="height"] {
+      height: inherit !important;
+    }
+    /* Inline height felülírja minden mást */
+    textarea[style*="height:"] {
+      height: inherit !important;
+      min-height: inherit !important;
+    }
+  </style>`;
   html += `</head><body class='bg-light'><div class='container py-5'>`;
   html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
   html += formClone.innerHTML;
-  html += `</div><script>window.addEventListener('DOMContentLoaded', function() {\n  const data = ${JSON.stringify(data)};\n  document.querySelectorAll('input, select, textarea').forEach(function(el) {\n    const key = el.name;\n    if (!key) return;\n    const value = data[key];\n    if (typeof value === 'undefined') return;\n    if (el.type === \"checkbox\") {\n      if (Array.isArray(value)) {\n        el.checked = value.includes(el.value);\n      } else {\n        el.checked = (el.value == value);\n      }\n      el.disabled = true;\n    } else if (el.type === \"radio\") {\n      el.checked = (el.value == value);\n      el.disabled = true;\n    } else if (el.tagName === \"SELECT\") {\n      el.value = value;\n      el.disabled = true;\n    } else if (el.tagName === \"TEXTAREA\") {\n      el.value = value;\n      el.readOnly = true;\n    } else if ([\"text\",\"number\",\"email\",\"url\",\"tel\"].includes(el.type)) {\n      el.value = value;\n      el.readOnly = true;\n    }\n  });\n});<\/script></body></html>`;
+  html += `</div><script>window.addEventListener('DOMContentLoaded', function() {\n  const data = ${JSON.stringify(data)};\n  document.querySelectorAll('input, select, textarea').forEach(function(el) {\n    const key = el.name;\n    if (!key) return;\n    const value = data[key];\n    if (typeof value === 'undefined') return;\n    if (el.type === \"checkbox\") {\n      if (Array.isArray(value)) {\n        el.checked = value.includes(el.value);\n      } else {\n        el.checked = (el.value == value);\n      }\n      el.disabled = true;\n    } else if (el.type === \"radio\") {\n      el.checked = (el.value == value);\n      el.disabled = true;\n    } else if (el.tagName === \"SELECT\") {\n      el.value = value;\n      el.disabled = true;\n    } else if (el.tagName === \"TEXTAREA\") {\n      el.value = value;\n      el.readOnly = true;\n    } else if ([\"text\",\"number\",\"email\",\"url\",\"tel\"].includes(el.type)) {\n      el.value = value;\n      el.readOnly = true;\n    }\n  });\n  \n  // Textarea magasság automatikus beállítása a tartalomhoz\n  setTimeout(function() {\n    document.querySelectorAll('textarea').forEach(function(textarea) {\n      if (textarea.value && textarea.value.trim() !== '') {\n        // Ideiglenesen eltávolítjuk a readonly-ot a magasság számításához\n        const wasReadonly = textarea.readOnly;\n        textarea.readOnly = false;\n        \n        // Beállítjuk a magasságot a tartalomhoz\n        // Közvetlenül felülírjuk a height-et, nem távolítjuk el
+        textarea.style.height = 'auto';\n        // Dinamikusan számítjuk ki a szükséges magasságot
+        const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
+        const textWidth = textarea.offsetWidth - parseInt(window.getComputedStyle(textarea).paddingLeft) - parseInt(window.getComputedStyle(textarea).paddingRight);
+        const charWidth = 8; // Becsült karakter szélesség
+        const charsPerLine = Math.floor(textWidth / charWidth);
+        
+        // Sorok számolása a szöveg alapján
+        let lines = 1;
+        const textLines = textarea.value.split('\\n');
+        for (let line of textLines) {
+          if (line.length > charsPerLine) {
+            lines += Math.ceil(line.length / charsPerLine);
+          } else {
+            lines += 1;
+          }
+        }
+        
+        const padding = parseInt(window.getComputedStyle(textarea).paddingTop) + parseInt(window.getComputedStyle(textarea).paddingBottom) || 16;
+        const border = parseInt(window.getComputedStyle(textarea).borderTopWidth) + parseInt(window.getComputedStyle(textarea).borderBottomWidth) || 2;
+        
+        const calculatedHeight = (lines * lineHeight) + padding + border;
+        
+        // Beállítjuk a magasságot a számított értékre - erős felülírás
+        textarea.style.setProperty('height', calculatedHeight + 'px', 'important');\n        \n        // Visszaállítjuk a readonly-ot\n        textarea.readOnly = wasReadonly;\n      }\n    });\n  }, 100);\n});<\/script></body></html>`;
   // Új ablakban nyitjuk meg a nyomtatható nézetet
   const printWindow = window.open("", "_blank");
   printWindow.document.write(html);

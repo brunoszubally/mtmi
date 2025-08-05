@@ -279,6 +279,27 @@ async function showSummary(session_id) {
     #step-final .mb-4, #step-final .mb-5 {
       margin-bottom: 1rem !important;
     }
+    /* Textarea automatikus méretezése a tartalomhoz */
+    textarea {
+      resize: none !important;
+      min-height: 100px !important;
+      overflow: visible !important;
+    }
+    /* Hosszú szövegek esetén automatikus magasság beállítása */
+    textarea[readonly] {
+      height: auto !important;
+      min-height: 100px;
+      overflow: visible !important;
+    }
+    /* JavaScript által beállított magasság felülírja a CSS-t */
+    textarea[style*="height"] {
+      height: inherit !important;
+    }
+    /* Inline height felülírja minden mást */
+    textarea[style*="height:"] {
+      height: inherit !important;
+      min-height: inherit !important;
+    }
   </style>`;
   html += `</head><body class='bg-light'><div class='container py-5'>`;
   // PDF link hozzáadása, ha van
@@ -358,6 +379,54 @@ async function showSummary(session_id) {
           el.readOnly = true;
           el.style.backgroundColor = "#f8f9fa";
           el.style.pointerEvents = "none";
+        }
+      });
+      
+      // Textarea magasság automatikus beállítása a teljes tartalomhoz
+      document.querySelectorAll('textarea').forEach(function(textarea) {
+        console.log('Textarea:', textarea.name, 'Value length:', textarea.value.length, 'Value:', textarea.value.substring(0, 50) + '...');
+        if (textarea.value && textarea.value.trim() !== '') {
+          // Ideiglenesen eltávolítjuk a readonly-ot és a height-ot a magasság számításához
+          const wasReadonly = textarea.readOnly;
+          textarea.readOnly = false;
+          
+          // Közvetlenül felülírjuk a height-et, nem távolítjuk el
+          textarea.style.height = 'auto';
+          
+          // Dinamikusan számítjuk ki a szükséges magasságot
+          const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
+          const textWidth = textarea.offsetWidth - parseInt(window.getComputedStyle(textarea).paddingLeft) - parseInt(window.getComputedStyle(textarea).paddingRight);
+          const charWidth = 8; // Becsült karakter szélesség
+          const charsPerLine = Math.floor(textWidth / charWidth);
+          
+          // Sorok számolása a szöveg alapján
+          let lines = 1;
+          const textLines = textarea.value.split('\\n');
+          for (let line of textLines) {
+            if (line.length > charsPerLine) {
+              lines += Math.ceil(line.length / charsPerLine);
+            } else {
+              lines += 1;
+            }
+          }
+          
+          const padding = parseInt(window.getComputedStyle(textarea).paddingTop) + parseInt(window.getComputedStyle(textarea).paddingBottom) || 16;
+          const border = parseInt(window.getComputedStyle(textarea).borderTopWidth) + parseInt(window.getComputedStyle(textarea).borderBottomWidth) || 2;
+          
+          const calculatedHeight = (lines * lineHeight) + padding + border;
+          
+          // Beállítjuk a magasságot a számított értékre - erős felülírás
+          textarea.style.setProperty('height', calculatedHeight + 'px', 'important');
+          console.log('Textarea height set to:', calculatedHeight + 'px', 'for', textarea.name);
+          
+          // Ellenőrizzük, hogy a magasság ténylegesen beállításra került-e
+          setTimeout(() => {
+            const actualHeight = textarea.style.height;
+            console.log('Actual height after setting:', actualHeight, 'for', textarea.name);
+          }, 10);
+          
+          // Visszaállítjuk a readonly-ot
+          textarea.readOnly = wasReadonly;
         }
       });
     }, 100);
