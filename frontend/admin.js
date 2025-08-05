@@ -147,6 +147,17 @@ async function loadAdminList() {
       tdPdf.title = "Nincs PDF";
     }
     tr.appendChild(tdPdf);
+    // Print PDF gomb
+    const tdPrintPdf = document.createElement("td");
+    const printPdfBtn = document.createElement("button");
+    printPdfBtn.className = "btn btn-outline-success btn-sm";
+    printPdfBtn.innerHTML = '<i class="bi bi-printer"></i> PDF';
+    printPdfBtn.title = "Print PDF";
+    printPdfBtn.addEventListener("click", function() {
+      printSummaryAsPdf(row.id);
+    });
+    tdPrintPdf.appendChild(printPdfBtn);
+    tr.appendChild(tdPrintPdf);
     // ÚJ: Megtekintés gomb
     const tdView = document.createElement("td");
     const viewBtn = document.createElement("a");
@@ -258,8 +269,8 @@ async function showSummary(session_id) {
   });
   // Minden feltételes/dinamikus blokkot láthatóvá teszünk
   formClone.querySelectorAll('[style*="display: none"]').forEach(el => { el.style.display = ''; });
-  // Eltávolítjuk a steppereket, navigációt, gombokat
-  formClone.querySelectorAll('.stepper-sidebar, .stepper, .stepper-vertical, .stepper-link, .prev-step, .next-step, button[type="submit"], #thankyou-placeholder, #thankyou-fullscreen, #mtmi-save-btn, .progress, #form-progress, #progress-percent').forEach(el => el.remove());
+  // Eltávolítjuk a steppereket, navigációt, gombokat és a 8-as pontot (Befejezés)
+  formClone.querySelectorAll('.stepper-sidebar, .stepper, .stepper-vertical, .stepper-link, .prev-step, .next-step, button[type="submit"], #thankyou-placeholder, #thankyou-fullscreen, #mtmi-save-btn, .progress, #form-progress, #progress-percent, #step-final').forEach(el => el.remove());
   // Minden .form-step-et láthatóvá teszünk
   formClone.querySelectorAll('.form-step').forEach(el => { el.style.display = ''; el.classList.remove('animate__animated', 'animate__fadeIn', 'animate__fadeInRight', 'animate__fadeInLeft', 'animate__fadeOutLeft', 'animate__fadeOutRight'); });
   // Teljes HTML oldal generálása
@@ -292,6 +303,21 @@ async function showSummary(session_id) {
   html += `</head><body class='bg-light'><div class='container py-5'>`;
   html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
   html += formClone.innerHTML;
+  
+  // PDF link hozzáadása a form végén, ha van
+  let pdfLinkHtml = '';
+  if (res.pdf_file_path) {
+    const encodedPath = encodeURIComponent(res.pdf_file_path);
+    const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+    pdfLinkHtml = `
+      <div class='text-center mt-4'>
+        <a href="${pdfUrl}" target="_blank" class="btn btn-outline-danger btn-lg">
+          <i class="bi bi-file-earmark-pdf"></i> Csatolmány megnyitása
+        </a>
+      </div>
+    `;
+  }
+  html += pdfLinkHtml;
   html += `</div><script>window.addEventListener('DOMContentLoaded', function() {\n  const data = ${JSON.stringify(data)};\n  document.querySelectorAll('input, select, textarea').forEach(function(el) {\n    const key = el.name;\n    if (!key) return;\n    const value = data[key];\n    if (typeof value === 'undefined') return;\n    if (el.type === \"checkbox\") {\n      if (Array.isArray(value)) {\n        el.checked = value.includes(el.value);\n      } else {\n        el.checked = (el.value == value);\n      }\n      el.disabled = true;\n    } else if (el.type === \"radio\") {\n      el.checked = (el.value == value);\n      el.disabled = true;\n    } else if (el.tagName === \"SELECT\") {\n      el.value = value;\n      el.disabled = true;\n    } else if (el.tagName === \"TEXTAREA\") {\n      el.value = value;\n      el.readOnly = true;\n    } else if ([\"text\",\"number\",\"email\",\"url\",\"tel\"].includes(el.type)) {\n      el.value = value;\n      el.readOnly = true;\n    }\n  });\n  \n  // Textarea magasság automatikus beállítása a tartalomhoz\n  setTimeout(function() {\n    document.querySelectorAll('textarea').forEach(function(textarea) {\n      if (textarea.value && textarea.value.trim() !== '') {\n        // Ideiglenesen eltávolítjuk a readonly-ot a magasság számításához\n        const wasReadonly = textarea.readOnly;\n        textarea.readOnly = false;\n        \n        // Beállítjuk a magasságot a tartalomhoz\n        // Közvetlenül felülírjuk a height-et, nem távolítjuk el
         textarea.style.height = 'auto';\n        // Dinamikusan számítjuk ki a szükséges magasságot
         const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
@@ -321,4 +347,119 @@ async function showSummary(session_id) {
   const printWindow = window.open("", "_blank");
   printWindow.document.write(html);
   printWindow.document.close();
+}
+
+// --- PDF letöltés funkció ---
+async function printSummaryAsPdf(session_id) {
+  try {
+    // Lekérjük az adatokat
+    const resp = await fetch(`${API_BASE}/admin/result/${session_id}`);
+    if (!resp.ok) {
+      alert("Nem sikerült letölteni az eredményeket a szerverről.");
+      return;
+    }
+    const res = await resp.json();
+    const data = res.data;
+    
+    // Lemásoljuk az eredeti űrlap HTML-t (feltételezzük, hogy az index.html elérhető)
+    const formHtmlResp = await fetch("/index.html");
+    const formHtmlText = await formHtmlResp.text();
+    // Kinyerjük a <form id="mtmi-form">...</form> tartalmát
+    const formMatch = formHtmlText.match(/<form[^>]*id=["']mtmi-form["'][^>]*>([\s\S]*?)<\/form>/);
+    if (!formMatch) {
+      alert("Nem található az űrlap HTML a forrásban.");
+      return;
+    }
+    const formInner = formMatch[1];
+    // Létrehozunk egy dummy formot a DOM-ban, hogy ki tudjuk tölteni
+    const dummyDiv = document.createElement("div");
+    dummyDiv.innerHTML = `<form id='mtmi-form'>${formInner}</form>`;
+    const formClone = dummyDiv.querySelector("#mtmi-form");
+    // Kitöltjük a mezőket a válaszokkal (ugyanaz a logika, mint a letöltésnél)
+    formClone.querySelectorAll('input, select, textarea').forEach(el => {
+      const key = el.name;
+      if (!key) return;
+      const value = data[key];
+      if (typeof value === 'undefined') return;
+      if (el.type === "checkbox") {
+        if (Array.isArray(value)) {
+          el.checked = value.includes(el.value);
+        } else {
+          el.checked = (el.value == value);
+        }
+        el.disabled = true;
+      } else if (el.type === "radio") {
+        el.checked = (el.value == value);
+        el.disabled = true;
+      } else if (el.tagName === "SELECT") {
+        el.value = value;
+        el.disabled = true;
+      } else if (el.tagName === "TEXTAREA") {
+        el.value = value;
+        el.readOnly = true;
+      } else if (["text","number","email","url","tel"].includes(el.type)) {
+        el.value = value;
+        el.readOnly = true;
+      }
+    });
+    // Minden feltételes/dinamikus blokkot láthatóvá teszünk
+    formClone.querySelectorAll('[style*="display: none"]').forEach(el => { el.style.display = ''; });
+    // Eltávolítjuk a steppereket, navigációt, gombokat és a 8-as pontot (Befejezés)
+    formClone.querySelectorAll('.stepper-sidebar, .stepper, .stepper-vertical, .stepper-link, .prev-step, .next-step, button[type="submit"], #thankyou-placeholder, #thankyou-fullscreen, #mtmi-save-btn, .progress, #form-progress, #progress-percent, #step-final').forEach(el => el.remove());
+    // Minden .form-step-et láthatóvá teszünk
+    formClone.querySelectorAll('.form-step').forEach(el => { el.style.display = ''; el.classList.remove('animate__animated', 'animate__fadeIn', 'animate__fadeInRight', 'animate__fadeInLeft', 'animate__fadeOutLeft', 'animate__fadeOutRight'); });
+    // Teljes HTML oldal generálása
+    let html = `<html><head><meta charset='utf-8'><title>MTMI űrlap eredmények</title>`;
+    html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>`;
+    html += `<link rel='stylesheet' href='/style.css'>`;
+    html += `<style>
+      /* Textarea automatikus méretezése a tartalomhoz */
+      textarea {
+        resize: none !important;
+        min-height: 100px !important;
+        overflow: visible !important;
+      }
+      /* Hosszú szövegek esetén automatikus magasság beállítása */
+      textarea[readonly] {
+        height: auto !important;
+        min-height: 100px;
+        overflow: visible !important;
+      }
+      /* JavaScript által beállított magasság felülírja a CSS-t */
+      textarea[style*="height"] {
+        height: inherit !important;
+      }
+      /* Inline height felülírja minden mást */
+      textarea[style*="height:"] {
+        height: inherit !important;
+        min-height: inherit !important;
+      }
+    </style>`;
+    html += `</head><body class='bg-light'><div class='container py-5'>`;
+    html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
+    html += formClone.innerHTML;
+    html += `</div><script>window.addEventListener('DOMContentLoaded', function() {\n  const data = ${JSON.stringify(data)};\n  document.querySelectorAll('input, select, textarea').forEach(function(el) {\n    const key = el.name;\n    if (!key) return;\n    const value = data[key];\n    if (typeof value === 'undefined') return;\n    if (el.type === \"checkbox\") {\n      if (Array.isArray(value)) {\n        el.checked = value.includes(el.value);\n      } else {\n        el.checked = (el.value == value);\n      }\n      el.disabled = true;\n    } else if (el.type === \"radio\") {\n      el.checked = (el.value == value);\n      el.disabled = true;\n    } else if (el.tagName === \"SELECT\") {\n      el.value = value;\n      el.disabled = true;\n    } else if (el.tagName === \"TEXTAREA\") {\n      el.value = value;\n      el.readOnly = true;\n    } else if ([\"text\",\"number\",\"email\",\"url\",\"tel\"].includes(el.type)) {\n      el.value = value;\n      el.readOnly = true;\n    }\n  });\n  \n  // Textarea magasság automatikus beállítása a tartalomhoz\n  setTimeout(function() {\n    document.querySelectorAll('textarea').forEach(function(textarea) {\n      if (textarea.value && textarea.value.trim() !== '') {\n        // Ideiglenesen eltávolítjuk a readonly-ot a magasság számításához\n        const wasReadonly = textarea.readOnly;\n        textarea.readOnly = false;\n        \n        // Beállítjuk a magasságot a tartalomhoz\n        // Közvetlenül felülírjuk a height-et, nem távolítjuk el
+        textarea.style.height = 'auto';\n        // Dinamikusan számítjuk ki a szükséges magasságot\n        const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;\n        const textWidth = textarea.offsetWidth - parseInt(window.getComputedStyle(textarea).paddingLeft) - parseInt(window.getComputedStyle(textarea).paddingRight);\n        const charWidth = 8; // Becsült karakter szélesség\n        const charsPerLine = Math.floor(textWidth / charWidth);\n        \n        // Sorok számolása a szöveg alapján\n        let lines = 1;\n        const textLines = textarea.value.split('\\n');\n        for (let line of textLines) {\n          if (line.length > charsPerLine) {\n            lines += Math.ceil(line.length / charsPerLine);\n          } else {\n            lines += 1;\n          }\n        }\n        \n        const padding = parseInt(window.getComputedStyle(textarea).paddingTop) + parseInt(window.getComputedStyle(textarea).paddingBottom) || 16;\n        const border = parseInt(window.getComputedStyle(textarea).borderTopWidth) + parseInt(window.getComputedStyle(textarea).borderBottomWidth) || 2;\n        \n        const calculatedHeight = (lines * lineHeight) + padding + border;\n        \n        // Beállítjuk a magasságot a számított értékre - erős felülírás\n        textarea.style.setProperty('height', calculatedHeight + 'px', 'important');\n        \n        // Visszaállítjuk a readonly-ot\n        textarea.readOnly = wasReadonly;\n      }\n    });\n  }, 100);\n});<\/script></body></html>`;
+    
+    // Új ablakban nyitjuk meg a nyomtatható nézetet
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(html);
+    printWindow.document.close();
+    
+    // PDF fájlnév generálása: iskola neve + dátum
+    const iskolaNev = data.palyazo_iskola_neve || 'iskola';
+    const bekuldesDatuma = new Date().toISOString().split('T')[0]; // YYYY-MM-DD formátum
+    const pdfFileName = `${iskolaNev}_${bekuldesDatuma}.pdf`;
+    
+    // Várunk egy kicsit, hogy betöltődjön a tartalom, majd nyomtatjuk
+    setTimeout(() => {
+      // Beállítjuk a PDF fájlnevet a nyomtatási párbeszédablakban
+      printWindow.document.title = pdfFileName;
+      printWindow.print();
+    }, 1000);
+    
+  } catch (error) {
+    console.error("Hiba a PDF generálása során:", error);
+    alert("Hiba történt a PDF generálása során!");
+  }
 } 

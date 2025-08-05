@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
@@ -10,6 +10,12 @@ import os
 import psycopg2
 from psycopg2.extras import Json
 import shutil
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from io import BytesIO
 
 # --- Adatbázis inicializálás ---
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -251,4 +257,122 @@ def admin_delete(session_id: str):
             
             c.execute("DELETE FROM forms WHERE id = %s", (session_id,))
             conn.commit()
-    return {"status": "deleted"} 
+    return {"status": "deleted"}
+
+@app.post("/api/admin/generate-pdf")
+def generate_pdf(request: dict):
+    session_id = request.get("session_id")
+    data = request.get("data", {})
+    
+    # PDF generálása
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    story = []
+    
+    # Stílusok
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=20,
+        alignment=1  # középre igazítás
+    )
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=12,
+        spaceBefore=12
+    )
+    normal_style = styles['Normal']
+    
+    # Cím
+    story.append(Paragraph("MTMI Iskola Program<br/>Pályázati űrlap (összefoglaló)", title_style))
+    story.append(Spacer(1, 20))
+    
+    # Alapadatok
+    story.append(Paragraph("0. Alapadatok", heading_style))
+    if data.get("palyazo_iskola_neve"):
+        story.append(Paragraph(f"<b>Pályázó iskola neve:</b> {data['palyazo_iskola_neve']}", normal_style))
+    if data.get("iskola_cime"):
+        story.append(Paragraph(f"<b>Iskola címe:</b> {data['iskola_cime']}", normal_style))
+    if data.get("telepulesforma"):
+        story.append(Paragraph(f"<b>Településforma:</b> {data['telepulesforma']}", normal_style))
+    if data.get("iskolatipus"):
+        story.append(Paragraph(f"<b>Iskolatípus:</b> {', '.join(data['iskolatipus']) if isinstance(data['iskolatipus'], list) else data['iskolatipus']}", normal_style))
+    if data.get("iskola_tanuloi_letszama"):
+        story.append(Paragraph(f"<b>Iskola tanulói létszáma:</b> {data['iskola_tanuloi_letszama']}", normal_style))
+    story.append(Spacer(1, 12))
+    
+    # MTMI működés iskolai személyi feltételei
+    story.append(Paragraph("1. MTMI működés iskolai személyi feltételei", heading_style))
+    if data.get("mtmi_csapat_letszam"):
+        story.append(Paragraph(f"<b>MTMI csapat létszáma:</b> {data['mtmi_csapat_letszam']}", normal_style))
+    if data.get("mtmi_csapat_kozos_tevekenyseg"):
+        story.append(Paragraph(f"<b>MTMI csapat közös tevékenységei:</b>", normal_style))
+        story.append(Paragraph(data['mtmi_csapat_kozos_tevekenyseg'], normal_style))
+    story.append(Spacer(1, 12))
+    
+    # MTMI tantárgyak
+    story.append(Paragraph("2. MTMI tantárgyak, elemek a pedagógiai programban", heading_style))
+    if data.get("pedprog_mtmi_tartalom"):
+        story.append(Paragraph(f"<b>Pedagógiai program MTMI tartalmak:</b> {data['pedprog_mtmi_tartalom']}", normal_style))
+    if data.get("pedprog_mtmi_leiras"):
+        story.append(Paragraph(f"<b>Pedagógiai program leírás:</b>", normal_style))
+        story.append(Paragraph(data['pedprog_mtmi_leiras'], normal_style))
+    story.append(Spacer(1, 12))
+    
+    # Saját MTMI programkínálat
+    story.append(Paragraph("3. Saját MTMI programkínálat", heading_style))
+    if data.get("mtmi_szakkorok_szama"):
+        story.append(Paragraph(f"<b>MTMI-fókuszú szakkörek száma:</b> {data['mtmi_szakkorok_szama']}", normal_style))
+    if data.get("mtmi_nyilt_napok"):
+        story.append(Paragraph(f"<b>MTMI nyílt napok:</b>", normal_style))
+        story.append(Paragraph(data['mtmi_nyilt_napok'], normal_style))
+    if data.get("mtmi_projektnapok"):
+        story.append(Paragraph(f"<b>MTMI projektnapok:</b>", normal_style))
+        story.append(Paragraph(data['mtmi_projektnapok'], normal_style))
+    if data.get("mtmi_szakmai_gyakorlatok"):
+        story.append(Paragraph(f"<b>MTMI szakmai gyakorlatok:</b>", normal_style))
+        story.append(Paragraph(data['mtmi_szakmai_gyakorlatok'], normal_style))
+    story.append(Spacer(1, 12))
+    
+    # MTMI versenyek
+    story.append(Paragraph("4. MTMI versenyek, pályázatok, kutatások", heading_style))
+    if data.get("mtmi_versenyek_szervezese"):
+        story.append(Paragraph(f"<b>MTMI versenyek szervezése:</b> {data['mtmi_versenyek_szervezese']}", normal_style))
+    if data.get("mtmi_versenyek_bemutatasa"):
+        story.append(Paragraph(f"<b>MTMI versenyek bemutatása:</b>", normal_style))
+        story.append(Paragraph(data['mtmi_versenyek_bemutatasa'], normal_style))
+    story.append(Spacer(1, 12))
+    
+    # Lányok érdeklődése
+    story.append(Paragraph("5. A lányok érdeklődésének felkeltése", heading_style))
+    if data.get("mtmi_lanyok_programok"):
+        story.append(Paragraph(f"<b>Lányok programok:</b> {data['mtmi_lanyok_programok']}", normal_style))
+    story.append(Spacer(1, 12))
+    
+    # MTMI kapcsolatrendszer
+    story.append(Paragraph("6. MTMI kapcsolatrendszer működtetése", heading_style))
+    if data.get("mtmi_egyuttmukodes_felsooktatas"):
+        story.append(Paragraph(f"<b>Felsőoktatási együttműködés:</b> {data['mtmi_egyuttmukodes_felsooktatas']}", normal_style))
+    if data.get("mtmi_egyuttmukodes_vallalatok"):
+        story.append(Paragraph(f"<b>Vállalati együttműködés:</b> {data['mtmi_egyuttmukodes_vallalatok']}", normal_style))
+    story.append(Spacer(1, 12))
+    
+    # Pedagógusok ösztönzése
+    story.append(Paragraph("7. Pedagógusok ösztönzése", heading_style))
+    if data.get("mtmi_pedagogusok_osztonezes"):
+        story.append(Paragraph(f"<b>Pedagógusok ösztönzése:</b> {data['mtmi_pedagogusok_osztonezes']}", normal_style))
+    story.append(Spacer(1, 12))
+    
+    # PDF generálása
+    doc.build(story)
+    buffer.seek(0)
+    
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=MTMI_kitoltes_{session_id}.pdf"}
+    ) 

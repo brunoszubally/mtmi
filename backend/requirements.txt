@@ -1,4 +1,6 @@
 fastapi
 uvicorn
 psycopg2-binary
-python-multipart 
+python-multipart
+reportlab
+jinja2 
