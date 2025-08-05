@@ -77,12 +77,12 @@
                       <h4 class="mb-3">0. Alapadatok</h4>
                       <div class="mb-3">
                         <label class="form-label">Pályázó iskola neve</label>
-                        <input type="text" class="form-control" name="palyazo_iskola_neve" required maxlength="2000" placeholder="">
+                        <input type="text" class="form-control" name="palyazo_iskola_neve" required maxlength="2000" placeholder="saját szöveg beírása">
                         <small class="form-text text-muted">max. 2000 karakter</small>
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Iskola címe</label>
-                        <input type="text" class="form-control" name="iskola_cime" required maxlength="2000" placeholder="">
+                        <input type="text" class="form-control" name="iskola_cime" required maxlength="2000" placeholder="saját szöveg beírása">
                         <small class="form-text text-muted">max. 2000 karakter</small>
                       </div>
                       <div class="mb-3">
@@ -121,15 +121,15 @@
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Iskola tanulói létszáma</label>
-                        <input type="number" class="form-control" name="iskola_tanuloi_letszama" min="0" required placeholder="">
+                        <input type="number" class="form-control" name="iskola_tanuloi_letszama" min="0" required placeholder="saját szöveg beírása">
                       </div>
                       <div class="mb-3">
                         <label class="form-label">A pályázó intézménytípus tanulói létszáma</label>
-                        <input type="number" class="form-control" name="intezmenytipus_tanuloi_letszama" min="0" required placeholder="">
+                        <input type="number" class="form-control" name="intezmenytipus_tanuloi_letszama" min="0" required placeholder="saját szöveg beírása">
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Ebből mennyi a programban érintett tanulók száma (szakköri, verseny részvétel, pályaválasztási programok, laborlátogatások stb. résztvevőinek összes száma. Az adatot a pályázati űrlap kitöltése alapján adja meg.)</label>
-                        <input type="number" class="form-control" name="programban_erintett_tanulok_szama" min="0" required placeholder="">
+                        <input type="number" class="form-control" name="programban_erintett_tanulok_szama" min="0" required placeholder="saját szöveg beírása">
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Az iskola MTMI tanári létszáma (matematika, fizika, kémia, biológia, földrajz, digitális kultúra, környezetismeret, természettudomány, integrált természettudomány, technika és tervezés szakos pedagógusok száma)</label>
@@ -877,7 +877,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                            </div>
                          </div>
                         <label class="form-label">MTMI csapat közös tevékenységeinek bemutatása</label>
-                        <textarea class="form-control mb-2" name="mtmi_csapat_kozos_tevekenyseg" maxlength="2000"></textarea>
+                        <textarea class="form-control mb-2" name="mtmi_csapat_kozos_tevekenyseg" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                         <small class="form-text text-muted">max. 2000 karakter</small>
                         <label class="form-label">Link(ek) megadása az MTMI csapat bemutatásához és a tevékenységekhez</label>
                         <input type="url" class="form-control mb-2" name="mtmi_csapat_link" placeholder="https://..." maxlength="2000">
@@ -926,7 +926,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           <option value="nem">nem valósul meg</option>
                         </select>
                         <label class="form-label">Kérjük, fejtse ki szövegszerűen: hogyan, milyen formában és időközönként valósul meg a szülőkkel való egyeztetés az MTMI célokról! Ha a fent említetteken túl további gyakorlatok és elvek is megvalósulnak, kérjük, sorolja fel azokat is!</label>
-                        <textarea class="form-control mb-2" name="szulo_egyeztetes_szoveg" maxlength="2000"></textarea>
+                        <textarea class="form-control mb-2" name="szulo_egyeztetes_szoveg" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                         <small class="form-text text-muted">max. 2000 karakter</small>
                   
                       </div>
@@ -952,7 +952,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                       </div>
                       <div class="mb-3" id="pedprog-mtmi-tartalom-leiras">
                         <label class="form-label">Kérjük, írja le szövegszerűen a pedagógiai program ide vonatkozó lényeges elemeit!</label>
-                        <textarea class="form-control mb-2" name="pedprog_mtmi_leiras" maxlength="2000"></textarea>
+                        <textarea class="form-control mb-2" name="pedprog_mtmi_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                         <small class="form-text text-muted">max. 2000 karakter</small>
                         <label class="form-label">Az iskola pedagógia programja elérhető az iskola honlapján. Link(ek) megadása az iskola pedagógiai programjához:</label>
                                                   <input type="url" class="form-control mb-2" name="pedprog_mtmi_link" placeholder="https://..." maxlength="2000">
@@ -972,7 +972,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                       </div>
                       <div class="mb-3" id="mtmi-koncepcio-leiras">
                         <label class="form-label">Kérjük, amennyiben van, és az a pedagógiai programon kívüli dokumentum, mutassa be röviden az iskola MTMI koncepcióját!</label>
-                        <textarea class="form-control mb-2" name="mtmi_koncepcio_leiras" maxlength="2000"></textarea>
+                        <textarea class="form-control mb-2" name="mtmi_koncepcio_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                         <small class="form-text text-muted">max. 2000 karakter</small>
                         <div class="mb-3">
                           <label class="form-label">Az iskola MTMI koncepciója elérhető az iskola honlapján. Link(ek) megadása az iskola MTMI koncepciójához:</label>
@@ -1020,11 +1020,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                             <input type="number" class="form-control mb-2" name="mtmi_szakkor_tanarok_szama" min="0" max="1000" required>
                           </div>
                           <label class="form-label">Kérjük, sorolja fel / röviden mutassa be az iskolai szakköröket!</label>
-                          <textarea class="form-control mb-2" name="mtmi_szakkorok_bemutatasa" maxlength="2000"></textarea>
+                                                      <textarea class="form-control mb-2" name="mtmi_szakkorok_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                           <div style="margin-top: 0.5rem;"></div>
                           <label class="form-label">Link(ek) megadása az iskola szakkörkínálatához:</label>
-                          <input type="url" class="form-control mb-2" name="mtmi_szakkorok_link" maxlength="2000">
+                          <input type="url" class="form-control mb-2" name="mtmi_szakkorok_link" maxlength="2000" placeholder="https://..." required>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                         </div>
                         <!-- 3.1.2 -->
@@ -1057,7 +1057,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Link(ek) megadása az iskolai MTMI nyílt nap(ok), az iskolai MTMI projektnap(ok), az iskolai MTMI szakmai gyakorlatok, a tanórán kívüli egyéb MTMI rendezvények bemutatásához/eléréséhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_nyilt_napok_link" maxlength="2000" placeholder="saját szöveg beírása">
+                            <input type="url" class="form-control mb-2" name="mtmi_nyilt_napok_link" maxlength="2000" placeholder="https://..." required>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                           <div class="mb-2">
@@ -1087,7 +1087,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                             </div>
                             <div class="mb-2">
                               <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Link(ek) megadása az interdiszciplináris MTMI projekt(ek) bemutatásához/eléréséhez:</label>
-                              <input type="url" class="form-control mb-2" name="mtmi_interdiszciplinaris_projekt_link" maxlength="2000" placeholder="saját szöveg beírása">
+                              <input type="url" class="form-control mb-2" name="mtmi_interdiszciplinaris_projekt_link" maxlength="2000" placeholder="https://..." required>
                               <small class="form-text text-muted">max. 2000 karakter</small>
                             </div>
                           </div>
@@ -1113,7 +1113,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                               <textarea class="form-control mb-2" name="mtmi_palyaorientacio_megvalosulas_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                               <div class="form-text text-muted mb-2">max. 2000 karakter</div>
                               <label class="form-label">Link(ek) megadása:</label>
-                              <input type="url" class="form-control mb-2" name="mtmi_palyaorientacio_megvalosulas_link" maxlength="2000">
+                              <input type="url" class="form-control mb-2" name="mtmi_palyaorientacio_megvalosulas_link" maxlength="2000" placeholder="https://..." required>
                               <small class="form-text text-muted">max. 2000 karakter</small>
                             </div>
                           </div>
@@ -1150,7 +1150,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                               <textarea class="form-control mb-2" name="mtmi_alumni_programok_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                               <div class="form-text text-muted mb-2">max. 2000 karakter</div>
                               <label class="form-label">Link(ek) megadása:</label>
-                              <input type="url" class="form-control mb-2" name="mtmi_alumni_programok_link" maxlength="2000">
+                              <input type="url" class="form-control mb-2" name="mtmi_alumni_programok_link" maxlength="2000" placeholder="https://..." required>
                               <small class="form-text text-muted">max. 2000 karakter</small>
                             </div>
                           </div>
@@ -1170,7 +1170,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                               <textarea class="form-control mb-2" name="mtmi_online_palyaorientacio_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                               <div class="form-text text-muted mb-2">max. 2000 karakter</div>
                               <label class="form-label">Link(ek) megadása:</label>
-                              <input type="url" class="form-control mb-2" name="mtmi_online_palyaorientacio_link" maxlength="2000">
+                              <input type="url" class="form-control mb-2" name="mtmi_online_palyaorientacio_link" maxlength="2000" placeholder="https://..." required>
                               <small class="form-text text-muted">max. 2000 karakter</small>
                             </div>
                           </div>
@@ -1205,13 +1205,13 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                                 <option value="nem">Nem</option>
                               </select>
                               <label class="form-label">Kérjük, fejtse ki, hogy a fenti pontok hogyan, milyen formában valósulnak meg az önök intézményében!</label>
-                              <textarea class="form-control mb-2" name="mtmi_egyuttmukodes_palyaorientacio_leiras" maxlength="2000"></textarea>
+                              <textarea class="form-control mb-2" name="mtmi_egyuttmukodes_palyaorientacio_leiras" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                               <small class="form-text text-muted">max. 2000 karakter</small>
                               <label class="form-label">Kérjük, sorolja fel (és szükség esetén fejtse ki) az iskola egyéb, fentebb nem említett pályaorientációs programjait!</label>
-                              <textarea class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok" maxlength="2000"></textarea>
+                              <textarea class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                               <small class="form-text text-muted">max. 2000 karakter</small>
                               <label class="form-label">Link(ek) megadása a pályaorientációs programokhoz:</label>
-                              <input type="url" class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok_link" maxlength="2000">
+                              <input type="url" class="form-control mb-2" name="mtmi_egyeb_palyaorientacios_programok_link" maxlength="2000" placeholder="https://..." required>
                               <small class="form-text text-muted">max. 2000 karakter</small>
                             </div>
                           </div>
@@ -1236,10 +1236,10 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-versenyek-szervezese-block" style="display:none;">
                             <label class="form-label">Kérjük, sorolja fel, mutassa be a versenyeket, pályázatokat, kutatásokat!</label>
-                            <textarea class="form-control mb-2" name="mtmi_versenyek_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_versenyek_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása a versenyekhez, pályázatokhoz, kutatásokhoz:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_versenyek_link" maxlength="2000">
+                            <input type="url" class="form-control mb-2" name="mtmi_versenyek_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1252,10 +1252,10 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-versenyeken-reszvetel-block" style="display:none;">
                             <label class="form-label">Kérjük, sorolja fel, mutassa be a részvételt, eredményeket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_versenyeken_reszvetel_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_versenyeken_reszvetel_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása a részvételhez, eredményekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_versenyeken_reszvetel_link" maxlength="2000">
+                            <input type="url" class="form-control mb-2" name="mtmi_versenyeken_reszvetel_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1268,10 +1268,10 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-orszagos-nemzetkozi-reszvetel-block" style="display:none;">
                             <label class="form-label">Kérjük, sorolja fel, mutassa be a részvételt, eredményeket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása a részvételhez, eredményekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_link" maxlength="2000">
+                            <input type="url" class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1287,10 +1287,10 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-eredmenyek-eleresek-block" style="display:none;">
                             <label class="form-label">Kérjük, sorolja fel, mutassa be az elismeréseket, díjakat, okleveleket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_eredmenyek_eleresek_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_eredmenyek_eleresek_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">Link(ek) megadása az elismerésekhez, díjakhoz, oklevelekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_eredmenyek_eleresek_link" maxlength="2000">
+                            <input type="url" class="form-control mb-2" name="mtmi_eredmenyek_eleresek_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1316,10 +1316,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="lanyok-mtmi-kiemelt-figyelem-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="lanyok_mtmi_reszvetel_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="lanyok_mtmi_reszvetel_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="lanyok_mtmi_reszvetel_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="lanyok_mtmi_reszvetel_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                                                   </div>
@@ -1335,10 +1336,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="lanyoknak-szolo-mtmi-programok-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="lanyoknak_szolo_mtmi_programok_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="lanyoknak_szolo_mtmi_programok_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="lanyoknak_szolo_mtmi_programok_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="lanyoknak_szolo_mtmi_programok_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1354,10 +1356,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="lanyok-mtmi-nepszerusito-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="lanyok_mtmi_nepszerusito_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="lanyok_mtmi_nepszerusito_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="lanyok_mtmi_nepszerusito_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="lanyok_mtmi_nepszerusito_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1384,10 +1387,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-kapcsolatok-egyuttmukodes-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_kapcsolatok_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_kapcsolatok_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_kapcsolatok_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="mtmi_kapcsolatok_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1410,10 +1414,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-ceges-eloadasok-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_ceges_eloadasok_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_ceges_eloadasok_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_ceges_eloadasok_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="mtmi_ceges_eloadasok_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1434,10 +1439,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-muzeumlatogatasok-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_muzeumlatogatasok_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_muzeumlatogatasok_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_muzeumlatogatasok_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="mtmi_muzeumlatogatasok_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1456,10 +1462,11 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-rendezvenyek-reszvetel-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_rendezvenyek_reszvetel_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_rendezvenyek_reszvetel_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_rendezvenyek_reszvetel_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="mtmi_rendezvenyek_reszvetel_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1478,23 +1485,24 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-laboratoriumok-latogatasa-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_laboratoriumok_latogatasa_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_laboratoriumok_latogatasa_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                             <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_laboratoriumok_latogatasa_link" maxlength="2000">
+                            <br>
+                            <input type="url" class="form-control mb-2" name="mtmi_laboratoriumok_latogatasa_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                         
                         <div class="mb-3">
                           <label class="form-label fw-bold">Kérjük, ha van ilyen, sorolja fel (és szükség esetén fejtse ki) az iskola egyéb, fentebb nem említett MTMI partnerprogramjait!</label>
-                          <textarea class="form-control mb-2" name="mtmi_egyeb_partnerprogramok" maxlength="2000"></textarea>
+                                                      <textarea class="form-control mb-2" name="mtmi_egyeb_partnerprogramok" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                         </div>
                         
                         <div class="mb-3">
                           <label class="form-label">Link(ek) megadása:</label>
-                          <input type="url" class="form-control mb-2" name="mtmi_egyeb_partnerprogramok_link" maxlength="2000">
+                          <input type="url" class="form-control mb-2" name="mtmi_egyeb_partnerprogramok_link" maxlength="2000" placeholder="https://..." required>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                         </div>
                         
@@ -1527,7 +1535,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-digitalis-eszkozok-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét formáját/formáit a fentiek vonatkozásában!</label>
-                            <textarea class="form-control mb-2" name="mtmi_digitalis_eszkozok_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_digitalis_eszkozok_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1547,7 +1555,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-korszeru-felszereltseg-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_korszeru_felszereltseg_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_korszeru_felszereltseg_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1565,13 +1573,13 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-kiallitoterek-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_kiallitoterek_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_kiallitoterek_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                           
                           <div class="mb-3">
                             <label class="form-label">Link(ek) megadása:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_kiallitoterek_megvalosul_link" maxlength="2000">
+                            <input type="url" class="form-control mb-2" name="mtmi_kiallitoterek_megvalosul_link" maxlength="2000" placeholder="https://..." required>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1593,7 +1601,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-aktiv-tanulas-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét formáját/formáit a fentiek vonatkozásában!</label>
-                            <textarea class="form-control mb-2" name="mtmi_aktiv_tanulas_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_aktiv_tanulas_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1613,7 +1621,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-digitalis-tananyagok-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_digitalis_tananyagok_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_digitalis_tananyagok_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1635,7 +1643,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-tovabbkepzesek-idokeret-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósítás konkrét formáját/formáit a fentiek vonatkozásában (az elmúlt 3 év tevékenységeinek bemutatásával)!</label>
-                            <textarea class="form-control mb-2" name="mtmi_tovabbkepzesek_idokeret_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_tovabbkepzesek_idokeret_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1654,7 +1662,7 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-egyetem-oktatasi-hivatal-tovabbkepzesek-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét formáját/formáit a fentiek vonatkozásában!</label>
-                            <textarea class="form-control mb-2" name="mtmi_egyetem_oktatasi_hivatal_tovabbkepzesek_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_egyetem_oktatasi_hivatal_tovabbkepzesek_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
@@ -1674,14 +1682,15 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-tovabbkepzesi-programok-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_tovabbkepzesi_programok_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_tovabbkepzesi_programok_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                         
                         <div class="mb-3" id="mtmi-tovabbkepzesi-programok-link-block">
-                          <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
-                          <input type="url" class="form-control mb-2" name="mtmi_tovabbkepzesi_programok_link" maxlength="2000">
+                                                      <label class="form-label">A programok megjelenése a honlapon. Link(ek) megadása:</label>
+                            <br>
+                            <input type="url" class="form-control mb-2" name="mtmi_tovabbkepzesi_programok_link" maxlength="2000" placeholder="https://..." required>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                         </div>
                         
@@ -1700,14 +1709,14 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           </select>
                           <div id="mtmi-pedagogusok-teljesitmenyertekeles-megvalosul-block">
                             <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit!</label>
-                            <textarea class="form-control mb-2" name="mtmi_pedagogusok_teljesitmenyertekeles_megvalosul_bemutatasa" maxlength="2000"></textarea>
+                            <textarea class="form-control mb-2" name="mtmi_pedagogusok_teljesitmenyertekeles_megvalosul_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
                           </div>
                         </div>
                         
                         <div class="mb-3">
                           <label class="form-label fw-bold">Kérjük, ha van ilyen, sorolja fel (és szükség esetén fejtse ki) az iskola egyéb, fentebb nem említett MTMI-témájú továbbképzési programjait/lehetőségeit!</label>
-                          <textarea class="form-control mb-2" name="mtmi_egyeb_tovabbkepzesi_programok" maxlength="2000"></textarea>
+                                                      <textarea class="form-control mb-2" name="mtmi_egyeb_tovabbkepzesi_programok" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                           <small class="form-text text-muted">max. 2000 karakter</small>
                         </div>
                         

@@ -170,6 +170,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Automatikus mentés a következő lépésre lépés előtt
         saveForm(true);
         showStep(currentStep + 1, 1);
+        // Az oldal tetejére ugrunk
+        window.scrollTo(0, 0);
       }
     });
   });
@@ -179,6 +181,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Automatikus mentés a visszalépés előtt
         saveForm(true);
         showStep(currentStep - 1, -1);
+        // Az oldal tetejére ugrunk
+        window.scrollTo(0, 0);
       }
     });
   });
@@ -205,7 +209,10 @@ document.addEventListener('DOMContentLoaded', function() {
     csapatLetszamInput.addEventListener('input', function() {
       let n = parseInt(this.value, 10);
       if (isNaN(n) || n < 1) n = 1;
-      if (n > 8) n = 8;
+      if (n > 8) {
+        n = 8;
+        this.value = 8; // Automatikusan visszaállítjuk 8-ra
+      }
       
       // Minden csapattag blokkot elrejtünk
       for (let i = 1; i <= 8; i++) {
@@ -1010,6 +1017,8 @@ function skipToNextStep() {
   // Folytassuk a következő lépésre
   if (currentStep < steps.length - 1) {
     showStep(currentStep + 1, 1);
+    // Scroll az oldal tetejére
+    window.scrollTo(0, 0);
   }
 }
 
