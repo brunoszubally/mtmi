@@ -304,8 +304,7 @@ async function showSummary(session_id) {
   // PDF link hozzáadása, ha van
   let pdfLinkHtml = '';
   if (res.pdf_file_path) {
-    const encodedPath = encodeURIComponent(res.pdf_file_path);
-    const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+    const pdfUrl = `https://mtmi-iskola.hu/fileupload/${res.pdf_file_path}`;
     pdfLinkHtml = `
       <div class="text-center mb-4">
         <a href="${pdfUrl}" target="_blank" class="btn btn-outline-danger">
@@ -319,8 +318,7 @@ async function showSummary(session_id) {
   html += formClone.innerHTML;
   // PDF link a form után, de még a container-en belül
   if (res.pdf_file_path) {
-    const encodedPath = encodeURIComponent(res.pdf_file_path);
-    const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+    const pdfUrl = `https://mtmi-iskola.hu/fileupload/${res.pdf_file_path}`;
     html += `
       <div class="text-center mt-4 mb-4">
         <a href="${pdfUrl}" target="_blank" class="btn btn-outline-danger btn-lg">
