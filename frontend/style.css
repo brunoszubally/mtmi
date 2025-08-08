@@ -469,4 +469,15 @@ textarea.form-control {
 .form-control:required::placeholder {
   color: #6c757d;
   font-style: italic;
+}
+
+/* Number mezők spinner-ének eltávolítása */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 } 
