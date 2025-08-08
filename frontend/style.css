@@ -37,13 +37,7 @@ body {
 .card-body {
   border-radius: 18px;
 }
-.progress {
-  background: #e3eafc;
-  border-radius: 8px;
-}
-.progress-bar {
-  transition: width 0.5s cubic-bezier(.4,2,.3,1);
-}
+
 .form-step {
   min-height: 400px;
   transition: opacity 0.5s;
@@ -97,12 +91,7 @@ textarea.form-control {
   pointer-events: none;
   opacity: 0.7;
 }
-#progress-percent {
-  min-width: 48px;
-  text-align: right;
-  font-size: 1.1em;
-  letter-spacing: 0.5px;
-}
+
 .stepper-sidebar {
   min-height: 100%;
   border-radius: 18px 0 0 18px;
@@ -469,4 +458,15 @@ textarea.form-control {
 .form-control:required::placeholder {
   color: #6c757d;
   font-style: italic;
+}
+
+/* Number mezők spinner-ének eltávolítása */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 } 
