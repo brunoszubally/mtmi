@@ -212,10 +212,16 @@ textarea.form-control {
 #welcome-screen button {
   font-size: 1.25rem;
   border-radius: 2rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 32px;
+  margin-left: auto;
+  margin-right: auto;
   display: block;
   width: 320px;
   max-width: 90vw;
-  margin: 0 auto;
+  z-index: 10;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08);
 }
 @media (max-width: 900px) {
@@ -469,4 +475,28 @@ textarea.form-control {
 .form-control:required::placeholder {
   color: #6c757d;
   font-style: italic;
+}
+
+/* Formátumellenőrzési hibaüzenetek */
+.form-control.is-invalid {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.form-control.is-invalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.invalid-feedback {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.875em;
+  color: #dc3545;
+}
+
+.invalid-feedback::before {
+  content: "⚠ ";
+  margin-right: 0.25rem;
 } 

@@ -8,6 +8,45 @@ const FORM_ID = "mtmi-form";
 const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";
 
+// Formátumellenőrzési függvények
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function validatePhoneNumber(phone) {
+  // Magyar telefonszám formátum: +36 20 123 4567 vagy 06 20 123 4567 vagy 20 123 4567
+  const phoneRegex = /^(\+36\s?|06\s?)?(\d{1,2}\s?\d{3}\s?\d{3,4})$/;
+  return phoneRegex.test(phone.replace(/\s/g, ''));
+}
+
+function formatPhoneNumber(phone) {
+  // Eltávolítjuk a szóközöket és speciális karaktereket
+  let cleaned = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+  
+  // Ha +36-val kezdődik
+  if (cleaned.startsWith('+36')) {
+    cleaned = cleaned.substring(3);
+  }
+  
+  // Ha 06-val kezdődik
+  if (cleaned.startsWith('06')) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Ha 36-val kezdődik
+  if (cleaned.startsWith('36')) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Formázás: +36 20 123 4567
+  if (cleaned.length === 9) {
+    return `+36 ${cleaned.substring(0, 2)} ${cleaned.substring(2, 5)} ${cleaned.substring(5)}`;
+  }
+  
+  return phone; // Ha nem sikerül formázni, visszaadjuk az eredetit
+}
+
 // Globális változók a wizard-hoz
 let currentStep = 0;
 let steps = [];
@@ -106,73 +145,93 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     document.body.style.overflow = 'hidden';
   }
-  // Wizard léptetés
-  steps = Array.from(document.querySelectorAll('.form-step'));
-  console.log('Steps found:', steps.length);
-  steps.forEach((step, index) => {
-    console.log(`Step ${index}:`, step.id);
-  });
-  currentStep = 0;
-  const progressBar = document.getElementById('form-progress');
-  const progressPercent = document.getElementById('progress-percent');
-  const stepperLinks = Array.from(document.querySelectorAll('.stepper-link'));
+  // Wizard léptetés - késleltetett inicializálás
+  setTimeout(() => {
+    steps = Array.from(document.querySelectorAll('.form-step'));
+    console.log('Steps found:', steps.length);
+    steps.forEach((step, index) => {
+      console.log(`Step ${index}:`, step.id);
+    });
+    currentStep = 0;
+    const progressBar = document.getElementById('form-progress');
+    const progressPercent = document.getElementById('progress-percent');
+    const stepperLinks = Array.from(document.querySelectorAll('.stepper-link'));
 
   document.querySelectorAll('.next-step').forEach(btn => {
     btn.addEventListener('click', function() {
-      // Validáció az aktuális lépésben
-      const currentStepElement = steps[currentStep];
-      const requiredFields = currentStepElement.querySelectorAll('[required]');
-      const emptyRequiredFields = [];
-      
-      requiredFields.forEach(field => {
-        let isEmpty = false;
+      // Késleltetés, hogy a DOM teljesen betöltődjön
+      setTimeout(() => {
+        // Validáció az aktuális lépésben
+        const currentStepElement = steps[currentStep];
         
-        if (field.type === 'checkbox') {
-          // Checkbox esetén ellenőrizzük, hogy van-e kiválasztott opció
-          const checkboxGroup = field.name;
-          const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
-          isEmpty = checkboxes.length === 0;
-        } else if (field.type === 'select-one') {
-          // Select esetén ellenőrizzük, hogy van-e kiválasztott érték
-          isEmpty = !field.value || field.value === '';
-        } else {
-          // Input mezők esetén ellenőrizzük, hogy van-e érték
-          isEmpty = !field.value.trim();
+        // Ellenőrizzük, hogy a currentStepElement létezik
+        if (!currentStepElement) {
+          console.error('currentStepElement nem található:', currentStep, steps.length);
+          return;
         }
         
-        if (isEmpty) {
-          emptyRequiredFields.push(field);
-        }
-      });
-      
-      // Checkbox validáció a data-required attribútummal rendelkező elemekre
-      const dataRequiredCheckboxes = currentStepElement.querySelectorAll('input[data-required="true"]');
-      const checkedGroups = new Set();
-      dataRequiredCheckboxes.forEach(checkbox => {
-        const checkboxGroup = checkbox.name;
-        if (!checkedGroups.has(checkboxGroup)) {
-          const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
-          if (checkboxes.length === 0) {
-            emptyRequiredFields.push(checkbox);
+        console.log('Validáció futtatása:', currentStep, currentStepElement.id);
+        
+        const requiredFields = currentStepElement.querySelectorAll('[required]');
+        const emptyRequiredFields = [];
+        
+        console.log('Required mezők száma:', requiredFields.length);
+        
+        requiredFields.forEach(field => {
+          let isEmpty = false;
+          
+          if (field.type === 'checkbox') {
+            // Checkbox esetén ellenőrizzük, hogy van-e kiválasztott opció
+            const checkboxGroup = field.name;
+            const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
+            isEmpty = checkboxes.length === 0;
+          } else if (field.type === 'select-one') {
+            // Select esetén ellenőrizzük, hogy van-e kiválasztott érték
+            isEmpty = !field.value || field.value === '';
+          } else {
+            // Input mezők esetén ellenőrizzük, hogy van-e érték
+            isEmpty = !field.value.trim();
           }
-          checkedGroups.add(checkboxGroup);
+          
+          if (isEmpty) {
+            emptyRequiredFields.push(field);
+            console.log('Üres mező találva:', field.name, field.type);
+          }
+        });
+        
+        // Checkbox validáció a data-required attribútummal rendelkező elemekre
+        const dataRequiredCheckboxes = currentStepElement.querySelectorAll('input[data-required="true"]');
+        const checkedGroups = new Set();
+        dataRequiredCheckboxes.forEach(checkbox => {
+          const checkboxGroup = checkbox.name;
+          if (!checkedGroups.has(checkboxGroup)) {
+            const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
+            if (checkboxes.length === 0) {
+              emptyRequiredFields.push(checkbox);
+              console.log('Üres checkbox csoport:', checkboxGroup);
+            }
+            checkedGroups.add(checkboxGroup);
+          }
+        });
+        
+        console.log('Üres kötelező mezők száma:', emptyRequiredFields.length);
+        
+        if (emptyRequiredFields.length > 0) {
+          // Popup megjelenítése
+          console.log('Validációs popup megjelenítése');
+          showValidationPopup(emptyRequiredFields);
+          return;
         }
-      });
-      
-      if (emptyRequiredFields.length > 0) {
-        // Popup megjelenítése
-        showValidationPopup(emptyRequiredFields);
-        return;
-      }
-      
-      // Ha nincs hiányzó kötelező mező, folytatjuk
-      if (currentStep < steps.length - 1) {
-        // Automatikus mentés a következő lépésre lépés előtt
-        saveForm(true);
-        showStep(currentStep + 1, 1);
-        // Az oldal tetejére ugrunk
-        window.scrollTo(0, 0);
-      }
+        
+        // Ha nincs hiányzó kötelező mező, folytatjuk
+        if (currentStep < steps.length - 1) {
+          // Automatikus mentés a következő lépésre lépés előtt
+          saveForm(true);
+          showStep(currentStep + 1, 1);
+          // Az oldal tetejére ugrunk
+          window.scrollTo(0, 0);
+        }
+      }, 100); // 100ms késleltetés
     });
   });
   document.querySelectorAll('.prev-step').forEach(btn => {
@@ -262,6 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Kezdő lépés megjelenítése
   showStep(0);
+  }, 100); // setTimeout blokk vége
 
   // --- MTMI űrlap automatikus mentés és betöltés ---
 
@@ -603,13 +663,18 @@ document.addEventListener('DOMContentLoaded', function() {
               showLink(session_id);
               // --- ADMINVIEW: minden mező readonly/disabled, mentés/véglegesítés gombok elrejtése ---
               if (adminView) {
+                console.log("Admin view detected - making all fields readonly");
                 form.querySelectorAll('input, select, textarea, button').forEach(el => {
                   if (el.type === "checkbox" || el.type === "radio") {
                     el.disabled = true;
+                    el.style.pointerEvents = "none";
                   } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
                     el.disabled = true;
+                    el.style.pointerEvents = "none";
                   } else if (["text","number","email","url","tel"].includes(el.type)) {
                     el.readOnly = true;
+                    el.style.backgroundColor = "#f8f9fa";
+                    el.style.pointerEvents = "none";
                   } else if (el.type === "submit" || el.type === "button") {
                     el.style.display = "none";
                   }
@@ -620,6 +685,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Véglegesítés gomb elrejtése
                 const submitBtn = form.querySelector("button[type='submit']");
                 if (submitBtn) submitBtn.style.display = "none";
+                // PDF feltöltés gombok elrejtése
+                const pdfUploadBtn = document.getElementById("pdf-upload-btn");
+                const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
+                if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
+                if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
+                // Navigációs gombok elrejtése
+                document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
+                  btn.style.display = "none";
+                });
+                console.log("Admin view - all fields made readonly");
               }
           }
       } catch (e) {
@@ -647,6 +722,43 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener("DOMContentLoaded", () => {
       const form = document.getElementById(FORM_ID);
       if (!form) return;
+      
+      // Admin view ellenőrzés és alkalmazása
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminView = urlParams.get('adminview');
+      if (adminView) {
+        console.log("Admin view detected on page load");
+        // Késleltetett alkalmazás, hogy a form betöltődjön
+        setTimeout(() => {
+          form.querySelectorAll('input, select, textarea, button').forEach(el => {
+            if (el.type === "checkbox" || el.type === "radio") {
+              el.disabled = true;
+              el.style.pointerEvents = "none";
+            } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+              el.disabled = true;
+              el.style.pointerEvents = "none";
+            } else if (["text","number","email","url","tel"].includes(el.type)) {
+              el.readOnly = true;
+              el.style.backgroundColor = "#f8f9fa";
+              el.style.pointerEvents = "none";
+            } else if (el.type === "submit" || el.type === "button") {
+              el.style.display = "none";
+            }
+          });
+          // Gombok elrejtése
+          const saveBtn = document.getElementById("mtmi-save-btn");
+          const pdfUploadBtn = document.getElementById("pdf-upload-btn");
+          const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
+          if (saveBtn) saveBtn.style.display = "none";
+          if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
+          if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
+          document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
+            btn.style.display = "none";
+          });
+          console.log("Admin view applied on page load");
+        }, 1000);
+      }
+      
       // Betöltés session_id alapján
       loadForm();
       const session_id = getSessionIdFromUrl() || localStorage.getItem("mtmi_session_id");
@@ -687,6 +799,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // PDF feltöltés kezelése
       setupPdfUpload();
+      
+      // Formátumellenőrzési eseménykezelők
+      setupFormatValidation();
   });
 });
 
@@ -916,12 +1031,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Validációs popup megjelenítése
 function showValidationPopup(emptyFields) {
-  // Egyedi mezőnevek összegyűjtése (duplikációk elkerülése)
-  const uniqueFieldNames = new Set();
-  const fieldLabels = [];
+  console.log('showValidationPopup hívva, emptyFields:', emptyFields.length);
   
   // Mezőnév leképezés
   const fieldNameMapping = {
+    'iskolatipus': 'Iskolatípus',
     'mtmi_felelos_kapcsolattarto_neve': 'MTMI felelős kapcsolattartó neve',
     'mtmi_felelos_kapcsolattarto_beosztas': 'MTMI felelős kapcsolattartó beosztása',
     'mtmi_felelos_kapcsolattarto_telefonszam1': 'MTMI felelős kapcsolattartó telefonszáma',
@@ -940,6 +1054,28 @@ function showValidationPopup(emptyFields) {
     'mtmi_csapat_tag1_szak': 'Tanított szak/szakpár (1. csapattag)'
   };
   
+  // Mezők sorrendje a formon (0. blokk)
+  const fieldOrder = [
+    'iskolatipus',
+    'iskola_tanuloi_letszama',
+    'intezmenytipus_tanuloi_letszama',
+    'programban_erintett_tanulok_szama',
+    'iskola_mtmi_tanari_letszama',
+    'mtmi_felelos_kapcsolattarto_neve',
+    'mtmi_felelos_kapcsolattarto_beosztas',
+    'mtmi_felelos_kapcsolattarto_telefonszam1',
+    'mtmi_felelos_kapcsolattarto_email1',
+    'intezmenyvezeto_kapcsolattarto_neve',
+    'intezmenyvezeto_kapcsolattarto_beosztas',
+    'intezmenyvezeto_kapcsolattarto_telefonszam1',
+    'intezmenyvezeto_kapcsolattarto_email1',
+    'iskola_honlap_link',
+    'iskola_mukodo_alapitvany'
+  ];
+  
+  // Mezők összegyűjtése és címkékkel ellátása
+  const fieldInfo = [];
+  
   emptyFields.forEach(field => {
     let label = '';
     
@@ -956,12 +1092,32 @@ function showValidationPopup(emptyFields) {
       label = fieldNameMapping[field.name] || field.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
     
-    // Duplikációk elkerülése
-    if (!uniqueFieldNames.has(label)) {
-      uniqueFieldNames.add(label);
-      fieldLabels.push(label);
+    fieldInfo.push({
+      name: field.name,
+      label: label,
+      order: fieldOrder.indexOf(field.name)
+    });
+  });
+  
+  // Duplikációk elkerülése és sorrend szerint rendezés
+  const uniqueFields = [];
+  const seenLabels = new Set();
+  
+  fieldInfo.forEach(field => {
+    if (!seenLabels.has(field.label)) {
+      seenLabels.add(field.label);
+      uniqueFields.push(field);
     }
   });
+  
+  // Sorrend szerint rendezés (a fieldOrder alapján)
+  uniqueFields.sort((a, b) => {
+    const orderA = a.order === -1 ? 999 : a.order; // Ha nincs a listában, a végére kerül
+    const orderB = b.order === -1 ? 999 : b.order;
+    return orderA - orderB;
+  });
+  
+  const fieldLabels = uniqueFields.map(field => field.label);
   
   // Popup HTML létrehozása
   const popupHTML = `
@@ -996,6 +1152,14 @@ function showValidationPopup(emptyFields) {
   
   // Popup megjelenítése
   const popup = document.getElementById('validation-popup');
+  console.log('Popup létrehozva:', popup);
+  
+  if (popup) {
+    popup.style.display = 'block';
+    console.log('Popup megjelenítve');
+  } else {
+    console.error('Popup nem található a DOM-ban');
+  }
   popup.style.display = 'block';
 }
 
@@ -1249,4 +1413,95 @@ function loadPdfFromData(pdfFilePath) {
     pdfPreviewName.textContent = filename;
     pdfPreview.style.display = 'block';
   }
+}
+
+// Formátumellenőrzési eseménykezelők beállítása
+function setupFormatValidation() {
+  // Email mezők ellenőrzése
+  document.querySelectorAll('input[type="email"]').forEach(emailInput => {
+    emailInput.addEventListener('blur', function() {
+      const email = this.value.trim();
+      if (email && !validateEmail(email)) {
+        this.classList.add('is-invalid');
+        this.setCustomValidity('Kérjük, adjon meg egy érvényes email címet!');
+        
+        // Hibaüzenet megjelenítése
+        let errorDiv = this.parentNode.querySelector('.invalid-feedback');
+        if (!errorDiv) {
+          errorDiv = document.createElement('div');
+          errorDiv.className = 'invalid-feedback';
+          this.parentNode.appendChild(errorDiv);
+        }
+        errorDiv.textContent = 'Kérjük, adjon meg egy érvényes email címet!';
+      } else {
+        this.classList.remove('is-invalid');
+        this.setCustomValidity('');
+        
+        // Hibaüzenet eltávolítása
+        const errorDiv = this.parentNode.querySelector('.invalid-feedback');
+        if (errorDiv) {
+          errorDiv.remove();
+        }
+      }
+    });
+    
+    emailInput.addEventListener('input', function() {
+      if (this.classList.contains('is-invalid')) {
+        this.classList.remove('is-invalid');
+        this.setCustomValidity('');
+        const errorDiv = this.parentNode.querySelector('.invalid-feedback');
+        if (errorDiv) {
+          errorDiv.remove();
+        }
+      }
+    });
+  });
+  
+  // Telefonszám mezők ellenőrzése és formázása
+  document.querySelectorAll('input[type="tel"]').forEach(phoneInput => {
+    phoneInput.addEventListener('blur', function() {
+      const phone = this.value.trim();
+      if (phone && !validatePhoneNumber(phone)) {
+        this.classList.add('is-invalid');
+        this.setCustomValidity('Kérjük, adjon meg egy érvényes telefonszámot!');
+        
+        // Hibaüzenet megjelenítése
+        let errorDiv = this.parentNode.querySelector('.invalid-feedback');
+        if (!errorDiv) {
+          errorDiv = document.createElement('div');
+          errorDiv.className = 'invalid-feedback';
+          this.parentNode.appendChild(errorDiv);
+        }
+        errorDiv.textContent = 'Kérjük, adjon meg egy érvényes telefonszámot! (pl. +36 20 123 4567)';
+      } else {
+        this.classList.remove('is-invalid');
+        this.setCustomValidity('');
+        
+        // Telefonszám formázása
+        if (phone && validatePhoneNumber(phone)) {
+          const formattedPhone = formatPhoneNumber(phone);
+          if (formattedPhone !== phone) {
+            this.value = formattedPhone;
+          }
+        }
+        
+        // Hibaüzenet eltávolítása
+        const errorDiv = this.parentNode.querySelector('.invalid-feedback');
+        if (errorDiv) {
+          errorDiv.remove();
+        }
+      }
+    });
+    
+    phoneInput.addEventListener('input', function() {
+      if (this.classList.contains('is-invalid')) {
+        this.classList.remove('is-invalid');
+        this.setCustomValidity('');
+        const errorDiv = this.parentNode.querySelector('.invalid-feedback');
+        if (errorDiv) {
+          errorDiv.remove();
+        }
+      }
+    });
+  });
 } 
