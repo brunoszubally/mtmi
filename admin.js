@@ -1,4 +1,4 @@
-const API_BASE = "https://mtmi.onrender.com/api";
+const API_BASE = "https://mtmi.onrender.com/api"; // Production API
 
 // --- Admin session kezelés ---
 function setAdminSession(loggedIn) {
@@ -127,9 +127,8 @@ async function loadAdminList() {
           .then(resp => resp.json())
           .then(data => {
             if (data.pdf_file_path) {
-              // URL encoding a fájlnévhez
-              const encodedPath = encodeURIComponent(data.pdf_file_path);
-              const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+              // FTP szerver URL használata
+              const pdfUrl = `https://mtmi-iskola.hu/fileupload/${data.pdf_file_path}`;
               console.log("PDF URL:", pdfUrl);
               window.open(pdfUrl, '_blank');
             } else {

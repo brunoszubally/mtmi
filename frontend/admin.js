@@ -1,4 +1,4 @@
-const API_BASE = "https://mtmi.onrender.com/api";
+const API_BASE = "https://mtmi.onrender.com/api"; // Production API
 
 // --- Admin session kezelés ---
 function setAdminSession(loggedIn) {
@@ -127,9 +127,8 @@ async function loadAdminList() {
           .then(resp => resp.json())
           .then(data => {
             if (data.pdf_file_path) {
-              // URL encoding a fájlnévhez
-              const encodedPath = encodeURIComponent(data.pdf_file_path);
-              const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
+              // FTP szerver URL használata
+              const pdfUrl = `https://mtmi-iskola.hu/fileupload/${data.pdf_file_path}`;
               console.log("PDF URL:", pdfUrl);
               window.open(pdfUrl, '_blank');
             } else {
@@ -304,19 +303,18 @@ async function showSummary(session_id) {
   html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
   html += formClone.innerHTML;
   
-  // PDF link hozzáadása a form végén, ha van
-  let pdfLinkHtml = '';
-  if (res.pdf_file_path) {
-    const encodedPath = encodeURIComponent(res.pdf_file_path);
-    const pdfUrl = `${API_BASE.replace('/api', '')}/uploads/${encodedPath}`;
-    pdfLinkHtml = `
-      <div class='text-center mt-4'>
-        <a href="${pdfUrl}" target="_blank" class="btn btn-outline-danger btn-lg">
-          <i class="bi bi-file-earmark-pdf"></i> Csatolmány megnyitása
-        </a>
-      </div>
-    `;
-  }
+     // PDF link hozzáadása a form végén, ha van
+   let pdfLinkHtml = '';
+   if (res.pdf_file_path) {
+     const pdfUrl = `https://mtmi-iskola.hu/fileupload/${res.pdf_file_path}`;
+     pdfLinkHtml = `
+       <div class='text-center mt-4'>
+         <a href="${pdfUrl}" target="_blank" class="btn btn-outline-danger btn-lg">
+           <i class="bi bi-file-earmark-pdf"></i> Csatolmány megnyitása
+         </a>
+       </div>
+     `;
+   }
   html += pdfLinkHtml;
   html += `</div><script>window.addEventListener('DOMContentLoaded', function() {\n  const data = ${JSON.stringify(data)};\n  document.querySelectorAll('input, select, textarea').forEach(function(el) {\n    const key = el.name;\n    if (!key) return;\n    const value = data[key];\n    if (typeof value === 'undefined') return;\n    if (el.type === \"checkbox\") {\n      if (Array.isArray(value)) {\n        el.checked = value.includes(el.value);\n      } else {\n        el.checked = (el.value == value);\n      }\n      el.disabled = true;\n    } else if (el.type === \"radio\") {\n      el.checked = (el.value == value);\n      el.disabled = true;\n    } else if (el.tagName === \"SELECT\") {\n      el.value = value;\n      el.disabled = true;\n    } else if (el.tagName === \"TEXTAREA\") {\n      el.value = value;\n      el.readOnly = true;\n    } else if ([\"text\",\"number\",\"email\",\"url\",\"tel\"].includes(el.type)) {\n      el.value = value;\n      el.readOnly = true;\n    }\n  });\n  \n  // Textarea magasság automatikus beállítása a tartalomhoz\n  setTimeout(function() {\n    document.querySelectorAll('textarea').forEach(function(textarea) {\n      if (textarea.value && textarea.value.trim() !== '') {\n        // Ideiglenesen eltávolítjuk a readonly-ot a magasság számításához\n        const wasReadonly = textarea.readOnly;\n        textarea.readOnly = false;\n        \n        // Beállítjuk a magasságot a tartalomhoz\n        // Közvetlenül felülírjuk a height-et, nem távolítjuk el
         textarea.style.height = 'auto';\n        // Dinamikusan számítjuk ki a szükséges magasságot

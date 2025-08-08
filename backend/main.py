@@ -16,14 +16,48 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from io import BytesIO
+import ftplib
 
 # --- Adatbázis inicializálás ---
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-# PDF feltöltések mappája
+# --- FTP konfiguráció ---
+FTP_HOST = "move-on.hu"
+FTP_USER = "fileupload@mtmi-iskola.hu"
+FTP_PASS = "Vilaguralom1472"
+FTP_PATH = "/fileupload/"
+
+# PDF feltöltések mappája (lokális cache)
 UPLOAD_DIR = "uploads"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
+
+def upload_to_ftp(local_file_path: str, remote_filename: str) -> bool:
+    """Fájl feltöltése FTP szerverre"""
+    try:
+        with ftplib.FTP(FTP_HOST) as ftp:
+            ftp.login(FTP_USER, FTP_PASS)
+            # Nem kell könyvtár váltás, mert már a /fileupload könyvtárban vagyunk
+            
+            with open(local_file_path, 'rb') as file:
+                ftp.storbinary(f'STOR {remote_filename}', file)
+            
+            return True
+    except Exception as e:
+        print(f"FTP feltöltés hiba: {e}")
+        return False
+
+def delete_from_ftp(filename: str) -> bool:
+    """Fájl törlése FTP szerverről"""
+    try:
+        with ftplib.FTP(FTP_HOST) as ftp:
+            ftp.login(FTP_USER, FTP_PASS)
+            # Nem kell könyvtár váltás, mert már a /fileupload könyvtárban vagyunk
+            ftp.delete(filename)
+            return True
+    except Exception as e:
+        print(f"FTP törlés hiba: {e}")
+        return False
 
 def init_db():
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -52,9 +86,6 @@ init_db()
 
 # --- FastAPI app ---
 app = FastAPI()
-
-# Statikus fájlok kiszolgálása (PDF-ek eléréséhez)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # CORS beállítás (frontend fejlesztéshez)
 app.add_middleware(
@@ -147,22 +178,37 @@ async def upload_pdf(session_id: str, file: UploadFile = File(...)):
     clean_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', clean_filename)
     
     filename = f"{session_id}_{clean_filename}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    local_file_path = os.path.join(UPLOAD_DIR, filename)
     
     try:
-        with open(file_path, "wb") as buffer:
+        # Lokális fájl mentése (cache)
+        with open(local_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+        
+        # FTP feltöltés
+        if upload_to_ftp(local_file_path, filename):
+            # Sikeres FTP feltöltés után lokális fájl törlése
+            os.remove(local_file_path)
+            
+            # Adatbázis frissítése
+            with psycopg2.connect(DATABASE_URL) as conn:
+                with conn.cursor() as c:
+                    c.execute("UPDATE forms SET pdf_file_path = %s, updated_at = %s WHERE id = %s", 
+                             (filename, datetime.utcnow(), session_id))
+                    conn.commit()
+            
+            return {"filename": filename, "url": f"https://mtmi-iskola.hu/fileupload/{filename}"}
+        else:
+            # FTP hiba esetén lokális fájl törlése és hiba
+            if os.path.exists(local_file_path):
+                os.remove(local_file_path)
+            raise HTTPException(status_code=500, detail="Hiba az FTP feltöltés során!")
+            
     except Exception as e:
+        # Hiba esetén lokális fájl törlése
+        if os.path.exists(local_file_path):
+            os.remove(local_file_path)
         raise HTTPException(status_code=500, detail=f"Hiba a fájl mentése során: {str(e)}")
-    
-    # Adatbázis frissítése
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor() as c:
-            c.execute("UPDATE forms SET pdf_file_path = %s, updated_at = %s WHERE id = %s", 
-                     (filename, datetime.utcnow(), session_id))
-            conn.commit()
-    
-    return {"filename": filename, "url": f"/uploads/{filename}"}
 
 # PDF törlés végpont
 @app.delete("/api/delete-pdf/{session_id}")
@@ -173,10 +219,10 @@ def delete_pdf(session_id: str):
             c.execute("SELECT pdf_file_path FROM forms WHERE id = %s", (session_id,))
             row = c.fetchone()
             if row and row[0]:
-                # Fájl törlése a lemezről
-                file_path = os.path.join(UPLOAD_DIR, row[0])
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+                filename = row[0]
+                
+                # FTP törlés
+                delete_from_ftp(filename)
                 
                 # Adatbázis frissítése
                 c.execute("UPDATE forms SET pdf_file_path = NULL, updated_at = %s WHERE id = %s", 
@@ -251,9 +297,9 @@ def admin_delete(session_id: str):
             c.execute("SELECT pdf_file_path FROM forms WHERE id = %s", (session_id,))
             row = c.fetchone()
             if row and row[0]:
-                file_path = os.path.join(UPLOAD_DIR, row[0])
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+                filename = row[0]
+                # FTP törlés
+                delete_from_ftp(filename)
             
             c.execute("DELETE FROM forms WHERE id = %s", (session_id,))
             conn.commit()
