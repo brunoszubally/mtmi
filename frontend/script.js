@@ -51,6 +51,18 @@ function formatPhoneNumber(phone) {
 let currentStep = 0;
 let steps = [];
 
+// GDPR checkbox kezelése
+document.addEventListener('DOMContentLoaded', function() {
+  const gdprCheckbox = document.getElementById('gdpr-checkbox');
+  const finalizeBtn = document.getElementById('finalize-btn');
+  
+  if (gdprCheckbox && finalizeBtn) {
+    gdprCheckbox.addEventListener('change', function() {
+      finalizeBtn.disabled = !this.checked;
+    });
+  }
+});
+
 // Globális showStep függvény
 function showStep(idx, direction = 1) {
   console.log('showStep called with idx:', idx, 'direction:', direction);
@@ -130,6 +142,62 @@ function showStep(idx, direction = 1) {
       }
     }
   }
+  
+  // GDPR checkbox kezelése - ha a 8-as lépésre váltunk
+  if (idx === 7) { // 8-as lépés (0-tól számolva)
+    const gdprCheckbox = document.getElementById('gdpr-checkbox');
+    const finalizeBtn = document.getElementById('finalize-btn');
+    
+    if (gdprCheckbox && finalizeBtn) {
+      // Eltávolítjuk a korábbi event listener-t, ha van
+      gdprCheckbox.removeEventListener('change', gdprChangeHandler);
+      
+      // Hozzáadjuk az új event listener-t
+      gdprCheckbox.addEventListener('change', gdprChangeHandler);
+      
+      // Véglegesítés gomb click event listener
+      finalizeBtn.removeEventListener('click', finalizeBtnClickHandler);
+      finalizeBtn.addEventListener('click', finalizeBtnClickHandler);
+      
+      // Kezdeti állapot beállítása
+      finalizeBtn.disabled = !gdprCheckbox.checked;
+    }
+  }
+}
+
+// GDPR checkbox change handler függvény
+function gdprChangeHandler() {
+  const finalizeBtn = document.getElementById('finalize-btn');
+  if (finalizeBtn) {
+    finalizeBtn.disabled = !this.checked;
+  }
+}
+
+// GDPR checkbox felvillantása, ha a véglegesítés gombra kattintanak
+function highlightGdprCheckbox() {
+  const gdprCheckbox = document.getElementById('gdpr-checkbox');
+  if (gdprCheckbox) {
+    // Animáció hozzáadása
+    gdprCheckbox.style.animation = 'highlight 1s ease-in-out';
+    gdprCheckbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Animáció eltávolítása 1 másodperc után
+    setTimeout(() => {
+      gdprCheckbox.style.animation = '';
+    }, 1000);
+  }
+}
+
+// Véglegesítés gomb click handler
+function finalizeBtnClickHandler() {
+  const gdprCheckbox = document.getElementById('gdpr-checkbox');
+  if (gdprCheckbox && !gdprCheckbox.checked) {
+    // Ha a GDPR checkbox nincs pipálva, felvillantjuk
+    highlightGdprCheckbox();
+    return false; // Megakadályozzuk a további műveleteket
+  }
+  // Ha pipálva van, folytatjuk a normál véglegesítést
+  return true;
 }
 
 document.addEventListener('DOMContentLoaded', function() {

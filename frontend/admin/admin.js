@@ -80,6 +80,8 @@ document.addEventListener("DOMContentLoaded", function() {
       showAdminLoginBlock();
     });
   }
+  
+
 });
 
 let deleteSessionId = null;
@@ -146,6 +148,31 @@ async function loadAdminList() {
       tdPdf.title = "Nincs PDF";
     }
     tr.appendChild(tdPdf);
+    
+    // Print PDF gomb
+    const tdPrintPdf = document.createElement("td");
+    const printPdfBtn = document.createElement("button");
+    printPdfBtn.className = "btn btn-outline-secondary btn-sm";
+    printPdfBtn.innerHTML = '<i class="bi bi-printer"></i>';
+    printPdfBtn.title = "Print PDF";
+    printPdfBtn.addEventListener("click", function() {
+      printSummaryAsPdf(row.id);
+    });
+    tdPrintPdf.appendChild(printPdfBtn);
+    tr.appendChild(tdPrintPdf);
+    
+    // Excel export gomb
+    const tdExcel = document.createElement("td");
+    const excelBtn = document.createElement("button");
+    excelBtn.className = "btn btn-outline-success btn-sm";
+    excelBtn.innerHTML = '<i class="bi bi-file-earmark-excel"></i>';
+    excelBtn.title = "Excel export";
+    excelBtn.addEventListener("click", function() {
+      exportSingleToExcel(row.id);
+    });
+    tdExcel.appendChild(excelBtn);
+    tr.appendChild(tdExcel);
+    
     // ÚJ: Megtekintés gomb
     const tdView = document.createElement("td");
     const viewBtn = document.createElement("a");
@@ -432,4 +459,223 @@ async function showSummary(session_id) {
   const printWindow = window.open("", "_blank");
   printWindow.document.write(html);
   printWindow.document.close();
+}
+
+// --- Excel export funkció ---
+async function exportToExcel() {
+  try {
+    // Lekérjük az összes kitöltést
+    const resp = await fetch(`${API_BASE}/admin/list`);
+    const submissions = await resp.json();
+    
+    if (submissions.length === 0) {
+      alert('Nincsenek kitöltések az exportáláshoz!');
+      return;
+    }
+    
+    // Excel fájl generálása
+    const workbook = XLSX.utils.book_new();
+    
+    // Minden kitöltéshez lekérjük a részletes adatokat
+    const allData = [];
+    const headers = new Set();
+    
+    for (const submission of submissions) {
+      const detailResp = await fetch(`${API_BASE}/admin/detail/${submission.session_id}`);
+      const detail = await detailResp.json();
+      
+      // Minden mezőt hozzáadunk a headers-hez
+      Object.keys(detail).forEach(key => headers.add(key));
+      
+      allData.push(detail);
+    }
+    
+    // Headers rendezése
+    const sortedHeaders = Array.from(headers).sort();
+    
+    // Excel adatok előkészítése
+    const excelData = [
+      sortedHeaders // Fejléc sor
+    ];
+    
+    // Adatok hozzáadása
+    allData.forEach(row => {
+      const excelRow = [];
+      sortedHeaders.forEach(header => {
+        let value = row[header];
+        
+        // Array értékek kezelése (pl. checkbox csoportok)
+        if (Array.isArray(value)) {
+          value = value.join(', ');
+        }
+        
+        // Undefined értékek kezelése
+        if (value === undefined || value === null) {
+          value = '';
+        }
+        
+        excelRow.push(value);
+      });
+      excelData.push(excelRow);
+    });
+    
+    // Worksheet létrehozása
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    
+    // Oszlop szélességek automatikus beállítása
+    const columnWidths = sortedHeaders.map(header => ({
+      wch: Math.max(header.length, 15) // Minimum 15 karakter szélesség
+    }));
+    worksheet['!cols'] = columnWidths;
+    
+    // Worksheet hozzáadása a workbook-hoz
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'MTMI Kitöltések');
+    
+    // Excel fájl letöltése
+    const fileName = `mtmi_kitoltesek_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+  } catch (error) {
+    console.error('Excel export hiba:', error);
+    alert('Hiba történt az Excel export során!');
+  }
+}
+
+// --- Egyetlen kitöltés Excel exportja ---
+async function exportSingleToExcel(sessionId) {
+  try {
+    // Lekérjük a kitöltés részletes adatait
+    const resp = await fetch(`${API_BASE}/admin/result/${sessionId}`);
+    if (!resp.ok) {
+      alert('Nem sikerült letölteni a kitöltés adatait!');
+      return;
+    }
+    
+    const result = await resp.json();
+    const data = result.data;
+    
+    // Excel fájl generálása
+    const workbook = XLSX.utils.book_new();
+    
+    // Adatok előkészítése - minden mező külön sorban
+    const excelData = [
+      ['Mező neve', 'Érték'] // Fejléc
+    ];
+    
+    // Minden mezőt hozzáadunk (rendezett sorrendben)
+    const allFields = [
+      // Alapadatok
+      'palyazo_iskola_neve', 'iskola_cime', 'telepulesforma', 'iskolatipus', 
+      'iskola_tanuloi_letszama', 'intezmenytipus_tanuloi_letszama', 'programban_erintett_tanulok_szama',
+      'iskola_mtmi_tanari_letszama', 'mtmi_felelos_kapcsolattarto_neve', 'mtmi_felelos_kapcsolattarto_beosztas',
+      'mtmi_felelos_kapcsolattarto_telefonszam1', 'mtmi_felelos_kapcsolattarto_telefonszam2',
+      'mtmi_felelos_kapcsolattarto_email',
+      
+      // MTMI csapat
+      'mtmi_csapat_letszam', 'mtmi_csapat_kozos_tevekenyseg', 'mtmi_csapat_kozos_tevekenyseg_link',
+      'mtmi_csapat_tag1_nev', 'mtmi_csapat_tag1_szak', 'mtmi_csapat_tag2_nev', 'mtmi_csapat_tag2_szak',
+      'mtmi_csapat_tag3_nev', 'mtmi_csapat_tag3_szak', 'mtmi_csapat_tag4_nev', 'mtmi_csapat_tag4_szak',
+      
+      // Pedagógiai program
+      'pedprog_mtmi_tartalom', 'pedprog_mtmi_leiras', 'pedprog_mtmi_link',
+      'mtmi_koncepcio_leiras', 'mtmi_koncepcio_link',
+      
+      // MTMI programkínálat
+      'mtmi_szakkorok_szama', 'mtmi_szakkor_diakok_szama', 'mtmi_szakkor_tanarok_szama',
+      'mtmi_szakkorok_bemutatasa', 'mtmi_szakkorok_link', 'mtmi_fakultaciok_szama',
+      'mtmi_fakultaciok_diakok_szama', 'mtmi_egyeb_tevekenysegek_szama',
+      'mtmi_egyeb_tevekenysegek_bemutatasa', 'mtmi_egyeb_tevekenysegek_link',
+      'mtmi_egyuttmukodes_palyaorientacio', 'mtmi_egyuttmukodes_palyaorientacio_leiras',
+      'mtmi_egyeb_palyaorientacios_programok', 'mtmi_egyeb_palyaorientacios_programok_link',
+      
+      // MTMI versenyek
+      'mtmi_tanulmányi_verseny_reszvetel', 'mtmi_tanulmányi_versenyek_szama',
+      'mtmi_tanulmányi_verseny_diakok_szama', 'mtmi_tanulmányi_verseny_tanarok_szama',
+      'mtmi_tanulmányi_versenyek_bemutatasa', 'mtmi_tanulmányi_versenyek_link',
+      'mtmi_kutatási_verseny_reszvetel', 'mtmi_kutatási_versenyek_szama',
+      'mtmi_kutatási_verseny_diakok_szama', 'mtmi_kutatási_verseny_tanarok_szama',
+      'mtmi_kutatási_versenyek_bemutatasa', 'mtmi_kutatási_versenyek_link',
+      'mtmi_otlet_esszepalyazat_reszvetel', 'mtmi_otlet_esszepalyazat_szama',
+      'mtmi_otlet_esszepalyazat_diakok_szama', 'mtmi_otlet_esszepalyazat_tanarok_szama',
+      'mtmi_otlet_esszepalyazat_bemutatasa', 'mtmi_otlet_esszepalyazat_link',
+      'mtmi_faliujsag_vitrin_reszvetel', 'mtmi_faliujsag_vitrin_bemutatasa',
+      
+      // Lányok
+      'lanyok_mtmi_kiemelt_figyelem', 'lanyok_mtmi_reszvetel_bemutatasa', 'lanyok_mtmi_reszvetel_link',
+      'lanyoknak_szolo_mtmi_programok', 'lanyoknak_szolo_mtmi_programok_bemutatasa', 'lanyoknak_szolo_mtmi_programok_link',
+      'lanyok_mtmi_nepszerusito', 'lanyok_mtmi_nepszerusito_bemutatasa', 'lanyok_mtmi_nepszerusito_link',
+      
+      // Kapcsolatrendszer
+      'mtmi_cegkapcsolat', 'mtmi_cegkapcsolat_bemutatasa', 'mtmi_cegkapcsolat_link',
+      'mtmi_egyetem_kapcsolat', 'mtmi_egyetem_kapcsolat_bemutatasa', 'mtmi_egyetem_kapcsolat_link',
+      'mtmi_kutatointezet_kapcsolat', 'mtmi_kutatointezet_kapcsolat_bemutatasa', 'mtmi_kutatointezet_kapcsolat_link',
+      'mtmi_egyeb_kapcsolat', 'mtmi_egyeb_kapcsolat_bemutatasa', 'mtmi_egyeb_kapcsolat_link',
+      
+      // Pedagógusok
+      'mtmi_pedagogusok_tovabbkepzes', 'mtmi_pedagogusok_tovabbkepzes_bemutatasa', 'mtmi_pedagogusok_tovabbkepzes_link',
+      'mtmi_pedagogusok_teljesitmenyertekeles', 'mtmi_pedagogusok_teljesitmenyertekeles_bemutatasa',
+      'mtmi_pedagogusok_teljesitmenyertekeles_link', 'mtmi_egyeb_tovabbkepzesi_programok',
+      
+      // GDPR
+      'gdpr_consent'
+    ];
+    
+    // Minden mezőt hozzáadunk a definiált sorrendben
+    allFields.forEach(key => {
+      let value = data[key];
+      
+      // Array értékek kezelése (pl. checkbox csoportok)
+      if (Array.isArray(value)) {
+        value = value.join(', ');
+      }
+      
+      // Undefined értékek kezelése
+      if (value === undefined || value === null) {
+        value = '';
+      }
+      
+      excelData.push([key, value]);
+    });
+    
+    // Hozzáadunk minden egyéb mezőt is, ami nem szerepel a listában
+    Object.keys(data).forEach(key => {
+      if (!allFields.includes(key)) {
+        let value = data[key];
+        
+        if (Array.isArray(value)) {
+          value = value.join(', ');
+        }
+        
+        if (value === undefined || value === null) {
+          value = '';
+        }
+        
+        excelData.push([key, value]);
+      }
+    });
+    
+    // Worksheet létrehozása
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    
+    // Oszlop szélességek beállítása
+    worksheet['!cols'] = [
+      { wch: 40 }, // Mező neve oszlop
+      { wch: 60 }  // Érték oszlop
+    ];
+    
+    // Worksheet hozzáadása a workbook-hoz
+    const iskolaNev = data.palyazo_iskola_neve || 'Ismeretlen';
+    const bekuldesDatuma = data.created_at ? new Date(data.created_at).toISOString().split('T')[0] : 'Ismeretlen';
+    const sheetName = `${iskolaNev}_${bekuldesDatuma}`.substring(0, 31); // Excel sheet neve max 31 karakter
+    
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    
+    // Excel fájl letöltése
+    const fileName = `${iskolaNev}_${bekuldesDatuma}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+  } catch (error) {
+    console.error('Egyetlen Excel export hiba:', error);
+    alert('Hiba történt az Excel export során!');
+  }
 } 
