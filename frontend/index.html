@@ -1241,6 +1241,140 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                           <label class="form-label fw-bold">Kérjük, adja meg a tanulmányi versenyek számát:</label>
                           <input type="number" class="form-control mb-2" name="mtmi_tanulmányi_versenyek_szama" min="0" max="1000" placeholder="Szám megadása" required>
                         </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Kérjük, adja meg a tanulmányi versenyeken résztvevő diákok számát:</label>
+                          <input type="number" class="form-control mb-2" name="mtmi_tanulmányi_verseny_diakok_szama" min="0" max="10000" placeholder="saját szöveg beírása">
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Kérjük, adja meg a tanulmányi versenyfelkészítésben résztvevő tanárok számát:</label>
+                          <input type="number" class="form-control mb-2" name="mtmi_tanulmányi_verseny_tanarok_szama" min="0" max="1000" placeholder="saját szöveg beírása">
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be, mely tanulmányi versenyeken vesznek részt (verseny megnevezése, esetleg az elért eredmények címszavas felsorolása)!</label>
+                          <textarea class="form-control mb-2" name="mtmi_tanulmányi_versenyek_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                          <small class="form-text text-muted">max. 2000 karakter</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Link(ek) megadása a tanulmányi versenyeken való részvételről:</label>
+                          <input type="url" class="form-control mb-2" name="mtmi_tanulmányi_versenyek_link" maxlength="2000" placeholder="https://...">
+                          <small class="form-text text-muted">max. 2000 karakter</small>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          <strong>4.2</strong> A tanulók valamilyen kutatási alapú verseny keretében kutatási projektekben vesznek részt. Az iskola a kutatási versenyeken való részvételt honlapján bemutatja.<br><br>
+                          <strong>FIGYELEM!</strong> A tanulmányi és a kutatási alapú versenyek kimutatását külön bontásban kérjük!
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Az MTMI kutatási alapú versenyen való részvétel megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_kutatási_verseny_reszvetel" id="mtmi-kutatási-verseny-reszvetel-select" onchange="document.getElementById('mtmi-kutatási-verseny-reszvetel-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                        </div>
+                        
+                        <div id="mtmi-kutatási-verseny-reszvetel-block">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, adja meg a kutatási alapú versenyek/projektek számát:</label>
+                            <input type="number" class="form-control mb-2" name="mtmi_kutatási_versenyek_szama" min="0" max="1000" placeholder="saját szöveg beírása">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, adja meg a kutatási alapú versenyeken/projektekben résztvevő diákok számát:</label>
+                            <input type="number" class="form-control mb-2" name="mtmi_kutatási_verseny_diakok_szama" min="0" max="10000" placeholder="saját szöveg beírása">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, adja meg a kutatási alapú felkészítésben résztvevő tanárok számát:</label>
+                            <input type="number" class="form-control mb-2" name="mtmi_kutatási_verseny_tanarok_szama" min="0" max="1000" placeholder="saját szöveg beírása">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be, mely kutatási alapú versenyeken/projektekben vesznek részt (verseny megnevezése, esetleg az elért eredmények felsorolása)!</label>
+                            <textarea class="form-control mb-2" name="mtmi_kutatási_versenyek_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Link(ek) megadása a kutatási alapú versenyeken/projektekben való részvételről:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_kutatási_versenyek_link" maxlength="2000" placeholder="https://...">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          <strong>4.3</strong> Az iskola diákjai indulnak MTMI fókuszú témájú ötlet- vagy esszépályázatokon, melyekről információ található az iskola honlapján.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Az MTMI ötlet-/esszépályázatokon való részvétel megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_otlet_esszepalyazat_reszvetel" id="mtmi-otlet-esszepalyazat-reszvetel-select" onchange="document.getElementById('mtmi-otlet-esszepalyazat-reszvetel-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                        </div>
+                        
+                        <div id="mtmi-otlet-esszepalyazat-reszvetel-block">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, adja meg a pályázatok számát:</label>
+                            <input type="number" class="form-control mb-2" name="mtmi_otlet_esszepalyazat_szama" min="0" max="1000" placeholder="saját szöveg beírása">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, adja meg a pályázatokon résztvevő diákok számát:</label>
+                            <input type="number" class="form-control mb-2" name="mtmi_otlet_esszepalyazat_diakok_szama" min="0" max="10000" placeholder="saját szöveg beírása">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, adja meg a felkészítésben résztvevő tanárok számát:</label>
+                            <input type="number" class="form-control mb-2" name="mtmi_otlet_esszepalyazat_tanarok_szama" min="0" max="1000" placeholder="saját szöveg beírása">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be, mely ötlet-/esszépályázatokon vesznek részt (pályázat megnevezése, esetleg az elért eredmények felsorolása)!</label>
+                            <textarea class="form-control mb-2" name="mtmi_otlet_esszepalyazat_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Link(ek) megadása az ötlet-/esszépályázatokon való részvételről:</label>
+                            <input type="url" class="form-control mb-2" name="mtmi_otlet_esszepalyazat_link" maxlength="2000" placeholder="https://...">
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          <strong>4.4</strong> Az iskola a honlap mellett faliújságot vagy vitrint tart fenn a versenyek meghirdetésének és az eredményes diákok bemutatásának.
+                        </div>
+                        
+                        <div class="mb-3">
+                          <label class="form-label fw-bold">Megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_faliujsag_vitrin_reszvetel" id="mtmi-faliujsag-vitrin-reszvetel-select" onchange="document.getElementById('mtmi-faliujsag-vitrin-reszvetel-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
+                            <option value="">Válasszon...</option>
+                            <option value="igen">Igen</option>
+                            <option value="nem">Nem</option>
+                          </select>
+                        </div>
+                        
+                        <div id="mtmi-faliujsag-vitrin-reszvetel-block">
+                          <div class="mb-3">
+                            <label class="form-label fw-bold">Kérjük, mutassa be a megvalósulás konkrét formáját!</label>
+                            <textarea class="form-control mb-2" name="mtmi_faliujsag_vitrin_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
+                            <small class="form-text text-muted">max. 2000 karakter</small>
+                          </div>
+                        </div>
                       </div>
                       
                       <div class="d-flex justify-content-between">
