@@ -1221,76 +1221,28 @@ Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
                     <!-- 4. blokk: MTMI versenyek, pályázatok, kutatások, eredmények -->
                     <div class="form-step animate__animated" id="step-4" style="display:none;">
                       <h4 class="mb-3">4. MTMI versenyek, pályázatok, kutatások, eredmények</h4>
+                      
                       <div>
-                        <h5 class="mb-2">4.1. MTMI versenyek, pályázatok, kutatások</h5>
-                        <div class="mb-3">
-                          <label class="form-label fw-bold">4.1.1 Az iskola szervez vagy támogat MTMI tantárgyakhoz kapcsolódó versenyeket, pályázatokat, kutatásokat?</label>
-                          <select class="form-select mb-2" name="mtmi_versenyek_szervezese" id="mtmi-versenyek-szervezese-select" onchange="document.getElementById('mtmi-versenyek-szervezese-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-versenyek-szervezese-block" style="display:none;">
-                            <label class="form-label">Kérjük, sorolja fel, mutassa be a versenyeket, pályázatokat, kutatásokat!</label>
-                            <textarea class="form-control mb-2" name="mtmi_versenyek_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a versenyekhez, pályázatokhoz, kutatásokhoz:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_versenyek_link" maxlength="2000" placeholder="https://..." required>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                          </div>
+                        <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
+                          <strong>4.1</strong> Az iskola részt vesz tanulóival legalább egy helyi, regionális vagy országos MTMI-hez kapcsolódó TANULMÁNYI VERSENYEN, és ezt/ezeket közzéteszi honlapján.<br><br>
+                          <strong>FIGYELEM!</strong> A tanulmányi és a kutatási alapú versenyek kimutatását külön bontásban kérjük!
                         </div>
+                        
                         <div class="mb-3">
-                          <label class="form-label fw-bold">4.1.2 Az iskola tanulói részt vesznek MTMI tantárgyakhoz kapcsolódó versenyeken, pályázatokon, kutatásokban?</label>
-                          <select class="form-select mb-2" name="mtmi_versenyeken_reszvetel" id="mtmi-versenyeken-reszvetel-select" onchange="document.getElementById('mtmi-versenyeken-reszvetel-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
+                          <label class="form-label fw-bold">Az MTMI tanulmányi versenyen való részvétel megvalósul az iskolában.</label>
+                          <select class="form-select mb-2" name="mtmi_tanulmányi_verseny_reszvetel" id="mtmi-tanulmányi-verseny-reszvetel-select" required>
                             <option value="">Válasszon...</option>
                             <option value="igen">Igen</option>
                             <option value="nem">Nem</option>
                           </select>
-                          <div id="mtmi-versenyeken-reszvetel-block" style="display:none;">
-                            <label class="form-label">Kérjük, sorolja fel, mutassa be a részvételt, eredményeket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_versenyeken_reszvetel_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a részvételhez, eredményekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_versenyeken_reszvetel_link" maxlength="2000" placeholder="https://..." required>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                          </div>
                         </div>
+                        
                         <div class="mb-3">
-                          <label class="form-label fw-bold">4.1.3 Az iskola tanulói országos vagy nemzetközi MTMI versenyeken, pályázatokon, kutatásokban is részt vesznek?</label>
-                          <select class="form-select mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel" id="mtmi-orszagos-nemzetkozi-reszvetel-select" onchange="document.getElementById('mtmi-orszagos-nemzetkozi-reszvetel-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-orszagos-nemzetkozi-reszvetel-block" style="display:none;">
-                            <label class="form-label">Kérjük, sorolja fel, mutassa be a részvételt, eredményeket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása a részvételhez, eredményekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_orszagos_nemzetkozi_reszvetel_link" maxlength="2000" placeholder="https://..." required>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                          </div>
+                          <label class="form-label fw-bold">Kérjük, adja meg a tanulmányi versenyek számát:</label>
+                          <input type="number" class="form-control mb-2" name="mtmi_tanulmányi_versenyek_szama" min="0" max="1000" placeholder="Szám megadása" required>
                         </div>
                       </div>
-                      <div>
-                        <h5 class="mb-2">4.2. Eredmények, elismerések, díjak</h5>
-                      <div class="mb-3">
-                          <label class="form-label fw-bold">4.2.1 Az iskola tanulói, tanárai, csapatai kaptak-e MTMI területen elismerést, díjat, oklevelet?</label>
-                          <select class="form-select mb-2" name="mtmi_eredmenyek_eleresek" id="mtmi-eredmenyek-eleresek-select" onchange="document.getElementById('mtmi-eredmenyek-eleresek-block').style.display = (this.value === 'igen') ? 'block' : 'none';">
-                            <option value="">Válasszon...</option>
-                            <option value="igen">Igen</option>
-                            <option value="nem">Nem</option>
-                          </select>
-                          <div id="mtmi-eredmenyek-eleresek-block" style="display:none;">
-                            <label class="form-label">Kérjük, sorolja fel, mutassa be az elismeréseket, díjakat, okleveleket!</label>
-                            <textarea class="form-control mb-2" name="mtmi_eredmenyek_eleresek_bemutatasa" maxlength="2000" placeholder="saját szöveg beírása"></textarea>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                            <label class="form-label">Link(ek) megadása az elismerésekhez, díjakhoz, oklevelekhez:</label>
-                            <input type="url" class="form-control mb-2" name="mtmi_eredmenyek_eleresek_link" maxlength="2000" placeholder="https://..." required>
-                            <small class="form-text text-muted">max. 2000 karakter</small>
-                          </div>
-                        </div>
-                      </div>
+                      
                       <div class="d-flex justify-content-between">
                         <button type="button" class="btn btn-outline-secondary btn-lg prev-step">Vissza</button>
                         <button type="button" class="btn btn-primary btn-lg next-step">Következő</button>
