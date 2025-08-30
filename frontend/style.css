@@ -46,6 +46,11 @@ body {
   font-weight: 600;
   color: #2a4d69;
 }
+
+/* A "max. 2000 karakter" utáni extra térköz div-ek megtartása */
+.form-text.text-muted + div[style*="margin-bottom"] {
+  margin-bottom: 1.5rem !important;
+}
 .btn-primary {
   background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
   border: none;
