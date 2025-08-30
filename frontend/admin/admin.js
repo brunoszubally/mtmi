@@ -149,18 +149,6 @@ async function loadAdminList() {
     }
     tr.appendChild(tdPdf);
     
-    // Print PDF gomb
-    const tdPrintPdf = document.createElement("td");
-    const printPdfBtn = document.createElement("button");
-    printPdfBtn.className = "btn btn-outline-secondary btn-sm";
-    printPdfBtn.innerHTML = '<i class="bi bi-printer"></i>';
-    printPdfBtn.title = "Print PDF";
-    printPdfBtn.addEventListener("click", function() {
-      printSummaryAsPdf(row.id);
-    });
-    tdPrintPdf.appendChild(printPdfBtn);
-    tr.appendChild(tdPrintPdf);
-    
     // Excel export gomb
     const tdExcel = document.createElement("td");
     const excelBtn = document.createElement("button");
@@ -342,6 +330,16 @@ async function showSummary(session_id) {
   }
   
   html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
+  
+  // Print gomb hozzáadása
+  html += `
+    <div class="text-center mb-3">
+      <button onclick="window.print()" class="btn btn-primary btn-lg">
+        <i class="bi bi-printer"></i> Nyomtatás
+      </button>
+    </div>
+  `;
+  
   html += formClone.innerHTML;
   // PDF link a form után, de még a container-en belül
   if (res.pdf_file_path) {
@@ -678,4 +676,7 @@ async function exportSingleToExcel(sessionId) {
     console.error('Egyetlen Excel export hiba:', error);
     alert('Hiba történt az Excel export során!');
   }
-} 
+}
+
+
+ 
