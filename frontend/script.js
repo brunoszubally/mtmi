@@ -3,7 +3,10 @@ function getSessionIdFromUrl() {
     return m ? m[1] : null;
 }
 
-const API_BASE = "https://mtmi.onrender.com/api"; // Production API
+// API_BASE dinamikus meghatározása
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? "http://localhost:8000/api" 
+  : "https://mtmi.onrender.com/api";
 const FORM_ID = "mtmi-form";
 const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";

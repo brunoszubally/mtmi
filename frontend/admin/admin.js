@@ -1,4 +1,7 @@
-const API_BASE = "https://mtmi.onrender.com/api"; // Production API
+// API_BASE dinamikus meghatározása
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? "http://localhost:8000/api" 
+  : "https://mtmi.onrender.com/api";
 
 // --- Admin session kezelés ---
 function setAdminSession(loggedIn) {
