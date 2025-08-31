@@ -482,13 +482,26 @@ async function exportToExcel() {
     const headers = new Set();
     
     for (const submission of submissions) {
-      const detailResp = await fetch(`${API_BASE}/admin/detail/${submission.session_id}`);
+      const detailResp = await fetch(`${API_BASE}/admin/result/${submission.id}`);
       const detail = await detailResp.json();
       
-      // Minden mezőt hozzáadunk a headers-hez
-      Object.keys(detail).forEach(key => headers.add(key));
-      
-      allData.push(detail);
+      // A 'data' objektumból vesszük az űrlap adatokat
+      if (detail.data) {
+        // Meta adatok hozzáadása
+        const fullData = {
+          session_id: submission.id,
+          iskola_nev: submission.iskola_nev,
+          created_at: submission.created_at,
+          submitted: submission.submitted,
+          has_pdf: submission.has_pdf,
+          ...detail.data
+        };
+        
+        // Minden mezőt hozzáadunk a headers-hez
+        Object.keys(fullData).forEach(key => headers.add(key));
+        
+        allData.push(fullData);
+      }
     }
     
     // Headers rendezése
