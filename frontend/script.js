@@ -1120,6 +1120,7 @@ document.addEventListener("DOMContentLoaded", () => {
       let html = `<html><head><meta charset='utf-8'><title>MTMI űrlap eredmények</title>`;
       // Bootstrap és saját CSS beillesztése
       html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>`;
+      html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css' rel='stylesheet'>`;
       html += `<link rel='stylesheet' href='/style.css'>`;
       html += `<style>
         textarea.form-control {
@@ -1129,9 +1130,26 @@ document.addEventListener("DOMContentLoaded", () => {
           overflow-x: hidden;
           box-sizing: border-box;
         }
+        @media print {
+          .btn {
+            display: none !important;
+          }
+          .text-center.mb-3 {
+            display: none !important;
+          }
+        }
       </style>`;
       html += `</head><body class='bg-light'><div class='container py-5'>`;
       html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
+
+      // Print gomb hozzáadása
+      html += `
+        <div class="text-center mb-3">
+          <button onclick="window.print()" class="btn btn-primary btn-lg">
+            <i class="bi bi-printer"></i> Nyomtatás
+          </button>
+        </div>
+      `;
       html += formClone.innerHTML;
       html += `</div><script>
 // Textarea automatikus méretezés függvény
