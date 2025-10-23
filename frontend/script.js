@@ -873,6 +873,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Formátumellenőrzési eseménykezelők
       setupFormatValidation();
+
+      // Textarea automatikus méretezés beállítása
+      setupTextareaAutoResize();
   });
 });
 
@@ -1575,4 +1578,56 @@ function setupFormatValidation() {
       }
     });
   });
+}
+
+// Textarea automatikus méretezés beállítása
+function setupTextareaAutoResize() {
+  // Minden textarea-ra alkalmazunk automatikus méretezést
+  document.querySelectorAll('textarea').forEach(textarea => {
+    // Input eseményre automatikus méretezés
+    textarea.addEventListener('input', function() {
+      autoResizeTextarea(this);
+    });
+
+    // Kezdeti méretezés
+    autoResizeTextarea(textarea);
+  });
+
+  // Dinamikusan hozzáadott textarea-k figyelése
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      mutation.addedNodes.forEach(function(node) {
+        if (node.nodeType === 1) { // Element node
+          const textareas = node.querySelectorAll ? node.querySelectorAll('textarea') : [];
+          textareas.forEach(textarea => {
+            textarea.addEventListener('input', function() {
+              autoResizeTextarea(this);
+            });
+            autoResizeTextarea(textarea);
+          });
+        }
+      });
+    });
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+// Textarea automatikus méretezés függvény
+function autoResizeTextarea(textarea) {
+  if (!textarea.value || textarea.value.trim() === '') {
+    // Ha üres, visszaállítjuk a minimum magasságra
+    textarea.style.height = 'auto';
+    return;
+  }
+
+  // Ideiglenesen auto-ra állítjuk a magasságot
+  textarea.style.height = 'auto';
+
+  // Kiszámítjuk a szükséges magasságot
+  const scrollHeight = textarea.scrollHeight;
+  const minHeight = 100; // Minimum magasság
+
+  // Beállítjuk a magasságot
+  textarea.style.height = Math.max(scrollHeight, minHeight) + 'px';
 } 
