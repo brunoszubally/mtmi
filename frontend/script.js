@@ -1123,18 +1123,52 @@ document.addEventListener("DOMContentLoaded", () => {
       html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css' rel='stylesheet'>`;
       html += `<link rel='stylesheet' href='/style.css'>`;
       html += `<style>
+        body {
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+        }
+        .container {
+          max-width: 800px !important;
+          width: 100%;
+        }
         textarea.form-control {
           min-height: 80px;
           resize: none;
           overflow-y: hidden;
           overflow-x: hidden;
           box-sizing: border-box;
+          width: 100%;
         }
         @media print {
-          .btn {
+          @page {
+            margin: 1cm;
+          }
+          .btn, button {
             display: none !important;
           }
           .text-center.mb-3 {
+            display: none !important;
+          }
+          body {
+            display: block;
+          }
+          .container {
+            max-width: 800px !important;
+            width: 100%;
+            margin: 0 auto;
+            padding: 0 !important;
+          }
+          textarea.form-control {
+            overflow: visible !important;
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            page-break-inside: auto !important;
+          }
+          .form-control:not(textarea), .form-select, .form-check {
+            page-break-inside: avoid;
+          }
+          .stepper, .stepper-sidebar, .progress, .next-step, .prev-step {
             display: none !important;
           }
         }
@@ -1202,6 +1236,19 @@ window.addEventListener('DOMContentLoaded', function() {
       }
     });
   }, 100);
+
+  // ResizeObserver hozzáadása a textarea-khoz
+  const resizeObserver = new ResizeObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.target.tagName === 'TEXTAREA') {
+        autoResizeTextarea(entry.target);
+      }
+    });
+  });
+
+  document.querySelectorAll('textarea').forEach(function(textarea) {
+    resizeObserver.observe(textarea);
+  });
 });
 <\/script></body></html>`;
       // Új ablakban nyitjuk meg a nyomtatható nézetet

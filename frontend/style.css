@@ -100,6 +100,8 @@ textarea.form-control {
   overflow-y: hidden;
   overflow-x: hidden;
   box-sizing: border-box;
+  max-width: 800px;
+  width: 100%;
 }
 .stepper .stepper-link {
   border-radius: 30px !important;
