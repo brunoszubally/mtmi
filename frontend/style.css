@@ -520,4 +520,36 @@ input[type="number"] {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
   }
+}
+
+/* Nyomtatási beállítások */
+@media print {
+  /* Gombok elrejtése */
+  .btn, button {
+    display: none !important;
+  }
+
+  /* Textarea-k dinamikus méretezése nyomtatáskor */
+  textarea.form-control {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    page-break-inside: avoid;
+    resize: none !important;
+  }
+
+  /* Mezők ne törjenek ketté */
+  .form-control, .form-select, .form-check {
+    page-break-inside: avoid;
+  }
+
+  /* Blokkok ne törjenek ketté */
+  .mb-3, .card, .form-step {
+    page-break-inside: avoid;
+  }
+
+  /* Navigáció és progress bar elrejtése */
+  .stepper, .stepper-sidebar, .progress, .next-step, .prev-step {
+    display: none !important;
+  }
 } 

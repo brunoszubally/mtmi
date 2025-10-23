@@ -1131,10 +1131,26 @@ document.addEventListener("DOMContentLoaded", () => {
           box-sizing: border-box;
         }
         @media print {
-          .btn {
+          .btn, button {
             display: none !important;
           }
           .text-center.mb-3 {
+            display: none !important;
+          }
+          textarea.form-control {
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            page-break-inside: avoid;
+            resize: none !important;
+          }
+          .form-control, .form-select, .form-check {
+            page-break-inside: avoid;
+          }
+          .mb-3, .card, .form-step {
+            page-break-inside: avoid;
+          }
+          .stepper, .stepper-sidebar, .progress, .next-step, .prev-step {
             display: none !important;
           }
         }
