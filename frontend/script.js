@@ -595,6 +595,16 @@ document.addEventListener('DOMContentLoaded', function() {
               interdiszciplinarisSelect.dispatchEvent(event);
           }, 300);
       }
+
+      // Textarea automatikus méretezés az adatok betöltése után
+      setTimeout(() => {
+        document.querySelectorAll('textarea').forEach(textarea => {
+          if (textarea.value && textarea.value.trim() !== '') {
+            autoResizeTextarea(textarea);
+          }
+        });
+      }, 100);
+
       console.log('setFormData: Függvény befejezve');
       } catch (error) {
           console.error('setFormData: Hiba történt:', error);
@@ -711,9 +721,13 @@ document.addEventListener('DOMContentLoaded', function() {
                       csapatTagokDiv.querySelectorAll('input, textarea').forEach(el => {
                           if (el.name && res.data[el.name] && typeof res.data[el.name] === 'string' && res.data[el.name].trim() !== '') {
                               el.value = res.data[el.name];
+                              // Ha textarea, automatikusan méretezzük
+                              if (el.tagName === 'TEXTAREA') {
+                                  autoResizeTextarea(el);
+                              }
                           }
                       });
-                      
+
                       // Checkbox-ok betöltése
                       csapatTagokDiv.querySelectorAll('input[type="checkbox"]').forEach(el => {
                           if (el.name && res.data[el.name] && Array.isArray(res.data[el.name])) {
@@ -729,6 +743,15 @@ document.addEventListener('DOMContentLoaded', function() {
                       });
                       window.isLoadingForm = false;
                   }
+
+                  // Végső textarea méretezés minden textarea-ra
+                  setTimeout(() => {
+                    document.querySelectorAll('textarea').forEach(textarea => {
+                      if (textarea.value && textarea.value.trim() !== '') {
+                        autoResizeTextarea(textarea);
+                      }
+                    });
+                  }, 100);
               }, 200);
               
               showLink(session_id);
@@ -876,6 +899,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Textarea automatikus méretezés beállítása
       setupTextareaAutoResize();
+
+      // Textarea-k méretezése betöltés után (késleltetéssel)
+      setTimeout(() => {
+        document.querySelectorAll('textarea').forEach(textarea => {
+          autoResizeTextarea(textarea);
+        });
+      }, 500);
   });
 });
 
@@ -1615,19 +1645,16 @@ function setupTextareaAutoResize() {
 
 // Textarea automatikus méretezés függvény
 function autoResizeTextarea(textarea) {
-  if (!textarea.value || textarea.value.trim() === '') {
-    // Ha üres, visszaállítjuk a minimum magasságra
-    textarea.style.height = 'auto';
-    return;
-  }
-
-  // Ideiglenesen auto-ra állítjuk a magasságot
+  // Először eltávolítjuk a beállított magasságot, hogy mérni tudjuk a tartalmat
   textarea.style.height = 'auto';
 
   // Kiszámítjuk a szükséges magasságot
   const scrollHeight = textarea.scrollHeight;
-  const minHeight = 100; // Minimum magasság
+  const minHeight = 80; // Minimum magasság (CSS-ben is ez van beállítva)
 
-  // Beállítjuk a magasságot
-  textarea.style.height = Math.max(scrollHeight, minHeight) + 'px';
+  // Beállítjuk a magasságot a tartalom alapján
+  const newHeight = Math.max(scrollHeight, minHeight);
+  textarea.style.height = newHeight + 'px';
+
+  console.log('Textarea resized:', textarea.name, 'scrollHeight:', scrollHeight, 'newHeight:', newHeight);
 } 

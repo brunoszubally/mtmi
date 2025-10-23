@@ -97,7 +97,9 @@ body {
 textarea.form-control {
   min-height: 80px;
   resize: none;
-  overflow: hidden;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 .stepper .stepper-link {
   border-radius: 30px !important;
