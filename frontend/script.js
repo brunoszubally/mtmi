@@ -1142,7 +1142,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         @media print {
           @page {
-            margin: 1cm;
+            margin: 0.5cm;
+            size: A4;
           }
           .btn, button {
             display: none !important;
@@ -1152,18 +1153,24 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           body {
             display: block;
+            width: 100%;
           }
           .container {
-            max-width: 800px !important;
+            max-width: 1000px !important;
             width: 100%;
             margin: 0 auto;
-            padding: 0 !important;
+            padding: 1cm !important;
           }
           textarea.form-control {
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
             overflow: visible !important;
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
             page-break-inside: auto !important;
+            border: 1px solid #dee2e6 !important;
+            padding: 0.375rem 0.75rem !important;
           }
           .form-control:not(textarea), .form-select, .form-check {
             page-break-inside: avoid;
