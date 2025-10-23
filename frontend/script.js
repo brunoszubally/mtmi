@@ -1123,10 +1123,17 @@ document.addEventListener("DOMContentLoaded", () => {
       html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css' rel='stylesheet'>`;
       html += `<link rel='stylesheet' href='/style.css'>`;
       html += `<style>
+        #print-wrapper {
+          width: 21cm;
+          margin: 0 auto;
+          background: white;
+          padding: 1cm;
+        }
         body {
           display: flex;
           justify-content: center;
           align-items: flex-start;
+          background: #e0e0e0;
         }
         .container {
           max-width: 800px !important;
@@ -1142,8 +1149,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         @media print {
           @page {
-            margin: 0.5cm;
+            margin: 0;
             size: A4;
+          }
+          body {
+            background: white;
+            margin: 0;
+            padding: 0;
+          }
+          #print-wrapper {
+            width: 21cm;
+            margin: 0;
+            padding: 1cm;
           }
           .btn, button {
             display: none !important;
@@ -1151,20 +1168,13 @@ document.addEventListener("DOMContentLoaded", () => {
           .text-center.mb-3 {
             display: none !important;
           }
-          body {
-            display: block;
-            width: 100%;
-          }
           .container {
-            max-width: 1000px !important;
+            max-width: 100% !important;
             width: 100%;
-            margin: 0 auto;
-            padding: 1cm !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
           textarea.form-control {
-            height: auto !important;
-            min-height: auto !important;
-            max-height: none !important;
             overflow: visible !important;
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
@@ -1180,7 +1190,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
       </style>`;
-      html += `</head><body class='bg-light'><div class='container py-5'>`;
+      html += `</head><body class='bg-light'><div id="print-wrapper"><div class='container py-5'>`;
       html += `<h1 class='mb-4 text-center fw-bold'>MTMI Iskola Program<br><span class='text-primary'>Pályázati űrlap (összefoglaló)</span></h1>`;
 
       // Print gomb hozzáadása
@@ -1192,7 +1202,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
       html += formClone.innerHTML;
-      html += `</div><script>
+      html += `</div></div><script>
 // Textarea automatikus méretezés függvény
 function autoResizeTextarea(textarea) {
   textarea.style.height = 'auto';
