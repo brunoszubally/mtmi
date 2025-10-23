@@ -1131,23 +1131,28 @@ document.addEventListener("DOMContentLoaded", () => {
           box-sizing: border-box;
         }
         @media print {
+          @page {
+            margin: 1cm;
+          }
           .btn, button {
             display: none !important;
           }
           .text-center.mb-3 {
             display: none !important;
           }
+          body, .container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
           textarea.form-control {
-            height: auto !important;
-            min-height: auto !important;
             overflow: visible !important;
-            page-break-inside: avoid;
-            resize: none !important;
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            page-break-inside: auto !important;
           }
-          .form-control, .form-select, .form-check {
-            page-break-inside: avoid;
-          }
-          .mb-3, .card, .form-step {
+          .form-control:not(textarea), .form-select, .form-check {
             page-break-inside: avoid;
           }
           .stepper, .stepper-sidebar, .progress, .next-step, .prev-step {

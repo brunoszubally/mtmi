@@ -524,27 +524,34 @@ input[type="number"] {
 
 /* Nyomtatási beállítások */
 @media print {
+  /* Oldal margó beállítása */
+  @page {
+    margin: 1cm;
+  }
+
   /* Gombok elrejtése */
   .btn, button {
     display: none !important;
   }
 
-  /* Textarea-k dinamikus méretezése nyomtatáskor */
+  /* Body és container szélesség */
+  body, .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Textarea-k: overflow engedélyezése, hogy minden szöveg látszódjon */
   textarea.form-control {
-    height: auto !important;
-    min-height: auto !important;
     overflow: visible !important;
-    page-break-inside: avoid;
-    resize: none !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    page-break-inside: auto !important;
   }
 
-  /* Mezők ne törjenek ketté */
-  .form-control, .form-select, .form-check {
-    page-break-inside: avoid;
-  }
-
-  /* Blokkok ne törjenek ketté */
-  .mb-3, .card, .form-step {
+  /* Input mezők ne törjenek ketté */
+  .form-control:not(textarea), .form-select, .form-check {
     page-break-inside: avoid;
   }
 
