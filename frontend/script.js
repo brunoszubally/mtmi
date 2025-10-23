@@ -1131,31 +1131,10 @@ document.addEventListener("DOMContentLoaded", () => {
           box-sizing: border-box;
         }
         @media print {
-          @page {
-            margin: 1cm;
-          }
-          .btn, button {
+          .btn {
             display: none !important;
           }
           .text-center.mb-3 {
-            display: none !important;
-          }
-          body, .container {
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          textarea.form-control {
-            overflow: visible !important;
-            white-space: pre-wrap !important;
-            word-wrap: break-word !important;
-            page-break-inside: auto !important;
-          }
-          .form-control:not(textarea), .form-select, .form-check {
-            page-break-inside: avoid;
-          }
-          .stepper, .stepper-sidebar, .progress, .next-step, .prev-step {
             display: none !important;
           }
         }
@@ -1712,12 +1691,24 @@ function setupFormatValidation() {
 
 // Textarea automatikus méretezés beállítása
 function setupTextareaAutoResize() {
+  // ResizeObserver a szélesség változás figyelésére
+  const resizeObserver = new ResizeObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.target.tagName === 'TEXTAREA') {
+        autoResizeTextarea(entry.target);
+      }
+    });
+  });
+
   // Minden textarea-ra alkalmazunk automatikus méretezést
   document.querySelectorAll('textarea').forEach(textarea => {
     // Input eseményre automatikus méretezés
     textarea.addEventListener('input', function() {
       autoResizeTextarea(this);
     });
+
+    // ResizeObserver hozzáadása a szélesség változás figyelésére
+    resizeObserver.observe(textarea);
 
     // Kezdeti méretezés
     autoResizeTextarea(textarea);
@@ -1733,6 +1724,8 @@ function setupTextareaAutoResize() {
             textarea.addEventListener('input', function() {
               autoResizeTextarea(this);
             });
+            // ResizeObserver hozzáadása
+            resizeObserver.observe(textarea);
             autoResizeTextarea(textarea);
           });
         }
