@@ -285,6 +285,22 @@ async function showSummary(session_id) {
   html += `<link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css' rel='stylesheet'>`;
   html += `<link rel='stylesheet' href='/style.css'>`;
   html += `<style>
+    #print-wrapper {
+      width: 21cm;
+      margin: 0 auto;
+      background: white;
+      padding: 1cm;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background: #e0e0e0;
+    }
+    .container {
+      max-width: 800px !important;
+      width: 100%;
+    }
     /* Az összefoglaló nézetben eltávolítjuk a min-height-ot és a felesleges térközöket */
     .form-step {
       min-height: auto !important;
@@ -301,6 +317,8 @@ async function showSummary(session_id) {
       resize: none !important;
       min-height: 100px !important;
       overflow: visible !important;
+      width: 100%;
+      box-sizing: border-box;
     }
     /* Hosszú szövegek esetén automatikus magasság beállítása */
     textarea[readonly] {
@@ -317,8 +335,50 @@ async function showSummary(session_id) {
       height: inherit !important;
       min-height: inherit !important;
     }
+    @media print {
+      @page {
+        margin: 0;
+        size: A4;
+      }
+      body {
+        background: white;
+        margin: 0;
+        padding: 0;
+      }
+      #print-wrapper {
+        width: 21cm;
+        margin: 0;
+        padding: 1cm;
+      }
+      .btn, button, a.btn {
+        display: none !important;
+      }
+      .text-center.mb-3, .text-center.mb-4 {
+        display: none !important;
+      }
+      .container {
+        max-width: 100% !important;
+        width: 100%;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      textarea {
+        overflow: visible !important;
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        page-break-inside: auto !important;
+        border: 1px solid #dee2e6 !important;
+        padding: 0.375rem 0.75rem !important;
+      }
+      .form-control:not(textarea), .form-select, .form-check {
+        page-break-inside: avoid;
+      }
+      .stepper, .stepper-sidebar, .progress, .next-step, .prev-step {
+        display: none !important;
+      }
+    }
   </style>`;
-  html += `</head><body class='bg-light'><div class='container py-5'>`;
+  html += `</head><body class='bg-light'><div id="print-wrapper"><div class='container py-5'>`;
   // PDF link hozzáadása, ha van
   let pdfLinkHtml = '';
   if (res.pdf_file_path) {
@@ -355,7 +415,7 @@ async function showSummary(session_id) {
       </div>
     `;
   }
-  html += `</div><script>
+  html += `</div></div><script>
     // Azonnal alkalmazzuk a readonly beállításokat
     const data = ${JSON.stringify(data)};
     document.querySelectorAll('input, select, textarea').forEach(function(el) {
@@ -453,6 +513,41 @@ async function showSummary(session_id) {
           // Visszaállítjuk a readonly-ot
           textarea.readOnly = wasReadonly;
         }
+      });
+
+      // ResizeObserver hozzáadása a textarea-khoz a dinamikus méretezéshez
+      const resizeObserver = new ResizeObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.target.tagName === 'TEXTAREA') {
+            // Újraszámoljuk a magasságot, ha változik a szélesség
+            const textarea = entry.target;
+            textarea.style.height = 'auto';
+            const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
+            const textWidth = textarea.offsetWidth - parseInt(window.getComputedStyle(textarea).paddingLeft) - parseInt(window.getComputedStyle(textarea).paddingRight);
+            const charWidth = 8;
+            const charsPerLine = Math.floor(textWidth / charWidth);
+
+            let lines = 1;
+            const textLines = textarea.value.split('\\n');
+            for (let line of textLines) {
+              if (line.length > charsPerLine) {
+                lines += Math.ceil(line.length / charsPerLine);
+              } else {
+                lines += 1;
+              }
+            }
+
+            const padding = parseInt(window.getComputedStyle(textarea).paddingTop) + parseInt(window.getComputedStyle(textarea).paddingBottom) || 16;
+            const border = parseInt(window.getComputedStyle(textarea).borderTopWidth) + parseInt(window.getComputedStyle(textarea).borderBottomWidth) || 2;
+            const calculatedHeight = (lines * lineHeight) + padding + border;
+
+            textarea.style.setProperty('height', calculatedHeight + 'px', 'important');
+          }
+        });
+      });
+
+      document.querySelectorAll('textarea').forEach(function(textarea) {
+        resizeObserver.observe(textarea);
       });
     }, 100);
   </script></body></html>`;
