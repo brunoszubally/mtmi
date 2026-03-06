@@ -5,21 +5,30 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import psycopg2
 from psycopg2.extras import Json
 import shutil
 from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from io import BytesIO
 import ftplib
+import bcrypt
+from xml.sax.saxutils import escape
+import tempfile
+import subprocess
 
 # --- Adatbázis inicializálás ---
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
 
 # --- FTP konfiguráció ---
 FTP_HOST = "move-on.hu"
@@ -62,23 +71,47 @@ def delete_from_ftp(filename: str) -> bool:
 def init_db():
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
-            # Create table if not exists
+            # Create forms table if not exists
             c.execute('''
                 CREATE TABLE IF NOT EXISTS forms (
                     id TEXT PRIMARY KEY,
                     data JSONB NOT NULL,
                     created_at TIMESTAMP NOT NULL,
                     updated_at TIMESTAMP NOT NULL,
-                    submitted INTEGER DEFAULT 0
+                    submitted INTEGER DEFAULT 0,
+                    pdf_file_path TEXT,
+                    school_id TEXT
                 )
             ''')
             
-            # Add pdf_file_path column if it doesn't exist
-            try:
-                c.execute('ALTER TABLE forms ADD COLUMN pdf_file_path TEXT')
-                print("Added pdf_file_path column")
-            except Exception as e:
-                print(f"Column might already exist: {e}")
+            # Create schools table if not exists
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS schools (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE,
+                    password_hash TEXT,
+                    form_id TEXT,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+            ''')
+
+            # App szintű pályázati időzítés és állapot
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    id INTEGER PRIMARY KEY,
+                    submission_mode TEXT NOT NULL DEFAULT 'auto',
+                    submission_start_at TIMESTAMPTZ,
+                    submission_end_at TIMESTAMPTZ,
+                    updated_at TIMESTAMP NOT NULL
+                )
+            ''')
+            c.execute('''
+                INSERT INTO app_settings (id, submission_mode, submission_start_at, submission_end_at, updated_at)
+                VALUES (1, 'auto', NULL, NULL, %s)
+                ON CONFLICT (id) DO NOTHING
+            ''', (datetime.utcnow(),))
             
             conn.commit()
 
@@ -111,16 +144,317 @@ class SaveRequest(BaseModel):
 class SaveResponse(BaseModel):
     session_id: str
     url: str
+    updated_at: Optional[str] = None
 
 class LoadResponse(BaseModel):
     data: dict
     session_id: str
     submitted: int  # vagy bool
     pdf_file_path: Optional[str] = None
+    school_id: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+def _to_utc_iso(dt):
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def get_submission_settings():
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT submission_mode, submission_start_at, submission_end_at
+                FROM app_settings
+                WHERE id = 1
+            """)
+            row = c.fetchone()
+    if not row:
+        return {
+            "mode": "auto",
+            "start_at": None,
+            "end_at": None
+        }
+    return {
+        "mode": row[0] or "auto",
+        "start_at": row[1],
+        "end_at": row[2]
+    }
+
+
+def compute_submission_status():
+    cfg = get_submission_settings()
+    now_utc = datetime.now(timezone.utc)
+    now_budapest = now_utc.astimezone(BUDAPEST_TZ)
+
+    mode = cfg["mode"] or "auto"
+    start_at = cfg["start_at"]
+    end_at = cfg["end_at"]
+
+    status = "open"
+    message = "A pályázati felület elérhető."
+    countdown_days_left = None
+
+    if mode == "forced_review":
+        status = "review"
+        message = "A pályázati felület jelenleg nem elérhető, bírálat zajlik."
+    else:
+        if start_at and now_utc < start_at and mode == "auto":
+            status = "preopen"
+            message = "A pályázati felület még nem nyílt meg."
+        elif end_at and now_utc > end_at and mode == "auto":
+            status = "review"
+            message = "A pályázati felület lezárva, bírálat zajlik."
+        else:
+            if end_at:
+                seconds_left = (end_at - now_utc).total_seconds()
+                if seconds_left <= 0 and mode != "forced_open":
+                    status = "review"
+                    message = "A pályázati felület lezárva, bírálat zajlik."
+                else:
+                    days_left = int((seconds_left + 86399) // 86400)
+                    if 0 < days_left <= 10:
+                        status = "countdown"
+                        countdown_days_left = days_left
+                        message = f"Még {days_left} napja van a beadásra."
+
+    is_available = status in ("open", "countdown")
+    return {
+        "status": status,
+        "is_available": is_available,
+        "message": message,
+        "countdown_days_left": countdown_days_left,
+        "mode": mode,
+        "start_at": _to_utc_iso(start_at),
+        "end_at": _to_utc_iso(end_at),
+        "now_at": now_budapest.isoformat(),
+        "timezone": "Europe/Budapest"
+    }
+
+
+def ensure_submission_available():
+    status = compute_submission_status()
+    if not status["is_available"]:
+        raise HTTPException(status_code=423, detail=status["message"])
+
+
+def _format_value_for_pdf(value):
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value if str(v).strip())
+    if isinstance(value, bool):
+        return "Igen" if value else "Nem"
+    return str(value)
+
+
+def _humanize_key(key: str) -> str:
+    return key.replace("_", " ").strip().capitalize()
+
+
+def _build_submission_pdf_buffer(session_id: str, data: dict, created_at=None, updated_at=None, school_name: Optional[str] = None):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=32,
+        rightMargin=32,
+        topMargin=32,
+        bottomMargin=32
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "PdfTitle",
+        parent=styles["Heading1"],
+        fontSize=18,
+        leading=22,
+        spaceAfter=14,
+        alignment=1
+    )
+    section_style = ParagraphStyle(
+        "PdfSection",
+        parent=styles["Heading2"],
+        fontSize=12,
+        leading=15,
+        spaceBefore=8,
+        spaceAfter=6
+    )
+    key_style = ParagraphStyle(
+        "PdfKey",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=12
+    )
+    value_style = ParagraphStyle(
+        "PdfValue",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=12
+    )
+
+    story = []
+    story.append(Paragraph("MTMI Iskola Program - Pályázati összefoglaló", title_style))
+    meta_rows = [
+        ["Session azonosító", session_id],
+        ["Generálva", datetime.now(BUDAPEST_TZ).strftime("%Y-%m-%d %H:%M:%S (Europe/Budapest)")],
+    ]
+    if school_name:
+        meta_rows.append(["Iskola", school_name])
+    if created_at:
+        meta_rows.append(["Létrehozva", created_at.strftime("%Y-%m-%d %H:%M:%S")])
+    if updated_at:
+        meta_rows.append(["Utolsó mentés", updated_at.strftime("%Y-%m-%d %H:%M:%S")])
+
+    meta_table = Table(meta_rows, colWidths=[160, 350])
+    meta_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7FAFC")),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CBD5E0")),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 14))
+
+    section_groups = [
+        ("Alapadatok", [
+            "palyazo_iskola_neve", "iskola_cime", "telepulesforma", "iskolatipus",
+            "iskola_tanuloi_letszama", "intezmenytipus_tanuloi_letszama",
+            "programban_erintett_tanulok_szama", "iskola_mtmi_tanari_letszama"
+        ]),
+        ("Kapcsolattartók", [
+            "mtmi_felelos_kapcsolattarto_neve", "mtmi_felelos_kapcsolattarto_beosztas",
+            "mtmi_felelos_kapcsolattarto_telefonszam1", "mtmi_felelos_kapcsolattarto_telefonszam2",
+            "mtmi_felelos_kapcsolattarto_email1", "mtmi_felelos_kapcsolattarto_email2",
+            "intezmenyvezeto_kapcsolattarto_neve", "intezmenyvezeto_kapcsolattarto_beosztas",
+            "intezmenyvezeto_kapcsolattarto_telefonszam1", "intezmenyvezeto_kapcsolattarto_telefonszam2",
+            "intezmenyvezeto_kapcsolattarto_email1", "intezmenyvezeto_kapcsolattarto_email2"
+        ]),
+    ]
+
+    rendered_keys = set()
+    for title, keys in section_groups:
+        rows = []
+        for key in keys:
+            if key not in data:
+                continue
+            value = _format_value_for_pdf(data.get(key))
+            if not value:
+                continue
+            rendered_keys.add(key)
+            rows.append([
+                Paragraph(escape(_humanize_key(key)), key_style),
+                Paragraph(escape(value).replace("\n", "<br/>"), value_style)
+            ])
+        if not rows:
+            continue
+        section = [Paragraph(title, section_style)]
+        tbl = Table(rows, colWidths=[190, 320], repeatRows=0)
+        tbl.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#E2E8F0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#EDF2F7")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        section.append(tbl)
+        section.append(Spacer(1, 10))
+        story.append(KeepTogether(section))
+
+    misc_rows = []
+    for key in sorted(data.keys()):
+        if key in rendered_keys:
+            continue
+        value = _format_value_for_pdf(data.get(key))
+        if not value:
+            continue
+        misc_rows.append([
+            Paragraph(escape(_humanize_key(key)), key_style),
+            Paragraph(escape(value).replace("\n", "<br/>"), value_style)
+        ])
+
+    if misc_rows:
+        story.append(Paragraph("Egyéb mezők", section_style))
+        misc_table = Table(misc_rows, colWidths=[190, 320], repeatRows=0)
+        misc_table.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#E2E8F0")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F7FAFC")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(misc_table)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+def _find_chrome_executable() -> Optional[str]:
+    candidates = [
+        os.environ.get("CHROME_BIN"),
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
+def _render_exact_pdf_via_chrome(url: str) -> Optional[bytes]:
+    chrome_bin = _find_chrome_executable()
+    if not chrome_bin:
+        return None
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    cmd = [
+        chrome_bin,
+        "--headless=new",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw",
+        "--virtual-time-budget=15000",
+        f"--print-to-pdf={tmp_path}",
+        url
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+        if proc.returncode != 0 or not os.path.exists(tmp_path):
+            return None
+        with open(tmp_path, "rb") as fh:
+            return fh.read()
+    except Exception:
+        return None
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
 # --- API végpontok ---
 @app.post("/api/save", response_model=SaveResponse)
 def save_form(req: SaveRequest, request: Request):
+    ensure_submission_available()
     now = datetime.utcnow()
     session_id = req.session_id or str(uuid4())
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -138,20 +472,31 @@ def save_form(req: SaveRequest, request: Request):
                 )
             conn.commit()
     url = str(request.base_url) + f"kitoltes/{session_id}"
-    return SaveResponse(session_id=session_id, url=url)
+    return SaveResponse(session_id=session_id, url=url, updated_at=now.isoformat())
 
 @app.get("/api/load/{session_id}", response_model=LoadResponse)
 def load_form(session_id: str):
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
-            c.execute("SELECT data, submitted, pdf_file_path FROM forms WHERE id = %s", (session_id,))
+            c.execute("SELECT data, submitted, pdf_file_path, school_id, created_at, updated_at FROM forms WHERE id = %s", (session_id,))
             row = c.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Nincs ilyen űrlap!")
     data = row[0]
     submitted = row[1] if row[1] is not None else 0
     pdf_file_path = row[2] if row[2] is not None else None
-    return LoadResponse(data=data, session_id=session_id, submitted=submitted, pdf_file_path=pdf_file_path)
+    school_id = row[3] if row[3] is not None else None
+    created_at = row[4] if row[4] is not None else None
+    updated_at = row[5] if row[5] is not None else None
+    return LoadResponse(
+        data=data,
+        session_id=session_id,
+        submitted=submitted,
+        pdf_file_path=pdf_file_path,
+        school_id=school_id,
+        created_at=created_at.isoformat() if created_at else None,
+        updated_at=updated_at.isoformat() if updated_at else None,
+    )
 
 # PDF feltöltés végpont
 @app.post("/api/upload-pdf/{session_id}")
@@ -232,18 +577,26 @@ def delete_pdf(session_id: str):
     
     return {"status": "deleted"}
 
-# Egyszerű root végpont
-@app.get("/")
-def root():
-    return {"msg": "MTMI űrlap backend fut!"} 
+
 
 @app.post("/api/submit/{session_id}")
 def submit_form(session_id: str):
+    ensure_submission_available()
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
             c.execute("UPDATE forms SET submitted = 1, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
             conn.commit()
     return {"status": "ok"} 
+
+
+@app.post("/api/reopen/{session_id}")
+def reopen_form(session_id: str):
+    ensure_submission_available()
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("UPDATE forms SET submitted = 0, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
+            conn.commit()
+    return {"status": "reopened"}
 
 ADMIN_PASSWORDS = ["admin", "Suli2025!"]
 
@@ -306,120 +659,401 @@ def admin_delete(session_id: str):
             conn.commit()
     return {"status": "deleted"}
 
+
+@app.post("/api/admin/forms/bulk")
+def admin_bulk_forms(payload: dict):
+    action = (payload.get("action") or "").strip()
+    session_ids = payload.get("session_ids") or []
+
+    if action not in ("mark_submitted", "mark_in_progress", "delete"):
+        raise HTTPException(status_code=400, detail="Érvénytelen bulk action.")
+    if not isinstance(session_ids, list) or not session_ids:
+        raise HTTPException(status_code=400, detail="Legalább 1 session_id kötelező.")
+
+    session_ids = [str(sid).strip() for sid in session_ids if str(sid).strip()]
+    if not session_ids:
+        raise HTTPException(status_code=400, detail="Nincs érvényes session_id.")
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            if action == "mark_submitted":
+                c.execute(
+                    "UPDATE forms SET submitted = 1, updated_at = %s WHERE id = ANY(%s)",
+                    (datetime.utcnow(), session_ids)
+                )
+                affected = c.rowcount
+            elif action == "mark_in_progress":
+                c.execute(
+                    "UPDATE forms SET submitted = 0, updated_at = %s WHERE id = ANY(%s)",
+                    (datetime.utcnow(), session_ids)
+                )
+                affected = c.rowcount
+            else:
+                c.execute("SELECT id, pdf_file_path FROM forms WHERE id = ANY(%s)", (session_ids,))
+                rows = c.fetchall()
+                for _, pdf_file_path in rows:
+                    if pdf_file_path:
+                        delete_from_ftp(pdf_file_path)
+                c.execute("DELETE FROM forms WHERE id = ANY(%s)", (session_ids,))
+                affected = c.rowcount
+            conn.commit()
+
+    return {"status": "ok", "action": action, "affected": affected}
+
+# --- Iskolai login ---
+@app.post("/api/school/login")
+def school_login(data: dict):
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email és jelszó megadása kötelező!")
+    
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT id, name, password_hash, form_id FROM schools WHERE LOWER(email) = %s", (email,))
+            row = c.fetchone()
+    
+    if not row:
+        raise HTTPException(status_code=401, detail="Hibás email vagy jelszó!")
+    
+    school_id, school_name, password_hash, form_id = row
+    
+    if not password_hash:
+        raise HTTPException(status_code=401, detail="Ehhez az iskolához még nincs jelszó beállítva. Kérd az adminisztrátort!")
+    
+    if not bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
+        raise HTTPException(status_code=401, detail="Hibás email vagy jelszó!")
+    
+    # Get form status if form exists
+    form_status = None
+    form_updated_at = None
+    form_created_at = None
+    form_submitted = None
+    if form_id:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT submitted, created_at, updated_at FROM forms WHERE id = %s", (form_id,))
+                form_row = c.fetchone()
+                if form_row:
+                    form_submitted = form_row[0]
+                    form_created_at = form_row[1]
+                    form_updated_at = form_row[2]
+                    form_status = "submitted" if form_row[0] == 1 else "in_progress"
+    
+    return {
+        "school_id": school_id,
+        "school_name": school_name,
+        "form_id": form_id,
+        "form_status": form_status,  # None, "in_progress", or "submitted"
+        "form_submitted": form_submitted,
+        "form_created_at": form_created_at.isoformat() if form_created_at else None,
+        "form_updated_at": form_updated_at.isoformat() if form_updated_at else None,
+    }
+
+
+@app.get("/api/school/dashboard/{school_id}")
+def school_dashboard(school_id: str):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT id, name, email, form_id FROM schools WHERE id = %s", (school_id,))
+            school_row = c.fetchone()
+            if not school_row:
+                raise HTTPException(status_code=404, detail="Iskola nem található!")
+
+            form_id = school_row[3]
+            form_row = None
+            if form_id:
+                c.execute("SELECT submitted, created_at, updated_at, data FROM forms WHERE id = %s", (form_id,))
+                form_row = c.fetchone()
+
+    response = {
+        "school_id": school_row[0],
+        "school_name": school_row[1],
+        "school_email": school_row[2],
+        "form_id": form_id,
+        "form_status": None,
+        "submitted": None,
+        "created_at": None,
+        "updated_at": None,
+        "filled_fields_count": 0,
+    }
+
+    if form_row:
+        submitted = 1 if form_row[0] == 1 else 0
+        form_data = form_row[3] if isinstance(form_row[3], dict) else {}
+        response.update({
+            "form_status": "submitted" if submitted else "in_progress",
+            "submitted": submitted,
+            "created_at": form_row[1].isoformat() if form_row[1] else None,
+            "updated_at": form_row[2].isoformat() if form_row[2] else None,
+            "filled_fields_count": len([k for k, v in form_data.items() if _format_value_for_pdf(v)]),
+        })
+
+    return response
+
+
+@app.get("/api/public/submission-status")
+def public_submission_status():
+    return compute_submission_status()
+
+# --- Admin: Iskolák kezelése ---
+@app.get("/api/admin/schools")
+def admin_list_schools():
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT s.id, s.name, s.email, s.password_hash IS NOT NULL as has_password, 
+                       s.form_id, f.submitted, s.created_at, f.data
+                FROM schools s
+                LEFT JOIN forms f ON s.form_id = f.id
+                ORDER BY s.name ASC
+            """)
+            rows = c.fetchall()
+    result = []
+    for row in rows:
+        form_data = row[7] if len(row) > 7 and row[7] else {}
+        form_email = None
+        if isinstance(form_data, dict):
+            form_email = (
+                form_data.get("mtmi_felelos_kapcsolattarto_email1")
+                or form_data.get("mtmi_felelos_kapcsolattarto_email2")
+                or form_data.get("intezmenyvezeto_kapcsolattarto_email1")
+                or form_data.get("intezmenyvezeto_kapcsolattarto_email2")
+            )
+
+        effective_email = row[2] or form_email
+        result.append({
+            "id": row[0],
+            "name": row[1],
+            "email": row[2],
+            "effective_email": effective_email,
+            "email_source": "school" if row[2] else ("form" if form_email else None),
+            "has_password": row[3],
+            "form_id": row[4],
+            "submitted": row[5],
+            "created_at": row[6]
+        })
+    return result
+
+
+@app.get("/api/admin/submission-window")
+def admin_get_submission_window():
+    return compute_submission_status()
+
+
+def _parse_admin_datetime(value):
+    if value in (None, ""):
+        return None
+    try:
+        dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=BUDAPEST_TZ)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Érvénytelen dátum formátum!")
+
+
+@app.put("/api/admin/submission-window")
+def admin_update_submission_window(payload: dict):
+    mode = (payload.get("mode") or "auto").strip()
+    if mode not in ("auto", "forced_open", "forced_review"):
+        raise HTTPException(status_code=400, detail="Érvénytelen mód! (auto/forced_open/forced_review)")
+
+    start_at = _parse_admin_datetime(payload.get("start_at"))
+    end_at = _parse_admin_datetime(payload.get("end_at"))
+    if start_at and end_at and start_at >= end_at:
+        raise HTTPException(status_code=400, detail="A kezdő időpontnak korábbinak kell lennie, mint a záró időpontnak.")
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("""
+                UPDATE app_settings
+                SET submission_mode = %s,
+                    submission_start_at = %s,
+                    submission_end_at = %s,
+                    updated_at = %s
+                WHERE id = 1
+            """, (mode, start_at, end_at, datetime.utcnow()))
+            conn.commit()
+
+    return compute_submission_status()
+
+@app.post("/api/admin/schools")
+def admin_create_school(data: dict):
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip().lower() if data.get("email") else None
+    password = data.get("password", "")
+    
+    if not name:
+        raise HTTPException(status_code=400, detail="Az iskola neve kötelező!")
+    
+    school_id = str(uuid4())
+    now = datetime.utcnow()
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8') if password else None
+    
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            # Check for duplicate email
+            if email:
+                c.execute("SELECT id FROM schools WHERE LOWER(email) = %s", (email,))
+                if c.fetchone():
+                    raise HTTPException(status_code=400, detail="Ez az email cím már használatban van!")
+            
+            c.execute(
+                "INSERT INTO schools (id, name, email, password_hash, form_id, created_at, updated_at) VALUES (%s, %s, %s, %s, NULL, %s, %s)",
+                (school_id, name, email, password_hash, now, now)
+            )
+            conn.commit()
+    
+    return {"id": school_id, "name": name, "email": email}
+
+@app.put("/api/admin/schools/{school_id}")
+def admin_update_school(school_id: str, data: dict):
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip().lower() if data.get("email") else None
+    password = data.get("password", "")
+    
+    now = datetime.utcnow()
+    
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            # Check school exists
+            c.execute("SELECT id FROM schools WHERE id = %s", (school_id,))
+            if not c.fetchone():
+                raise HTTPException(status_code=404, detail="Iskola nem található!")
+            
+            # Check for duplicate email (excluding this school)
+            if email:
+                c.execute("SELECT id FROM schools WHERE LOWER(email) = %s AND id != %s", (email, school_id))
+                if c.fetchone():
+                    raise HTTPException(status_code=400, detail="Ez az email cím már használatban van!")
+            
+            # Build update query
+            if password:
+                password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                c.execute(
+                    "UPDATE schools SET name = %s, email = %s, password_hash = %s, updated_at = %s WHERE id = %s",
+                    (name, email, password_hash, now, school_id)
+                )
+            else:
+                # Don't update password if not provided
+                c.execute(
+                    "UPDATE schools SET name = %s, email = %s, updated_at = %s WHERE id = %s",
+                    (name, email, now, school_id)
+                )
+            conn.commit()
+    
+    return {"status": "updated"}
+
+@app.delete("/api/admin/schools/{school_id}")
+def admin_delete_school(school_id: str):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            # Unlink form if any
+            c.execute("UPDATE forms SET school_id = NULL WHERE school_id = %s", (school_id,))
+            c.execute("DELETE FROM schools WHERE id = %s", (school_id,))
+            conn.commit()
+    return {"status": "deleted"}
+
+# --- Iskolai save: form_id hozzárendelése az iskolához ---
+@app.post("/api/school/link-form")
+def school_link_form(data: dict):
+    school_id = data.get("school_id")
+    form_id = data.get("form_id")
+    if not school_id or not form_id:
+        raise HTTPException(status_code=400, detail="school_id és form_id megadása kötelező!")
+    
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("UPDATE schools SET form_id = %s, updated_at = %s WHERE id = %s", (form_id, datetime.utcnow(), school_id))
+            c.execute("UPDATE forms SET school_id = %s WHERE id = %s", (school_id, form_id))
+            conn.commit()
+    return {"status": "linked"}
+
 @app.post("/api/admin/generate-pdf")
 def generate_pdf(request: dict):
     session_id = request.get("session_id")
     data = request.get("data", {})
-    
-    # PDF generálása
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    story = []
-    
-    # Stílusok
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=20,
-        alignment=1  # középre igazítás
-    )
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=14,
-        spaceAfter=12,
-        spaceBefore=12
-    )
-    normal_style = styles['Normal']
-    
-    # Cím
-    story.append(Paragraph("MTMI Iskola Program<br/>Pályázati űrlap (összefoglaló)", title_style))
-    story.append(Spacer(1, 20))
-    
-    # Alapadatok
-    story.append(Paragraph("0. Alapadatok", heading_style))
-    if data.get("palyazo_iskola_neve"):
-        story.append(Paragraph(f"<b>Pályázó iskola neve:</b> {data['palyazo_iskola_neve']}", normal_style))
-    if data.get("iskola_cime"):
-        story.append(Paragraph(f"<b>Iskola címe:</b> {data['iskola_cime']}", normal_style))
-    if data.get("telepulesforma"):
-        story.append(Paragraph(f"<b>Településforma:</b> {data['telepulesforma']}", normal_style))
-    if data.get("iskolatipus"):
-        story.append(Paragraph(f"<b>Iskolatípus:</b> {', '.join(data['iskolatipus']) if isinstance(data['iskolatipus'], list) else data['iskolatipus']}", normal_style))
-    if data.get("iskola_tanuloi_letszama"):
-        story.append(Paragraph(f"<b>Iskola tanulói létszáma:</b> {data['iskola_tanuloi_letszama']}", normal_style))
-    story.append(Spacer(1, 12))
-    
-    # MTMI működés iskolai személyi feltételei
-    story.append(Paragraph("1. MTMI működés iskolai személyi feltételei", heading_style))
-    if data.get("mtmi_csapat_letszam"):
-        story.append(Paragraph(f"<b>MTMI csapat létszáma:</b> {data['mtmi_csapat_letszam']}", normal_style))
-    if data.get("mtmi_csapat_kozos_tevekenyseg"):
-        story.append(Paragraph(f"<b>MTMI csapat közös tevékenységei:</b>", normal_style))
-        story.append(Paragraph(data['mtmi_csapat_kozos_tevekenyseg'], normal_style))
-    story.append(Spacer(1, 12))
-    
-    # MTMI tantárgyak
-    story.append(Paragraph("2. MTMI tantárgyak, elemek a pedagógiai programban", heading_style))
-    if data.get("pedprog_mtmi_tartalom"):
-        story.append(Paragraph(f"<b>Pedagógiai program MTMI tartalmak:</b> {data['pedprog_mtmi_tartalom']}", normal_style))
-    if data.get("pedprog_mtmi_leiras"):
-        story.append(Paragraph(f"<b>Pedagógiai program leírás:</b>", normal_style))
-        story.append(Paragraph(data['pedprog_mtmi_leiras'], normal_style))
-    story.append(Spacer(1, 12))
-    
-    # Saját MTMI programkínálat
-    story.append(Paragraph("3. Saját MTMI programkínálat", heading_style))
-    if data.get("mtmi_szakkorok_szama"):
-        story.append(Paragraph(f"<b>MTMI-fókuszú szakkörek száma:</b> {data['mtmi_szakkorok_szama']}", normal_style))
-    if data.get("mtmi_nyilt_napok"):
-        story.append(Paragraph(f"<b>MTMI nyílt napok:</b>", normal_style))
-        story.append(Paragraph(data['mtmi_nyilt_napok'], normal_style))
-    if data.get("mtmi_projektnapok"):
-        story.append(Paragraph(f"<b>MTMI projektnapok:</b>", normal_style))
-        story.append(Paragraph(data['mtmi_projektnapok'], normal_style))
-    if data.get("mtmi_szakmai_gyakorlatok"):
-        story.append(Paragraph(f"<b>MTMI szakmai gyakorlatok:</b>", normal_style))
-        story.append(Paragraph(data['mtmi_szakmai_gyakorlatok'], normal_style))
-    story.append(Spacer(1, 12))
-    
-    # MTMI versenyek
-    story.append(Paragraph("4. MTMI versenyek, pályázatok, kutatások", heading_style))
-    if data.get("mtmi_versenyek_szervezese"):
-        story.append(Paragraph(f"<b>MTMI versenyek szervezése:</b> {data['mtmi_versenyek_szervezese']}", normal_style))
-    if data.get("mtmi_versenyek_bemutatasa"):
-        story.append(Paragraph(f"<b>MTMI versenyek bemutatása:</b>", normal_style))
-        story.append(Paragraph(data['mtmi_versenyek_bemutatasa'], normal_style))
-    story.append(Spacer(1, 12))
-    
-    # Lányok érdeklődése
-    story.append(Paragraph("5. A lányok érdeklődésének felkeltése", heading_style))
-    if data.get("mtmi_lanyok_programok"):
-        story.append(Paragraph(f"<b>Lányok programok:</b> {data['mtmi_lanyok_programok']}", normal_style))
-    story.append(Spacer(1, 12))
-    
-    # MTMI kapcsolatrendszer
-    story.append(Paragraph("6. MTMI kapcsolatrendszer működtetése", heading_style))
-    if data.get("mtmi_egyuttmukodes_felsooktatas"):
-        story.append(Paragraph(f"<b>Felsőoktatási együttműködés:</b> {data['mtmi_egyuttmukodes_felsooktatas']}", normal_style))
-    if data.get("mtmi_egyuttmukodes_vallalatok"):
-        story.append(Paragraph(f"<b>Vállalati együttműködés:</b> {data['mtmi_egyuttmukodes_vallalatok']}", normal_style))
-    story.append(Spacer(1, 12))
-    
-    # Pedagógusok ösztönzése
-    story.append(Paragraph("7. Pedagógusok ösztönzése", heading_style))
-    if data.get("mtmi_pedagogusok_osztonezes"):
-        story.append(Paragraph(f"<b>Pedagógusok ösztönzése:</b> {data['mtmi_pedagogusok_osztonezes']}", normal_style))
-    story.append(Spacer(1, 12))
-    
-    # PDF generálása
-    doc.build(story)
-    buffer.seek(0)
+    buffer = _build_submission_pdf_buffer(session_id=session_id, data=data or {})
     
     return Response(
         content=buffer.getvalue(),
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=MTMI_kitoltes_{session_id}.pdf"}
-    ) 
+    )
+
+
+@app.get("/api/export/pdf/{session_id}")
+def export_submission_pdf(session_id: str, request: Request):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT f.data, f.created_at, f.updated_at, s.name
+                FROM forms f
+                LEFT JOIN schools s ON s.id = f.school_id
+                WHERE f.id = %s
+            """, (session_id,))
+            row = c.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Nincs ilyen űrlap.")
+
+    data, created_at, updated_at, school_name = row
+    exact_view_url = f"{str(request.base_url).rstrip('/')}/kitoltes/{session_id}?adminview=1&pdfview=1"
+    exact_pdf = _render_exact_pdf_via_chrome(exact_view_url)
+    if exact_pdf:
+        return Response(
+            content=exact_pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=MTMI_kitoltes_{session_id}.pdf"}
+        )
+
+    buffer = _build_submission_pdf_buffer(
+        session_id=session_id,
+        data=data if isinstance(data, dict) else {},
+        created_at=created_at,
+        updated_at=updated_at,
+        school_name=school_name
+    )
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=MTMI_kitoltes_{session_id}.pdf"}
+    )
+
+from fastapi.responses import FileResponse
+
+# Kiszolgálni a kért fájlt, ha létezik, különben index.html (SPA routing)
+@app.get("/{full_path:path}")
+async def serve_static_or_spa(full_path: str):
+    frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+    def no_cache_headers():
+        return {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+    
+    # 1. Ha üres az útvonal, az index.html-t adjuk
+    if not full_path or full_path == "/":
+        return FileResponse(os.path.join(frontend_dir, "index.html"), headers=no_cache_headers())
+        
+    # 2. Ha az admin alá próbál navigálni:
+    if full_path.startswith("admin"):
+        # Ha fájlt kér az admin mappából:
+        file_path = os.path.join(frontend_dir, full_path)
+        if os.path.isfile(file_path):
+            file_name = os.path.basename(file_path).lower()
+            if file_name.endswith((".js", ".css", ".html")):
+                return FileResponse(file_path, headers=no_cache_headers())
+            return FileResponse(file_path)
+        # SPA routing az admin részre
+        return FileResponse(os.path.join(frontend_dir, "admin", "index.html"), headers=no_cache_headers())
+        
+    # 3. Keresés a frontend gyökerében lévő fájlokként (pl. style.css)
+    file_path = os.path.join(frontend_dir, full_path)
+    if os.path.isfile(file_path):
+        file_name = os.path.basename(file_path).lower()
+        if file_name.endswith((".js", ".css", ".html")):
+            return FileResponse(file_path, headers=no_cache_headers())
+        return FileResponse(file_path)
+    
+    # 4. Fallback: index.html (SPA routing a public részre)
+    return FileResponse(os.path.join(frontend_dir, "index.html"), headers=no_cache_headers())

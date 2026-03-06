@@ -291,6 +291,29 @@ textarea.form-control {
   color: #198754;
 } 
 
+#school-dashboard-card {
+  border-left: 4px solid #1d4f91;
+}
+
+#required-quickfix-panel .required-quickfix-item {
+  display: inline-block;
+  margin: 0.15rem 0.35rem 0.15rem 0;
+}
+
+#required-quickfix-panel .required-quickfix-jump {
+  border: 0;
+  background: #fff;
+  color: #7a2121;
+  font-weight: 500;
+  text-decoration: underline;
+  padding: 0;
+}
+
+#required-quickfix-panel .required-quickfix-jump:hover {
+  color: #5e1010;
+}
+
+
 /* Csak a lista blokk legyen teljes szélességű */
 #admin-list-block.wide-admin .table-responsive {
   max-width: 100vw;
@@ -460,6 +483,98 @@ textarea.form-control {
 #validation-popup .btn-secondary:hover {
   background: #5a6268;
 } 
+
+/* Admin visual refresh */
+.admin-body {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(42, 77, 105, 0.16) 0, transparent 28%),
+    radial-gradient(circle at 92% 0%, rgba(75, 134, 180, 0.18) 0, transparent 30%),
+    linear-gradient(135deg, #edf3fb 0%, #dce8f7 100%);
+}
+
+.admin-login-card,
+.admin-list-card {
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.admin-orb {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.45rem;
+  background: linear-gradient(135deg, #2a4d69 0%, #4b86b4 100%);
+  box-shadow: 0 10px 24px rgba(42, 77, 105, 0.28);
+}
+
+.admin-topbar {
+  border-bottom: 1px solid #e6eef8;
+  padding-bottom: 12px;
+}
+
+.admin-stat-card {
+  border-radius: 14px;
+  background: linear-gradient(160deg, #f7fbff 0%, #edf5ff 100%);
+  border: 1px solid #d7e5f8;
+  padding: 12px 14px;
+}
+
+.admin-stat-label {
+  font-size: 0.8rem;
+  color: #5a6f86;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.admin-stat-value {
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: #20384e;
+  font-weight: 700;
+}
+
+#admin-tabs.nav-tabs {
+  border-bottom: 0;
+  gap: 8px;
+}
+
+#admin-tabs .nav-link {
+  border: 0;
+  border-radius: 999px;
+  background: #edf3fb;
+  color: #2f4f6b;
+  font-weight: 600;
+  padding: 9px 16px;
+}
+
+#admin-tabs .nav-link.active {
+  color: #fff;
+  background: linear-gradient(90deg, #2a4d69 0%, #4b86b4 100%);
+  box-shadow: 0 6px 18px rgba(42, 77, 105, 0.25);
+}
+
+#forms-tab .table,
+#schools-tab .table {
+  border-color: #dce8f6;
+}
+
+#forms-tab .table thead th,
+#schools-tab .table thead th {
+  background: #edf5ff;
+  color: #304f6b;
+  font-weight: 700;
+  border-bottom-width: 1px;
+}
+
+#forms-tab .table tbody tr:hover,
+#schools-tab .table tbody tr:hover {
+  background: #f7fbff;
+}
 
 /* Kötelező mezők jelzése */
 .required-field {

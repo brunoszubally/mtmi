@@ -1,15 +1,490 @@
 function getSessionIdFromUrl() {
-    const m = window.location.pathname.match(/kitoltes\/(\w[\w-]*)/);
-    return m ? m[1] : null;
+  const m = window.location.pathname.match(/kitoltes\/(\w[\w-]*)/);
+  return m ? m[1] : null;
 }
 
 // API_BASE dinamikus meghatározása
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-  ? "http://localhost:8000/api" 
-  : "https://mtmi.onrender.com/api";
+const API_BASE = "/api";
 const FORM_ID = "mtmi-form";
 const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";
+const SCHOOL_ID_KEY = "mtmi_school_id";
+const SCHOOL_NAME_KEY = "mtmi_school_name";
+const MAX_LINK_FIELDS_PER_GROUP = 10;
+window.currentLoadedFormSchoolId = null;
+window.mtmiPublicGateLocked = false;
+window.submissionStatusData = null;
+window.forceReadonlyView = false;
+window.mtmiDashboardData = null;
+let requiredQuickfixRaf = null;
+
+// --- Iskolai login kezelés ---
+function getSchoolSession() {
+  const schoolId = localStorage.getItem(SCHOOL_ID_KEY);
+  const schoolName = localStorage.getItem(SCHOOL_NAME_KEY);
+  return schoolId ? { school_id: schoolId, school_name: schoolName } : null;
+}
+
+function setSchoolSession(schoolId, schoolName) {
+  localStorage.setItem(SCHOOL_ID_KEY, schoolId);
+  localStorage.setItem(SCHOOL_NAME_KEY, schoolName);
+}
+
+function clearSchoolSession() {
+  localStorage.removeItem(SCHOOL_ID_KEY);
+  localStorage.removeItem(SCHOOL_NAME_KEY);
+  localStorage.removeItem(SESSION_KEY);
+  window.mtmiDashboardData = null;
+  const card = document.getElementById("school-dashboard-card");
+  if (card) card.style.display = "none";
+}
+
+function formatHuDateTime(isoValue) {
+  if (!isoValue) return "-";
+  try {
+    return new Date(isoValue).toLocaleString("hu-HU");
+  } catch (e) {
+    return isoValue;
+  }
+}
+
+function updateSchoolDashboardCard(partial = {}) {
+  const card = document.getElementById("school-dashboard-card");
+  if (!card) return;
+
+  const existing = window.mtmiDashboardData || {};
+  window.mtmiDashboardData = { ...existing, ...partial };
+  const data = window.mtmiDashboardData;
+
+  const statusEl = document.getElementById("dashboard-status-label");
+  const countEl = document.getElementById("dashboard-filled-count");
+  const updatedEl = document.getElementById("dashboard-updated-at");
+
+  const statusMap = {
+    submitted: "Beküldve",
+    in_progress: "Folyamatban",
+    none: "Még nincs megkezdve"
+  };
+  const status = data.form_status || (data.form_id ? "in_progress" : "none");
+
+  if (statusEl) statusEl.textContent = statusMap[status] || status;
+  if (countEl) countEl.textContent = String(data.filled_fields_count || 0);
+  if (updatedEl) updatedEl.textContent = formatHuDateTime(data.updated_at);
+  card.style.display = getSchoolSession() ? "" : "none";
+}
+
+async function loadSchoolDashboard() {
+  const schoolSession = getSchoolSession();
+  if (!schoolSession?.school_id) return;
+  try {
+    const resp = await fetch(`${API_BASE}/school/dashboard/${schoolSession.school_id}`);
+    if (!resp.ok) return;
+    const dashboard = await resp.json();
+    updateSchoolDashboardCard(dashboard);
+  } catch (e) {
+    console.warn("[DASHBOARD] load failed", e);
+  }
+}
+
+function canApplySchoolSessionToCurrentForm() {
+  const schoolSession = getSchoolSession();
+  if (!schoolSession) return false;
+  const loadedSchoolId = window.currentLoadedFormSchoolId;
+  if (!loadedSchoolId) return true;
+  return loadedSchoolId === schoolSession.school_id;
+}
+
+function parseLinkFieldName(name) {
+  const m = String(name || '').match(/^(.*_link)(\d+)?$/);
+  if (!m) return null;
+  return {
+    base: m[1],
+    index: m[2] ? parseInt(m[2], 10) : 1
+  };
+}
+
+function updateLinkGroupControls(baseName) {
+  const group = document.querySelector(`.multi-link-group[data-link-base="${baseName}"]`);
+  if (!group) return;
+  const addBtn = group.querySelector('.multi-link-add-btn');
+  if (!addBtn) return;
+  const count = group.querySelectorAll('input[type="url"][data-link-base]').length;
+  addBtn.disabled = count >= MAX_LINK_FIELDS_PER_GROUP;
+  addBtn.textContent = `+ Link hozzáadása (${count}/${MAX_LINK_FIELDS_PER_GROUP})`;
+}
+
+function addLinkField(baseName, shouldFocus = true) {
+  const group = document.querySelector(`.multi-link-group[data-link-base="${baseName}"]`);
+  if (!group) return null;
+
+  const linkInputs = Array.from(group.querySelectorAll('input[type="url"][data-link-base]'));
+  if (linkInputs.length >= MAX_LINK_FIELDS_PER_GROUP) return null;
+  const template = linkInputs[0];
+  if (!template) return null;
+
+  const nextIndex = linkInputs.length + 1;
+  const newInput = template.cloneNode(true);
+  newInput.name = `${baseName}${nextIndex}`;
+  newInput.value = '';
+  newInput.required = false;
+  newInput.dataset.linkBase = baseName;
+  newInput.dataset.linkIndex = String(nextIndex);
+
+  const controls = group.querySelector('.multi-link-controls');
+  if (controls) {
+    group.insertBefore(newInput, controls);
+  } else {
+    group.appendChild(newInput);
+  }
+
+  updateLinkGroupControls(baseName);
+  if (shouldFocus) newInput.focus();
+  return newInput;
+}
+
+function ensureLinkFieldCount(baseName, targetCount) {
+  const safeTarget = Math.max(1, Math.min(MAX_LINK_FIELDS_PER_GROUP, targetCount));
+  let group = document.querySelector(`.multi-link-group[data-link-base="${baseName}"]`);
+  if (!group) return;
+
+  while (group.querySelectorAll('input[type="url"][data-link-base]').length < safeTarget) {
+    addLinkField(baseName, false);
+    group = document.querySelector(`.multi-link-group[data-link-base="${baseName}"]`);
+    if (!group) break;
+  }
+}
+
+function setupMultiLinkFields() {
+  const urlInputs = Array.from(document.querySelectorAll('input[type="url"][name]'))
+    .filter(input => parseLinkFieldName(input.name));
+  if (urlInputs.length === 0) return;
+
+  const groups = new Map();
+  urlInputs.forEach(input => {
+    const parsed = parseLinkFieldName(input.name);
+    if (!parsed) return;
+    if (!groups.has(parsed.base)) groups.set(parsed.base, []);
+    groups.get(parsed.base).push(input);
+  });
+
+  groups.forEach((inputs, baseName) => {
+    if (document.querySelector(`.multi-link-group[data-link-base="${baseName}"]`)) return;
+    if (!inputs[0] || !inputs[0].parentNode) return;
+
+    const firstInput = inputs[0];
+    const parent = firstInput.parentNode;
+    const group = document.createElement('div');
+    group.className = 'multi-link-group';
+    group.dataset.linkBase = baseName;
+    parent.insertBefore(group, firstInput);
+
+    inputs.forEach((input, idx) => {
+      const index = idx + 1;
+      input.name = `${baseName}${index}`;
+      input.dataset.linkBase = baseName;
+      input.dataset.linkIndex = String(index);
+      if (index > 1) input.required = false;
+      group.appendChild(input);
+    });
+
+    const controls = document.createElement('div');
+    controls.className = 'multi-link-controls mb-2';
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn btn-outline-primary btn-sm multi-link-add-btn';
+    addBtn.addEventListener('click', () => addLinkField(baseName, true));
+    controls.appendChild(addBtn);
+
+    group.appendChild(controls);
+    updateLinkGroupControls(baseName);
+  });
+
+  console.log('[LINKS] multi-link setup done', {
+    groups: Array.from(groups.keys()).length
+  });
+}
+
+function syncSchoolNameField(reason = 'unknown') {
+  const schoolSession = getSchoolSession();
+  const schoolNameInput = document.querySelector("input[name='palyazo_iskola_neve']");
+  if (!schoolNameInput) return;
+
+  if (schoolSession && schoolSession.school_name && canApplySchoolSessionToCurrentForm()) {
+    if (schoolNameInput.value !== schoolSession.school_name) {
+      schoolNameInput.value = schoolSession.school_name;
+    }
+    schoolNameInput.readOnly = true;
+    schoolNameInput.style.backgroundColor = '#f8f9fa';
+    schoolNameInput.style.cursor = 'not-allowed';
+
+    let note = document.getElementById('school-name-autofill-note');
+    if (!note) {
+      note = document.createElement('small');
+      note.id = 'school-name-autofill-note';
+      note.className = 'form-text text-muted';
+      note.textContent = 'Automatikusan kitöltve a bejelentkezett iskolai fiók alapján.';
+      schoolNameInput.insertAdjacentElement('afterend', note);
+    }
+  } else {
+    schoolNameInput.readOnly = false;
+    schoolNameInput.style.backgroundColor = '';
+    schoolNameInput.style.cursor = '';
+    const note = document.getElementById('school-name-autofill-note');
+    if (note) note.remove();
+  }
+
+  console.log('[SCHOOL_NAME] syncSchoolNameField', {
+    reason,
+    hasSchoolSession: Boolean(schoolSession),
+    currentLoadedFormSchoolId: window.currentLoadedFormSchoolId,
+    schoolName: schoolSession ? schoolSession.school_name : null,
+    fieldValue: schoolNameInput.value,
+    readOnly: schoolNameInput.readOnly
+  });
+}
+
+function setPrimaryScreen(screen) {
+  const loginScreen = document.getElementById('login-screen');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const mainForm = document.getElementById('main-form-content');
+  const thankyouScreen = document.getElementById('thankyou-fullscreen');
+
+  if (loginScreen) loginScreen.style.setProperty('display', 'none', 'important');
+  if (welcomeScreen) welcomeScreen.style.setProperty('display', 'none', 'important');
+  if (mainForm) mainForm.style.setProperty('display', 'none', 'important');
+  if (thankyouScreen) thankyouScreen.style.setProperty('display', 'none', 'important');
+
+  if (screen === 'login' && loginScreen) {
+    loginScreen.style.setProperty('display', 'flex', 'important');
+    document.body.style.overflow = 'hidden';
+  } else if (screen === 'welcome' && welcomeScreen) {
+    welcomeScreen.style.setProperty('display', 'flex', 'important');
+    document.body.style.overflow = 'auto';
+  } else if (screen === 'form' && mainForm) {
+    mainForm.style.setProperty('display', 'block', 'important');
+    document.body.style.overflow = 'auto';
+  } else if (screen === 'thankyou' && thankyouScreen) {
+    thankyouScreen.style.setProperty('display', 'flex', 'important');
+    document.body.style.overflow = 'auto';
+  }
+
+  console.log('[UI] setPrimaryScreen', screen, {
+    login: loginScreen ? loginScreen.style.display : '(missing)',
+    welcome: welcomeScreen ? welcomeScreen.style.display : '(missing)',
+    form: mainForm ? mainForm.style.display : '(missing)',
+    thankyou: thankyouScreen ? thankyouScreen.style.display : '(missing)'
+  });
+}
+
+function ensureSubmissionStatusUi() {
+  let banner = document.getElementById("submission-countdown-banner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "submission-countdown-banner";
+    banner.style.display = "none";
+    banner.style.position = "sticky";
+    banner.style.top = "0";
+    banner.style.zIndex = "20000";
+    banner.style.padding = "12px 16px";
+    banner.style.textAlign = "center";
+    banner.style.fontWeight = "600";
+    banner.style.background = "#fff3cd";
+    banner.style.color = "#856404";
+    banner.style.borderBottom = "1px solid #ffe69c";
+    document.body.prepend(banner);
+  }
+
+  let closedScreen = document.getElementById("submission-closed-screen");
+  if (!closedScreen) {
+    closedScreen = document.createElement("div");
+    closedScreen.id = "submission-closed-screen";
+    closedScreen.style.display = "none";
+    closedScreen.style.position = "fixed";
+    closedScreen.style.inset = "0";
+    closedScreen.style.zIndex = "30000";
+    closedScreen.style.background = "linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%)";
+    closedScreen.style.alignItems = "center";
+    closedScreen.style.justifyContent = "center";
+    closedScreen.innerHTML = `
+      <div class="card shadow-lg border-0" style="max-width:760px;width:min(92vw,760px);">
+        <div class="card-body p-4 p-md-5 text-center">
+          <img src="/logo.png" alt="MTMI Iskola Program logó" style="max-width: 140px; margin-bottom: 16px;">
+          <h1 class="fw-bold mb-2" style="font-size:2rem;">MTMI Iskola Program</h1>
+          <h2 class="text-danger fw-bold mb-3" style="font-size:1.5rem;">Pályázati felület lezárva</h2>
+          <p id="submission-closed-message" class="lead mb-4">A pályázati felület jelenleg nem elérhető, bírálat zajlik.</p>
+          <button id="submission-logout-btn" type="button" class="btn btn-outline-secondary btn-lg">Kilépés</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(closedScreen);
+
+    const logoutBtn = document.getElementById("submission-logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", () => {
+        clearSchoolSession();
+        window.forceReadonlyView = false;
+        window.currentLoadedFormSchoolId = null;
+        setPrimaryScreen("login");
+        hideSubmissionClosedScreen();
+        history.replaceState({}, "", "/");
+      });
+    }
+  }
+}
+
+function showSubmissionClosedScreen(message) {
+  ensureSubmissionStatusUi();
+  const closedScreen = document.getElementById("submission-closed-screen");
+  const closedMessage = document.getElementById("submission-closed-message");
+  if (closedMessage) {
+    closedMessage.textContent = message || "A pályázati felület jelenleg nem elérhető, bírálat zajlik.";
+  }
+  if (closedScreen) closedScreen.style.display = "flex";
+}
+
+function hideSubmissionClosedScreen() {
+  const closedScreen = document.getElementById("submission-closed-screen");
+  if (closedScreen) closedScreen.style.display = "none";
+}
+
+function updateThankyouEditButton() {
+  const editBtn = document.getElementById("edit-submission-btn");
+  if (!editBtn) return;
+  const status = window.submissionStatusData;
+  const canEdit = Boolean(status && status.is_available && getSchoolSession() && (localStorage.getItem(SESSION_KEY) || getSessionIdFromUrl()));
+  editBtn.style.display = canEdit ? "" : "none";
+}
+
+async function applyPublicSubmissionStatus() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("adminview")) return true;
+
+  ensureSubmissionStatusUi();
+  const banner = document.getElementById("submission-countdown-banner");
+  try {
+    const resp = await fetch(`${API_BASE}/public/submission-status`);
+    if (!resp.ok) return true;
+    const status = await resp.json();
+    window.submissionStatusData = status;
+    updateThankyouEditButton();
+
+    if (status.status === "countdown" && status.message) {
+      banner.textContent = status.message;
+      banner.style.background = "#fff3cd";
+      banner.style.color = "#856404";
+      banner.style.display = "block";
+    } else if (!status.is_available && status.message) {
+      banner.textContent = status.message;
+      banner.style.background = "#f8d7da";
+      banner.style.color = "#842029";
+      banner.style.display = "block";
+    } else {
+      banner.style.display = "none";
+    }
+    window.mtmiPublicGateLocked = !status.is_available;
+    return true;
+  } catch (e) {
+    console.warn("[STATUS] public submission-status fetch failed", e);
+    return true;
+  }
+}
+
+async function handleSchoolLogin(email, password) {
+  const errorEl = document.getElementById('school-login-error');
+  console.log('[LOGIN] handleSchoolLogin start', {
+    email,
+    hasPassword: Boolean(password),
+    ts: new Date().toISOString()
+  });
+  if (!errorEl) {
+    console.error('[LOGIN] school-login-error element not found');
+    return;
+  }
+  errorEl.style.display = 'none';
+
+  try {
+    console.log('[LOGIN] sending POST /api/school/login');
+    const resp = await fetch(`${API_BASE}/school/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    console.log('[LOGIN] response received', { ok: resp.ok, status: resp.status });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      console.warn('[LOGIN] backend rejected login', err);
+      errorEl.textContent = err.detail || 'Hib\u00e1s email vagy jelsz\u00f3!';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const res = await resp.json();
+    console.log('[LOGIN] login success payload', res);
+    setSchoolSession(res.school_id, res.school_name);
+    syncSchoolNameField('after-login-success');
+    updateSchoolDashboardCard({
+      form_id: res.form_id || null,
+      form_status: res.form_status || null,
+      updated_at: res.form_updated_at || null
+    });
+    await loadSchoolDashboard();
+    await applyPublicSubmissionStatus();
+    const submissionStatus = window.submissionStatusData;
+
+    if (submissionStatus && !submissionStatus.is_available) {
+      if (res.form_status === 'submitted' && res.form_id) {
+        localStorage.setItem(SESSION_KEY, res.form_id);
+        history.replaceState({}, '', `/kitoltes/${res.form_id}`);
+        window.forceReadonlyView = true;
+        hideSubmissionClosedScreen();
+        setPrimaryScreen('form');
+        window.scrollTo(0, 0);
+        if (typeof loadForm === 'function') loadForm();
+        if (typeof window.loadForm === 'function') window.loadForm();
+      } else {
+        window.forceReadonlyView = false;
+        showSubmissionClosedScreen(submissionStatus.message);
+      }
+      return;
+    }
+    window.forceReadonlyView = false;
+
+    if (res.form_status === 'submitted') {
+      // Már beküldték → "köszönjük" képernyő
+      if (res.form_id) {
+        localStorage.setItem(SESSION_KEY, res.form_id);
+        history.replaceState({}, '', `/kitoltes/${res.form_id}`);
+      }
+      setPrimaryScreen('thankyou');
+      updateThankyouEditButton();
+      window.scrollTo(0, 0);
+      console.log('[LOGIN] switched to submitted screen');
+    } else if (res.form_status === 'in_progress' && res.form_id) {
+      // Folyamatban lévő kitöltés → betöltés és tovább
+      localStorage.setItem(SESSION_KEY, res.form_id);
+      history.replaceState({}, '', `/kitoltes/${res.form_id}`);
+      setPrimaryScreen('form');
+      window.scrollTo(0, 0);
+      // A loadForm fog lefutni a DOMContentLoaded-ben
+      if (typeof loadForm === 'function') loadForm();
+      if (typeof window.loadForm === 'function') window.loadForm();
+      console.log('[LOGIN] switched to in_progress form', {
+        hasLoadForm: typeof loadForm === 'function',
+        hasWindowLoadForm: typeof window.loadForm === 'function'
+      });
+    } else {
+      // Nincs kitöltés → welcome screen → űrlap indul
+      setPrimaryScreen('welcome');
+      console.log('[LOGIN] switched to welcome screen (new form)');
+    }
+  } catch (e) {
+    console.error('[LOGIN] network/runtime error', e);
+    errorEl.textContent = 'H\u00e1l\u00f3zati hiba! Pr\u00f3b\u00e1lja \u00fajra k\u00e9s\u0151bb.';
+    errorEl.style.display = 'block';
+  }
+}
 
 // Formátumellenőrzési függvények
 function validateEmail(email) {
@@ -26,27 +501,27 @@ function validatePhoneNumber(phone) {
 function formatPhoneNumber(phone) {
   // Eltávolítjuk a szóközöket és speciális karaktereket
   let cleaned = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
-  
+
   // Ha +36-val kezdődik
   if (cleaned.startsWith('+36')) {
     cleaned = cleaned.substring(3);
   }
-  
+
   // Ha 06-val kezdődik
   if (cleaned.startsWith('06')) {
     cleaned = cleaned.substring(2);
   }
-  
+
   // Ha 36-val kezdődik
   if (cleaned.startsWith('36')) {
     cleaned = cleaned.substring(2);
   }
-  
+
   // Formázás: +36 20 123 4567
   if (cleaned.length === 9) {
     return `+36 ${cleaned.substring(0, 2)} ${cleaned.substring(2, 5)} ${cleaned.substring(5)}`;
   }
-  
+
   return phone; // Ha nem sikerül formázni, visszaadjuk az eredetit
 }
 
@@ -55,12 +530,12 @@ let currentStep = 0;
 let steps = [];
 
 // GDPR checkbox kezelése
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const gdprCheckbox = document.getElementById('gdpr-checkbox');
   const finalizeBtn = document.getElementById('finalize-btn');
-  
+
   if (gdprCheckbox && finalizeBtn) {
-    gdprCheckbox.addEventListener('change', function() {
+    gdprCheckbox.addEventListener('change', function () {
       finalizeBtn.disabled = !this.checked;
     });
   }
@@ -71,11 +546,11 @@ function showStep(idx, direction = 1) {
   console.log('showStep called with idx:', idx, 'direction:', direction);
   console.log('steps length:', steps.length);
   console.log('currentStep before:', currentStep);
-  
+
   currentStep = idx; // Frissítjük a currentStep változót
-  
+
   console.log('currentStep after:', currentStep);
-  
+
   steps.forEach((step, i) => {
     if (i === idx) {
       step.style.display = '';
@@ -96,11 +571,11 @@ function showStep(idx, direction = 1) {
   const progressPercent = document.getElementById('progress-percent');
   const stepperLinks = Array.from(document.querySelectorAll('.stepper- link'));
   if (progressBar && progressPercent) {
-    const percent = Math.round(((idx+1)/steps.length)*100);
+    const percent = Math.round(((idx + 1) / steps.length) * 100);
     progressBar.style.width = percent + '%';
     progressPercent.textContent = percent + '%';
   }
-  
+
   // Stepper linkek frissítése
   if (stepperLinks.length > 0) {
     stepperLinks.forEach((link, i) => {
@@ -110,10 +585,11 @@ function showStep(idx, direction = 1) {
       }
     });
   }
-  
+
   // Required attribútumok frissítése
   updateRequiredAttributes();
-  
+  scheduleRequiredQuickfixRender();
+
   // Beállítjuk a data-original-required attribútumokat minden lépésben
   const currentStepElement = document.querySelector(`#step-${idx}`);
   if (currentStepElement) {
@@ -123,7 +599,7 @@ function showStep(idx, direction = 1) {
       }
     });
   }
-  
+
   // Közvetlenül beállítjuk a required attribútumokat az aktuális lépésben
   if (currentStepElement) {
     currentStepElement.querySelectorAll("input, select, textarea").forEach(el => {
@@ -132,7 +608,7 @@ function showStep(idx, direction = 1) {
       }
     });
   }
-  
+
   // Ha az 1. blokkra váltunk, csak akkor generáljuk újra a csapattagokat, ha még nincsenek
   if (idx === 1) {
     const csapatLetszamInput = document.getElementById('mtmi-csapat-letszam');
@@ -145,23 +621,23 @@ function showStep(idx, direction = 1) {
       }
     }
   }
-  
+
   // GDPR checkbox kezelése - ha a 8-as lépésre váltunk
   if (idx === 7) { // 8-as lépés (0-tól számolva)
     const gdprCheckbox = document.getElementById('gdpr-checkbox');
     const finalizeBtn = document.getElementById('finalize-btn');
-    
+
     if (gdprCheckbox && finalizeBtn) {
       // Eltávolítjuk a korábbi event listener-t, ha van
       gdprCheckbox.removeEventListener('change', gdprChangeHandler);
-      
+
       // Hozzáadjuk az új event listener-t
       gdprCheckbox.addEventListener('change', gdprChangeHandler);
-      
+
       // Véglegesítés gomb click event listener
       finalizeBtn.removeEventListener('click', finalizeBtnClickHandler);
       finalizeBtn.addEventListener('click', finalizeBtnClickHandler);
-      
+
       // Kezdeti állapot beállítása
       finalizeBtn.disabled = !gdprCheckbox.checked;
     }
@@ -183,7 +659,7 @@ function highlightGdprCheckbox() {
     // Animáció hozzáadása
     gdprCheckbox.style.animation = 'highlight 1s ease-in-out';
     gdprCheckbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    
+
     // Animáció eltávolítása 1 másodperc után
     setTimeout(() => {
       gdprCheckbox.style.animation = '';
@@ -203,15 +679,74 @@ function finalizeBtnClickHandler() {
   return true;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function () {
+  await applyPublicSubmissionStatus();
+  await loadSchoolDashboard();
+
+  // --- School login form kezelése ---
+  console.log('[LOGIN] DOMContentLoaded (login init)');
+  setupMultiLinkFields();
+  syncSchoolNameField('dom-content-loaded');
+  const schoolLoginForm = document.getElementById('school-login-form');
+  console.log('[LOGIN] school-login-form found?', Boolean(schoolLoginForm));
+  if (schoolLoginForm) {
+    schoolLoginForm.addEventListener('submit', async function (e) {
+      console.log('[LOGIN] submit event fired');
+      e.preventDefault();
+      const email = document.getElementById('school-login-email').value;
+      const password = document.getElementById('school-login-password').value;
+      console.log('[LOGIN] submit payload prepared', { email, hasPassword: Boolean(password) });
+      await handleSchoolLogin(email, password);
+    });
+    console.log('[LOGIN] submit listener attached');
+  }
+
+  const quickfixRefreshBtn = document.getElementById("required-quickfix-refresh-btn");
+  if (quickfixRefreshBtn) {
+    quickfixRefreshBtn.addEventListener("click", () => renderRequiredQuickfixPanel());
+  }
+
+  // --- Adminview bypass: ha adminview=1 paraméter van, kihagyjuk a logint ---
+  const urlParams = new URLSearchParams(window.location.search);
+  const adminView = urlParams.get('adminview');
+  if (adminView) {
+    setPrimaryScreen('form');
+  }
+  // --- Ha már be van lépve, nem mutatjuk a logint ---
+  else if (getSchoolSession()) {
+    console.log('[LOGIN] existing school session found');
+    const sessionId = localStorage.getItem(SESSION_KEY) || getSessionIdFromUrl();
+    console.log('[LOGIN] existing session id?', sessionId);
+    if (sessionId) {
+      // Van session → betöltjük az űrlapot (a loadForm kezeli a submitted státuszt)
+      if (window.mtmiPublicGateLocked) {
+        window.forceReadonlyView = true;
+        setPrimaryScreen('login');
+        showSubmissionClosedScreen(window.submissionStatusData?.message);
+        console.log('[LOGIN] session found during closed gate, waiting for loadForm decision');
+      } else {
+        setPrimaryScreen('form');
+        console.log('[LOGIN] session + form id found, form screen prepared');
+      }
+    } else {
+      // Be van lépve de nincs session → welcome screen
+      if (window.mtmiPublicGateLocked) {
+        showSubmissionClosedScreen(window.submissionStatusData?.message);
+        console.log('[LOGIN] school session found, no form session, but public gate closed');
+      } else {
+        hideSubmissionClosedScreen();
+        setPrimaryScreen('welcome');
+        console.log('[LOGIN] school session found, no form session, welcome shown');
+      }
+    }
+  }
+  // Ha nincs belépve → login screen (alapértelmezett)
+
   var startBtn = document.getElementById('start-form-btn');
   if (startBtn) {
-    startBtn.addEventListener('click', function() {
-      var welcome = document.getElementById('welcome-screen');
-      if (welcome) welcome.style.display = "none";
-      document.getElementById('main-form-content').style.display = 'block';
-      document.body.style.overflow = 'auto';
-      window.scrollTo(0,0);
+    startBtn.addEventListener('click', function () {
+      setPrimaryScreen('form');
+      window.scrollTo(0, 0);
     });
   } else {
     document.body.style.overflow = 'hidden';
@@ -228,372 +763,382 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressPercent = document.getElementById('progress-percent');
     const stepperLinks = Array.from(document.querySelectorAll('.stepper-link'));
 
-  document.querySelectorAll('.next-step').forEach(btn => {
-    btn.addEventListener('click', function() {
-      // Késleltetés, hogy a DOM teljesen betöltődjön
-      setTimeout(() => {
-        // Validáció az aktuális lépésben
-        const currentStepElement = steps[currentStep];
-        
-        // Ellenőrizzük, hogy a currentStepElement létezik
-        if (!currentStepElement) {
-          console.error('currentStepElement nem található:', currentStep, steps.length);
-          return;
-        }
-        
-        console.log('Validáció futtatása:', currentStep, currentStepElement.id);
-        
-        const requiredFields = currentStepElement.querySelectorAll('[required]');
-        const emptyRequiredFields = [];
-        
-        console.log('Required mezők száma:', requiredFields.length);
-        
-        requiredFields.forEach(field => {
-          let isEmpty = false;
-          
-          if (field.type === 'checkbox') {
-            // Checkbox esetén ellenőrizzük, hogy van-e kiválasztott opció
-            const checkboxGroup = field.name;
-            const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
-            isEmpty = checkboxes.length === 0;
-          } else if (field.type === 'select-one') {
-            // Select esetén ellenőrizzük, hogy van-e kiválasztott érték
-            isEmpty = !field.value || field.value === '';
-          } else {
-            // Input mezők esetén ellenőrizzük, hogy van-e érték
-            isEmpty = !field.value.trim();
+    document.querySelectorAll('.next-step').forEach(btn => {
+      btn.addEventListener('click', function () {
+        // Késleltetés, hogy a DOM teljesen betöltődjön
+        setTimeout(() => {
+          // Validáció az aktuális lépésben
+          const currentStepElement = steps[currentStep];
+
+          // Ellenőrizzük, hogy a currentStepElement létezik
+          if (!currentStepElement) {
+            console.error('currentStepElement nem található:', currentStep, steps.length);
+            return;
           }
-          
-          if (isEmpty) {
-            emptyRequiredFields.push(field);
-            console.log('Üres mező találva:', field.name, field.type);
-          }
-        });
-        
-        // Checkbox validáció a data-required attribútummal rendelkező elemekre
-        const dataRequiredCheckboxes = currentStepElement.querySelectorAll('input[data-required="true"]');
-        const checkedGroups = new Set();
-        dataRequiredCheckboxes.forEach(checkbox => {
-          const checkboxGroup = checkbox.name;
-          if (!checkedGroups.has(checkboxGroup)) {
-            const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
-            if (checkboxes.length === 0) {
-              emptyRequiredFields.push(checkbox);
-              console.log('Üres checkbox csoport:', checkboxGroup);
+
+          console.log('Validáció futtatása:', currentStep, currentStepElement.id);
+
+          const requiredFields = currentStepElement.querySelectorAll('[required]');
+          const emptyRequiredFields = [];
+
+          console.log('Required mezők száma:', requiredFields.length);
+
+          requiredFields.forEach(field => {
+            let isEmpty = false;
+
+            if (field.type === 'checkbox') {
+              // Checkbox esetén ellenőrizzük, hogy van-e kiválasztott opció
+              const checkboxGroup = field.name;
+              const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
+              isEmpty = checkboxes.length === 0;
+            } else if (field.type === 'select-one') {
+              // Select esetén ellenőrizzük, hogy van-e kiválasztott érték
+              isEmpty = !field.value || field.value === '';
+            } else {
+              // Input mezők esetén ellenőrizzük, hogy van-e érték
+              isEmpty = !field.value.trim();
             }
-            checkedGroups.add(checkboxGroup);
+
+            if (isEmpty) {
+              emptyRequiredFields.push(field);
+              console.log('Üres mező találva:', field.name, field.type);
+            }
+          });
+
+          // Checkbox validáció a data-required attribútummal rendelkező elemekre
+          const dataRequiredCheckboxes = currentStepElement.querySelectorAll('input[data-required="true"]');
+          const checkedGroups = new Set();
+          dataRequiredCheckboxes.forEach(checkbox => {
+            const checkboxGroup = checkbox.name;
+            if (!checkedGroups.has(checkboxGroup)) {
+              const checkboxes = currentStepElement.querySelectorAll(`input[name="${checkboxGroup}"]:checked`);
+              if (checkboxes.length === 0) {
+                emptyRequiredFields.push(checkbox);
+                console.log('Üres checkbox csoport:', checkboxGroup);
+              }
+              checkedGroups.add(checkboxGroup);
+            }
+          });
+
+          console.log('Üres kötelező mezők száma:', emptyRequiredFields.length);
+
+          if (emptyRequiredFields.length > 0) {
+            // Popup megjelenítése
+            console.log('Validációs popup megjelenítése');
+            showValidationPopup(emptyRequiredFields);
+            return;
           }
-        });
-        
-        console.log('Üres kötelező mezők száma:', emptyRequiredFields.length);
-        
-        if (emptyRequiredFields.length > 0) {
-          // Popup megjelenítése
-          console.log('Validációs popup megjelenítése');
-          showValidationPopup(emptyRequiredFields);
-          return;
-        }
-        
-        // Ha nincs hiányzó kötelező mező, folytatjuk
-        if (currentStep < steps.length - 1) {
-          // Automatikus mentés a következő lépésre lépés előtt
+
+          // Ha nincs hiányzó kötelező mező, folytatjuk
+          if (currentStep < steps.length - 1) {
+            // Automatikus mentés a következő lépésre lépés előtt
+            saveForm(true);
+            showStep(currentStep + 1, 1);
+            // Az oldal tetejére ugrunk
+            window.scrollTo(0, 0);
+          }
+        }, 100); // 100ms késleltetés
+      });
+    });
+    document.querySelectorAll('.prev-step').forEach(btn => {
+      btn.addEventListener('click', function () {
+        if (currentStep > 0) {
+          // Automatikus mentés a visszalépés előtt
           saveForm(true);
-          showStep(currentStep + 1, 1);
+          showStep(currentStep - 1, -1);
           // Az oldal tetejére ugrunk
           window.scrollTo(0, 0);
         }
-      }, 100); // 100ms késleltetés
+      });
     });
-  });
-  document.querySelectorAll('.prev-step').forEach(btn => {
-    btn.addEventListener('click', function() {
-      if (currentStep > 0) {
-        // Automatikus mentés a visszalépés előtt
-        saveForm(true);
-        showStep(currentStep - 1, -1);
-        // Az oldal tetejére ugrunk
-        window.scrollTo(0, 0);
-      }
-    });
-  });
 
-  // Stepper navigáció kattintás - mostantól bármikor lehet kattintani
-  stepperLinks.forEach((link, i) => {
-    link.addEventListener('click', function() {
-      if (i !== currentStep) {
-        // Automatikus mentés a stepper navigáció előtt
-        saveForm(true);
-        const direction = i > currentStep ? 1 : -1;
-        showStep(i, direction);
-      }
-    });
-  });
-
-  
-
-
-  // 2. blokk: szülői képviselő feltételes logika
-  // MTMI csapat tagok megjelenítése a létszám alapján
-  const csapatLetszamInput = document.getElementById('mtmi-csapat-letszam');
-  if (csapatLetszamInput) {
-    csapatLetszamInput.addEventListener('input', function() {
-      let n = parseInt(this.value, 10);
-      if (isNaN(n) || n < 1) n = 1;
-      if (n > 8) {
-        n = 8;
-        this.value = 8; // Automatikusan visszaállítjuk 8-ra
-      }
-      
-      // Minden csapattag blokkot elrejtünk
-      for (let i = 1; i <= 8; i++) {
-        const block = document.getElementById(`csapat-tag-${i}`);
-        if (block) {
-          block.style.display = 'none';
+    // Stepper navigáció kattintás - mostantól bármikor lehet kattintani
+    stepperLinks.forEach((link, i) => {
+      link.addEventListener('click', function () {
+        if (i !== currentStep) {
+          // Automatikus mentés a stepper navigáció előtt
+          saveForm(true);
+          const direction = i > currentStep ? 1 : -1;
+          showStep(i, direction);
         }
-      }
-      
-      // Csak az első n blokkot jelenítjük meg
-      for (let i = 1; i <= n; i++) {
-        const block = document.getElementById(`csapat-tag-${i}`);
-        if (block) {
-          block.style.display = 'block';
+      });
+    });
+
+
+
+
+    // 2. blokk: szülői képviselő feltételes logika
+    // MTMI csapat tagok megjelenítése a létszám alapján
+    const csapatLetszamInput = document.getElementById('mtmi-csapat-letszam');
+    if (csapatLetszamInput) {
+      csapatLetszamInput.addEventListener('input', function () {
+        let n = parseInt(this.value, 10);
+        if (isNaN(n) || n < 1) n = 1;
+        if (n > 8) {
+          n = 8;
+          this.value = 8; // Automatikusan visszaállítjuk 8-ra
         }
-      }
-    });
-  }
 
-  // 3. blokk: pedagógiai program és MTMI koncepció feltételes logika
-  const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
-  const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
-  if (pedprogSelect && pedprogLeiras) {
-    pedprogSelect.addEventListener('change', function() {
-      if (this.value === 'igen' || this.value === 'reszben') {
-        pedprogLeiras.style.display = '';
-        pedprogLeiras.classList.add('animate__fadeIn');
-      } else {
-        pedprogLeiras.classList.remove('animate__fadeIn');
-        pedprogLeiras.style.display = 'none';
-      }
-    });
-  }
-  const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
-  const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
-  if (koncepcioSelect && koncepcioLeiras) {
-    koncepcioSelect.addEventListener('change', function() {
-      if (this.value === 'igen' || this.value === 'reszben') {
-        koncepcioLeiras.style.display = '';
-        koncepcioLeiras.classList.add('animate__fadeIn');
-      } else {
-        koncepcioLeiras.classList.remove('animate__fadeIn');
-        koncepcioLeiras.style.display = 'none';
-      }
-    });
-  }
+        // Minden csapattag blokkot elrejtünk
+        for (let i = 1; i <= 8; i++) {
+          const block = document.getElementById(`csapat-tag-${i}`);
+          if (block) {
+            block.style.display = 'none';
+          }
+        }
 
-  // Kezdő lépés megjelenítése
-  showStep(0);
+        // Csak az első n blokkot jelenítjük meg
+        for (let i = 1; i <= n; i++) {
+          const block = document.getElementById(`csapat-tag-${i}`);
+          if (block) {
+            block.style.display = 'block';
+          }
+        }
+      });
+    }
+
+    // 3. blokk: pedagógiai program és MTMI koncepció feltételes logika
+    const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
+    const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
+    if (pedprogSelect && pedprogLeiras) {
+      pedprogSelect.addEventListener('change', function () {
+        if (this.value === 'igen' || this.value === 'reszben') {
+          pedprogLeiras.style.display = '';
+          pedprogLeiras.classList.add('animate__fadeIn');
+        } else {
+          pedprogLeiras.classList.remove('animate__fadeIn');
+          pedprogLeiras.style.display = 'none';
+        }
+      });
+    }
+    const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
+    const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
+    if (koncepcioSelect && koncepcioLeiras) {
+      koncepcioSelect.addEventListener('change', function () {
+        if (this.value === 'igen' || this.value === 'reszben') {
+          koncepcioLeiras.style.display = '';
+          koncepcioLeiras.classList.add('animate__fadeIn');
+        } else {
+          koncepcioLeiras.classList.remove('animate__fadeIn');
+          koncepcioLeiras.style.display = 'none';
+        }
+      });
+    }
+
+    // Kezdő lépés megjelenítése
+    showStep(0);
   }, 100); // setTimeout blokk vége
 
   // --- MTMI űrlap automatikus mentés és betöltés ---
 
   // Segédfüggvény: űrlap adatainak kiolvasása objektumba
   function getFormData(form) {
-      const data = {};
-      
-      // Összes mező összegyűjtése a teljes dokumentumból
-      const allInputs = document.querySelectorAll('input, select, textarea');
-      console.log('getFormData: Found', allInputs.length, 'inputs');
-      
-      allInputs.forEach(el => {
-          if (!el.name) return;
-          
-          if (el.type === 'checkbox') {
-              // Checkbox-ok esetében mindig tömböt hozunk létre
-              if (!data[el.name]) {
-                  data[el.name] = [];
-              }
-              if (el.checked && el.value && el.value.trim() !== '') {
-                  data[el.name].push(el.value);
-                  console.log('getFormData: Added checkbox', el.name, 'value', el.value);
-              }
-          } else if (el.type === 'radio') {
-              if (el.checked) {
-                  data[el.name] = el.value;
-              }
-          } else {
-              if (el.value && el.value.trim() !== '') {
-                  data[el.name] = el.value;
-              }
-          }
-      });
-      
-      console.log('getFormData: Final data:', data);
-      return data;
+    const data = {};
+
+    // Összes mező összegyűjtése a teljes dokumentumból
+    const allInputs = document.querySelectorAll('input, select, textarea');
+    console.log('getFormData: Found', allInputs.length, 'inputs');
+
+    allInputs.forEach(el => {
+      if (!el.name) return;
+
+      if (el.type === 'checkbox') {
+        // Checkbox-ok esetében mindig tömböt hozunk létre
+        if (!data[el.name]) {
+          data[el.name] = [];
+        }
+        if (el.checked && el.value && el.value.trim() !== '') {
+          data[el.name].push(el.value);
+          console.log('getFormData: Added checkbox', el.name, 'value', el.value);
+        }
+      } else if (el.type === 'radio') {
+        if (el.checked) {
+          data[el.name] = el.value;
+        }
+      } else {
+        if (el.value && el.value.trim() !== '') {
+          data[el.name] = el.value;
+        }
+      }
+    });
+
+    console.log('getFormData: Final data:', data);
+    return data;
   }
 
   // Segédfüggvény: űrlap feltöltése objektumból
   function setFormData(form, data) {
-      try {
-          console.log('setFormData: Kezdem a betöltést, adatok:', data);
+    try {
+      console.log('setFormData: Kezdem a betöltést, adatok:', data);
       for (const [key, value] of Object.entries(data)) {
-          if (Array.isArray(value)) {
-              // Checkbox-ok esetében minden checkbox-ot alapértelmezetten false-ra állítunk
-              // De csak a statikus checkbox-okat kezeljük itt (nem a dinamikusakat)
-              const checkboxes = form.querySelectorAll(`[name='${key}']`);
-              checkboxes.forEach(checkbox => {
-                  checkbox.checked = value.includes(checkbox.value);
-              });
-          } else {
-              const el = form.elements[key];
-              if (!el) continue;
-              if (el.type === "radio") {
-                  const radio = form.querySelector(`[name='${key}'][value='${value}']`);
-                  if (radio) radio.checked = true;
-              } else {
-                  el.value = value;
-              }
+        if (Array.isArray(value)) {
+          // Checkbox-ok esetében minden checkbox-ot alapértelmezetten false-ra állítunk
+          // De csak a statikus checkbox-okat kezeljük itt (nem a dinamikusakat)
+          const checkboxes = form.querySelectorAll(`[name='${key}']`);
+          checkboxes.forEach(checkbox => {
+            checkbox.checked = value.includes(checkbox.value);
+          });
+        } else {
+          let el = form.elements[key];
+          if (!el) {
+            const indexedLink = String(key).match(/^(.*_link)(\d+)$/);
+            if (indexedLink) {
+              ensureLinkFieldCount(indexedLink[1], parseInt(indexedLink[2], 10));
+              el = form.elements[key];
+            } else if (String(key).endsWith('_link')) {
+              ensureLinkFieldCount(String(key), 1);
+              el = form.elements[`${key}1`];
+            }
           }
+          if (!el) continue;
+          if (el.type === "radio") {
+            const radio = form.querySelector(`[name='${key}'][value='${value}']`);
+            if (radio) radio.checked = true;
+          } else {
+            el.value = value;
+          }
+        }
       }
-      
+
       // Dinamikusan generált mezők betöltése
       const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
       if (csapatTagokDiv) {
-          csapatTagokDiv.querySelectorAll('input, textarea').forEach(el => {
-              if (el.name && data[el.name] && typeof data[el.name] === 'string' && data[el.name].trim() !== '') {
-                  el.value = data[el.name];
-              }
-          });
-          
-          // Checkbox-ok betöltése
-          csapatTagokDiv.querySelectorAll('input[type="checkbox"]').forEach(el => {
-              if (el.name && data[el.name] && Array.isArray(data[el.name])) {
-                  // Csak akkor pipáljuk ki, ha az érték nem üres
-                  if (el.value && el.value.trim() !== '') {
-                      el.checked = data[el.name].includes(el.value);
-                  } else {
-                      el.checked = false;
-                  }
-              } else {
-                  // Ha nincs adat, akkor ne legyen kipipálva
-                  el.checked = false;
-              }
-          });
+        csapatTagokDiv.querySelectorAll('input, textarea').forEach(el => {
+          if (el.name && data[el.name] && typeof data[el.name] === 'string' && data[el.name].trim() !== '') {
+            el.value = data[el.name];
+          }
+        });
+
+        // Checkbox-ok betöltése
+        csapatTagokDiv.querySelectorAll('input[type="checkbox"]').forEach(el => {
+          if (el.name && data[el.name] && Array.isArray(data[el.name])) {
+            // Csak akkor pipáljuk ki, ha az érték nem üres
+            if (el.value && el.value.trim() !== '') {
+              el.checked = data[el.name].includes(el.value);
+            } else {
+              el.checked = false;
+            }
+          } else {
+            // Ha nincs adat, akkor ne legyen kipipálva
+            el.checked = false;
+          }
+        });
       }
-      
+
       // --- ÚJ: minden select, checkbox, radio mezőre triggereljük a change/input eseményt ---
       // De csak akkor, ha nem automatikus betöltés közben vagyunk
       if (!window.isLoadingForm) {
-          ["change", "input"].forEach(eventType => {
-              form.querySelectorAll("select, input[type=checkbox], input[type=radio]").forEach(el => {
-                  el.dispatchEvent(new Event(eventType, { bubbles: true }));
-              });
+        ["change", "input"].forEach(eventType => {
+          form.querySelectorAll("select, input[type=checkbox], input[type=radio]").forEach(el => {
+            el.dispatchEvent(new Event(eventType, { bubbles: true }));
           });
+        });
       }
-      
+
       // --- ÚJ: Ha van csapat létszám adat, megjelenítjük a csapattagokat ---
       console.log('setFormData: Ellenőrzöm a csapat létszámot:', data.mtmi_csapat_letszam, typeof data.mtmi_csapat_letszam);
       if (data.mtmi_csapat_letszam && data.mtmi_csapat_letszam !== '') {
-          console.log('setFormData: Van csapat létszám adat:', data.mtmi_csapat_letszam);
-          try {
-              // Azonnal megjelenítjük a csapattagokat
-              let n = parseInt(data.mtmi_csapat_letszam, 10);
-              if (isNaN(n) || n < 1) n = 1;
-              if (n > 8) n = 8;
-              
-              console.log('Megjelenítjük a csapattagokat:', n);
-              console.log('DOM elemek keresése...');
-              
-              // Minden csapattag blokkot elrejtünk
-              console.log('Elrejtés kezdete...');
-              for (let i = 1; i <= 8; i++) {
-                const block = document.getElementById(`csapat-tag-${i}`);
-                if (block) {
-                  block.style.display = 'none';
-                  console.log(`Elrejtettük: csapat-tag-${i}`);
-                } else {
-                  console.log(`Nem találtuk: csapat-tag-${i}`);
-                }
-              }
-              
-              // Csak az első n blokkot jelenítjük meg
-              for (let i = 1; i <= n; i++) {
-                const block = document.getElementById(`csapat-tag-${i}`);
-                if (block) {
-                  block.style.display = 'block';
-                  console.log(`Megjelenítettük: csapat-tag-${i}`);
-                } else {
-                  console.log(`Nem találtuk: csapat-tag-${i}`);
-                }
-              }
-              console.log('Csapattagok megjelenítése befejezve');
-          } catch (error) {
-              console.error('Hiba a csapattagok megjelenítése közben:', error);
+        console.log('setFormData: Van csapat létszám adat:', data.mtmi_csapat_letszam);
+        try {
+          // Azonnal megjelenítjük a csapattagokat
+          let n = parseInt(data.mtmi_csapat_letszam, 10);
+          if (isNaN(n) || n < 1) n = 1;
+          if (n > 8) n = 8;
+
+          console.log('Megjelenítjük a csapattagokat:', n);
+          console.log('DOM elemek keresése...');
+
+          // Minden csapattag blokkot elrejtünk
+          console.log('Elrejtés kezdete...');
+          for (let i = 1; i <= 8; i++) {
+            const block = document.getElementById(`csapat-tag-${i}`);
+            if (block) {
+              block.style.display = 'none';
+              console.log(`Elrejtettük: csapat-tag-${i}`);
+            } else {
+              console.log(`Nem találtuk: csapat-tag-${i}`);
+            }
           }
+
+          // Csak az első n blokkot jelenítjük meg
+          for (let i = 1; i <= n; i++) {
+            const block = document.getElementById(`csapat-tag-${i}`);
+            if (block) {
+              block.style.display = 'block';
+              console.log(`Megjelenítettük: csapat-tag-${i}`);
+            } else {
+              console.log(`Nem találtuk: csapat-tag-${i}`);
+            }
+          }
+          console.log('Csapattagok megjelenítése befejezve');
+        } catch (error) {
+          console.error('Hiba a csapattagok megjelenítése közben:', error);
+        }
       } else {
-          console.log('setFormData: Nincs csapat létszám adat');
+        console.log('setFormData: Nincs csapat létszám adat');
       }
-      
+
       // --- ÚJ: Feltételes mezők megjelenítésének triggerelése ---
       const conditionalSelects = [
-          'mtmi-szulo-kepviselo-select',
-          'mtmi-palyaorientacio-megvalosul-select',
-          'mtmi-diakok-kapcsolattartas-select',
-          'mtmi-alumni-programok-select',
-          'mtmi-online-palyaorientacio-select',
-          'mtmi-egyuttmukodes-palyaorientacio-select',
-          'mtmi-versenyek-szervezese-select',
-          'mtmi-versenyeken-reszvetel-select',
-          'mtmi-orszagos-nemzetkozi-reszvetel-select',
-          'mtmi-eredmenyek-eleresek-select',
-          'lanyok-mtmi-kiemelt-figyelem-select',
-          'lanyoknak-szolo-mtmi-programok-select',
-          'mtmi-kapcsolatok-egyuttmukodes-select',
-          'mtmi-kozos-programok-select',
-          'mtmi-szakmai-halozat-select',
-          'mtmi-nemzetkozi-egyuttmukodes-select',
-          'pedagogusok-osztonzese-select',
-          'pedagogusok-tovabbkepzese-select',
-          'pedagogusok-digitalis-eszkozok-select'
+        'mtmi-szulo-kepviselo-select',
+        'mtmi-palyaorientacio-megvalosul-select',
+        'mtmi-diakok-kapcsolattartas-select',
+        'mtmi-alumni-programok-select',
+        'mtmi-online-palyaorientacio-select',
+        'mtmi-egyuttmukodes-palyaorientacio-select',
+        'mtmi-versenyek-szervezese-select',
+        'mtmi-versenyeken-reszvetel-select',
+        'mtmi-orszagos-nemzetkozi-reszvetel-select',
+        'mtmi-eredmenyek-eleresek-select',
+        'lanyok-mtmi-kiemelt-figyelem-select',
+        'lanyoknak-szolo-mtmi-programok-select',
+        'mtmi-kapcsolatok-egyuttmukodes-select',
+        'mtmi-kozos-programok-select',
+        'mtmi-szakmai-halozat-select',
+        'mtmi-nemzetkozi-egyuttmukodes-select',
+        'pedagogusok-osztonzese-select',
+        'pedagogusok-tovabbkepzese-select',
+        'pedagogusok-digitalis-eszkozok-select'
       ];
-      
+
       conditionalSelects.forEach(selectId => {
-          const select = document.getElementById(selectId);
-          if (select && data[select.name]) {
-              setTimeout(() => {
-                  const event = new Event('change');
-                  select.dispatchEvent(event);
-              }, 150);
-          }
+        const select = document.getElementById(selectId);
+        if (select && data[select.name]) {
+          setTimeout(() => {
+            const event = new Event('change');
+            select.dispatchEvent(event);
+          }, 150);
+        }
       });
-      
+
       // Pedagógiai program feltételes megjelenítés
       const pedprogSelect = document.getElementById('pedprog-mtmi-tartalom-select');
       const pedprogLeiras = document.getElementById('pedprog-mtmi-tartalom-leiras');
       if (pedprogSelect && pedprogLeiras && data.pedprog_mtmi_tartalom) {
-          setTimeout(() => {
-              const event = new Event('change');
-              pedprogSelect.dispatchEvent(event);
-          }, 200);
+        setTimeout(() => {
+          const event = new Event('change');
+          pedprogSelect.dispatchEvent(event);
+        }, 200);
       }
-      
+
       // MTMI koncepció feltételes megjelenítés
       const koncepcioSelect = document.getElementById('mtmi-koncepcio-select');
       const koncepcioLeiras = document.getElementById('mtmi-koncepcio-leiras');
       if (koncepcioSelect && koncepcioLeiras && data.mtmi_koncepcio) {
-          setTimeout(() => {
-              const event = new Event('change');
-              koncepcioSelect.dispatchEvent(event);
-          }, 250);
+        setTimeout(() => {
+          const event = new Event('change');
+          koncepcioSelect.dispatchEvent(event);
+        }, 250);
       }
-      
+
       // Interdiszciplináris projekt feltételes megjelenítés
       const interdiszciplinarisSelect = document.getElementById('mtmi-interdiszciplinaris-projekt-select');
       const interdiszciplinarisBlock = document.getElementById('mtmi-interdiszciplinaris-projekt-block');
       if (interdiszciplinarisSelect && interdiszciplinarisBlock && data.mtmi_interdiszciplinaris_projekt) {
-          setTimeout(() => {
-              const event = new Event('change');
-              interdiszciplinarisSelect.dispatchEvent(event);
-          }, 300);
+        setTimeout(() => {
+          const event = new Event('change');
+          interdiszciplinarisSelect.dispatchEvent(event);
+        }, 300);
       }
 
       // Textarea automatikus méretezés az adatok betöltése után
@@ -606,324 +1151,507 @@ document.addEventListener('DOMContentLoaded', function() {
       }, 100);
 
       console.log('setFormData: Függvény befejezve');
-      } catch (error) {
-          console.error('setFormData: Hiba történt:', error);
-      }
+    } catch (error) {
+      console.error('setFormData: Hiba történt:', error);
+    }
   }
 
   // Generált link megjelenítése
   function showLink(session_id) {
-      let box = document.getElementById(LINK_BOX_ID);
-      if (!box) {
-          box = document.createElement("div");
-          box.id = LINK_BOX_ID;
-          box.className = "alert alert-success mt-3";
-          const form = document.getElementById(FORM_ID);
-          form.parentNode.insertBefore(box, form);
-      }
-      const url = window.location.origin + `/kitoltes/${session_id}`;
-      box.innerHTML = `<b>Az űrlapod elérhető ezen a linken:</b><br><a href='${url}' target='_blank'>${url}</a>`;
+    let box = document.getElementById(LINK_BOX_ID);
+    if (!box) {
+      box = document.createElement("div");
+      box.id = LINK_BOX_ID;
+      box.className = "alert alert-success mt-3";
+      const form = document.getElementById(FORM_ID);
+      form.parentNode.insertBefore(box, form);
+    }
+    const url = window.location.origin + `/kitoltes/${session_id}`;
+    box.innerHTML = `<b>Az űrlapod elérhető ezen a linken:</b><br><a href='${url}' target='_blank'>${url}</a>`;
   }
 
   // Mentés a backendre
-  async function saveForm(auto=false) {
-      const form = document.getElementById(FORM_ID);
-      if (!form) return;
-      const data = getFormData(form);
-      let session_id = localStorage.getItem(SESSION_KEY);
-      // Ha az URL-ben van session_id, azt is elfogadjuk
-      const urlSession = getSessionIdFromUrl();
-      if (urlSession) session_id = urlSession;
-      try {
-          const resp = await fetch(`${API_BASE}/save`, {
+  async function saveForm(auto = false) {
+    if (window.forceReadonlyView) return;
+    const form = document.getElementById(FORM_ID);
+    if (!form) return;
+    const data = getFormData(form);
+    let session_id = localStorage.getItem(SESSION_KEY);
+    // Ha az URL-ben van session_id, azt is elfogadjuk
+    const urlSession = getSessionIdFromUrl();
+    if (urlSession) session_id = urlSession;
+    try {
+      const resp = await fetch(`${API_BASE}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data, session_id })
+      });
+      if (resp.ok) {
+        const res = await resp.json();
+        localStorage.setItem(SESSION_KEY, res.session_id);
+        showLink(res.session_id);
+        updateSchoolDashboardCard({
+          form_id: res.session_id,
+          form_status: "in_progress",
+          updated_at: res.updated_at || new Date().toISOString(),
+          filled_fields_count: Object.keys(data || {}).length
+        });
+        scheduleRequiredQuickfixRender();
+        // Ha nincs session_id az URL-ben, írjuk bele (csak első mentésnél)
+        if (!getSessionIdFromUrl()) {
+          history.replaceState({}, "", `/kitoltes/${res.session_id}`);
+        }
+
+        // Ha be van lépve iskolaként, hozzárendeljük az űrlapot az iskolához
+        const schoolSession = getSchoolSession();
+        if (schoolSession) {
+          try {
+            await fetch(`${API_BASE}/school/link-form`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ data, session_id })
-          });
-          if (resp.ok) {
-              const res = await resp.json();
-              localStorage.setItem(SESSION_KEY, res.session_id);
-              showLink(res.session_id);
-              // Ha nincs session_id az URL-ben, írjuk bele (csak első mentésnél)
-              if (!getSessionIdFromUrl()) {
-                  history.replaceState({}, "", `/kitoltes/${res.session_id}`);
-              }
-              if (!auto) {
-                  // Manuális mentésnél visszajelzés
-                  showToast("Sikeres mentés!", "success");
-              }
-          } else {
-              if (!auto) showToast("Hiba a mentés során!", "danger");
+              body: JSON.stringify({ school_id: schoolSession.school_id, form_id: res.session_id })
+            });
+          } catch (linkErr) {
+            console.error('Form-school link error:', linkErr);
           }
-      } catch (e) {
-          if (!auto) showToast("Hálózati hiba a mentés során!", "danger");
+        }
+
+        if (!auto) {
+          // Manuális mentésnél visszajelzés
+          showToast("Sikeres mentés!", "success");
+        }
+      } else {
+        if (!auto) showToast("Hiba a mentés során!", "danger");
       }
+    } catch (e) {
+      if (!auto) showToast("Hálózati hiba a mentés során!", "danger");
+    }
+  }
+
+  function applyReadOnlyMode(form) {
+    if (!form) return;
+    form.querySelectorAll('input, select, textarea, button').forEach(el => {
+      if (el.type === "checkbox" || el.type === "radio") {
+        el.disabled = true;
+        el.style.pointerEvents = "none";
+      } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+        el.disabled = true;
+        el.style.pointerEvents = "none";
+      } else if (["text", "number", "email", "url", "tel"].includes(el.type)) {
+        el.readOnly = true;
+        el.style.backgroundColor = "#f8f9fa";
+        el.style.pointerEvents = "none";
+      } else if (el.type === "submit" || el.type === "button") {
+        el.style.display = "none";
+      }
+    });
+    const saveBtn = document.getElementById("mtmi-save-btn");
+    const pdfUploadBtn = document.getElementById("pdf-upload-btn");
+    const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
+    if (saveBtn) saveBtn.style.display = "none";
+    if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
+    if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
+    document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
+      btn.style.display = "none";
+    });
   }
 
   // Betöltés a backendről
   async function loadForm() {
-      console.log('loadForm: Kezdem a betöltést');
-      let session_id = localStorage.getItem(SESSION_KEY);
-      const urlSession = getSessionIdFromUrl();
-      if (urlSession) session_id = urlSession;
-      if (!session_id) {
-          console.log('loadForm: Nincs session_id');
-          return;
-      }
-      console.log('loadForm: Session_id:', session_id);
-      try {
-          const resp = await fetch(`${API_BASE}/load/${session_id}`);
-          if (resp.ok) {
-              const res = await resp.json();
-              console.log('loadForm: Adatok betöltve:', res.data);
-              console.log('loadForm: PDF fájl:', res.pdf_file_path);
-              
-              // PDF betöltése, ha van
-              if (res.pdf_file_path) {
-                loadPdfFromData(res.pdf_file_path);
-              }
-              
-              // --- ADMINVIEW workaround ---
-              const urlParams = new URLSearchParams(window.location.search);
-              const adminView = urlParams.get('adminview');
-              if (res.submitted && parseInt(res.submitted) === 1 && !adminView) {
-                // Ugyanaz a thank you screen, mint véglegesítéskor!
-                document.getElementById("main-form-content").style.display = "none";
-                document.getElementById("welcome-screen").style.display = "none";
-                document.getElementById("thankyou-fullscreen").style.display = "flex";
-                window.scrollTo(0,0);
-                // Főoldalra vissza gomb SPA élmény
-                const backBtn = document.querySelector("#thankyou-fullscreen a.btn");
-                if (backBtn) {
-                  backBtn.addEventListener("click", function(ev) {
-                    ev.preventDefault();
-                    document.getElementById("thankyou-fullscreen").style.display = "none";
-                    document.getElementById("welcome-screen").style.display = "";
-                    document.body.style.overflow = "auto";
-                    window.scrollTo(0,0);
-                  });
-                }
-                return;
-              }
-              const form = document.getElementById(FORM_ID);
-              console.log('loadForm: Meghívom a setFormData-t');
-              window.isLoadingForm = true;
-              setFormData(form, res.data);
-              window.isLoadingForm = false;
-              console.log('loadForm: setFormData befejezve');
-              
-              // Dinamikusan generált mezők adatainak betöltése késleltetéssel
-              setTimeout(() => {
-                  const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
-                  if (csapatTagokDiv) {
-                      window.isLoadingForm = true;
-                      // Csak a dinamikus mezők adatait töltjük be
-                      csapatTagokDiv.querySelectorAll('input, textarea').forEach(el => {
-                          if (el.name && res.data[el.name] && typeof res.data[el.name] === 'string' && res.data[el.name].trim() !== '') {
-                              el.value = res.data[el.name];
-                              // Ha textarea, automatikusan méretezzük
-                              if (el.tagName === 'TEXTAREA') {
-                                  autoResizeTextarea(el);
-                              }
-                          }
-                      });
+    console.log('loadForm: Kezdem a betöltést');
+    let session_id = localStorage.getItem(SESSION_KEY);
+    const urlSession = getSessionIdFromUrl();
+    if (urlSession) session_id = urlSession;
+    if (!session_id) {
+      console.log('loadForm: Nincs session_id');
+      window.currentLoadedFormSchoolId = null;
+      return;
+    }
+    console.log('loadForm: Session_id:', session_id);
+    try {
+      const resp = await fetch(`${API_BASE}/load/${session_id}`);
+      if (resp.ok) {
+        const res = await resp.json();
+        console.log('loadForm: Adatok betöltve:', res.data);
+        console.log('loadForm: PDF fájl:', res.pdf_file_path);
+        window.currentLoadedFormSchoolId = res.school_id || null;
+        console.log('loadForm: Form school_id:', window.currentLoadedFormSchoolId);
+        updateSchoolDashboardCard({
+          form_id: res.session_id || session_id,
+          form_status: parseInt(res.submitted) === 1 ? "submitted" : "in_progress",
+          updated_at: res.updated_at || null,
+          filled_fields_count: Object.keys(res.data || {}).length
+        });
 
-                      // Checkbox-ok betöltése
-                      csapatTagokDiv.querySelectorAll('input[type="checkbox"]').forEach(el => {
-                          if (el.name && res.data[el.name] && Array.isArray(res.data[el.name])) {
-                              // Csak akkor pipáljuk ki, ha az érték nem üres
-                              if (el.value && el.value.trim() !== '') {
-                                  el.checked = res.data[el.name].includes(el.value);
-                              } else {
-                                  el.checked = false;
-                              }
-                          } else {
-                              el.checked = false;
-                          }
-                      });
-                      window.isLoadingForm = false;
-                  }
+        // PDF betöltése, ha van
+        if (res.pdf_file_path) {
+          loadPdfFromData(res.pdf_file_path);
+        }
 
-                  // Végső textarea méretezés minden textarea-ra
-                  setTimeout(() => {
-                    document.querySelectorAll('textarea').forEach(textarea => {
-                      if (textarea.value && textarea.value.trim() !== '') {
-                        autoResizeTextarea(textarea);
-                      }
-                    });
-                  }, 100);
-              }, 200);
-              
-              showLink(session_id);
-              // --- ADMINVIEW: minden mező readonly/disabled, mentés/véglegesítés gombok elrejtése ---
-              if (adminView) {
-                console.log("Admin view detected - making all fields readonly");
-                form.querySelectorAll('input, select, textarea, button').forEach(el => {
-                  if (el.type === "checkbox" || el.type === "radio") {
-                    el.disabled = true;
-                    el.style.pointerEvents = "none";
-                  } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
-                    el.disabled = true;
-                    el.style.pointerEvents = "none";
-                  } else if (["text","number","email","url","tel"].includes(el.type)) {
-                    el.readOnly = true;
-                    el.style.backgroundColor = "#f8f9fa";
-                    el.style.pointerEvents = "none";
-                  } else if (el.type === "submit" || el.type === "button") {
-                    el.style.display = "none";
-                  }
-                });
-                // Manuális mentés gomb elrejtése
-                const saveBtn = document.getElementById("mtmi-save-btn");
-                if (saveBtn) saveBtn.style.display = "none";
-                // Véglegesítés gomb elrejtése
-                const submitBtn = form.querySelector("button[type='submit']");
-                if (submitBtn) submitBtn.style.display = "none";
-                // PDF feltöltés gombok elrejtése
-                const pdfUploadBtn = document.getElementById("pdf-upload-btn");
-                const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
-                if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
-                if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
-                // Navigációs gombok elrejtése
-                document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
-                  btn.style.display = "none";
-                });
-                console.log("Admin view - all fields made readonly");
-              }
+        // --- ADMINVIEW workaround ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const adminView = urlParams.get('adminview');
+        if (window.mtmiPublicGateLocked && !adminView) {
+          const isSubmitted = parseInt(res.submitted) === 1;
+          if (!isSubmitted) {
+            window.forceReadonlyView = false;
+            setPrimaryScreen('login');
+            showSubmissionClosedScreen(window.submissionStatusData?.message);
+            console.log('loadForm: Closed gate + non-submitted form -> hidden');
+            return;
           }
-      } catch (e) {
-          // Nincs adat vagy hiba
+          window.forceReadonlyView = true;
+          hideSubmissionClosedScreen();
+          setPrimaryScreen('form');
+          console.log('loadForm: Closed gate + submitted form -> readonly view allowed');
+        }
+        updateThankyouEditButton();
+        if (res.submitted && parseInt(res.submitted) === 1 && !adminView && !window.forceReadonlyView) {
+          // Ugyanaz a thank you screen, mint véglegesítéskor!
+          document.getElementById("main-form-content").style.display = "none";
+          document.getElementById("welcome-screen").style.display = "none";
+          document.getElementById("thankyou-fullscreen").style.display = "flex";
+          updateThankyouEditButton();
+          window.scrollTo(0, 0);
+          // Főoldalra vissza gomb SPA élmény
+          const backBtn = document.querySelector("#thankyou-fullscreen a.btn");
+          if (backBtn) {
+            backBtn.addEventListener("click", function (ev) {
+              ev.preventDefault();
+              document.getElementById("thankyou-fullscreen").style.display = "none";
+              document.getElementById("welcome-screen").style.display = "";
+              document.body.style.overflow = "auto";
+              window.scrollTo(0, 0);
+            });
+          }
+          return;
+        }
+        const form = document.getElementById(FORM_ID);
+        console.log('loadForm: Meghívom a setFormData-t');
+        window.isLoadingForm = true;
+        setFormData(form, res.data);
+        window.isLoadingForm = false;
+        syncSchoolNameField('after-load-form-data');
+        scheduleRequiredQuickfixRender();
+        console.log('loadForm: setFormData befejezve');
+
+        // Dinamikusan generált mezők adatainak betöltése késleltetéssel
+        setTimeout(() => {
+          const csapatTagokDiv = document.getElementById('mtmi-csapat-tagok');
+          if (csapatTagokDiv) {
+            window.isLoadingForm = true;
+            // Csak a dinamikus mezők adatait töltjük be
+            csapatTagokDiv.querySelectorAll('input, textarea').forEach(el => {
+              if (el.name && res.data[el.name] && typeof res.data[el.name] === 'string' && res.data[el.name].trim() !== '') {
+                el.value = res.data[el.name];
+                // Ha textarea, automatikusan méretezzük
+                if (el.tagName === 'TEXTAREA') {
+                  autoResizeTextarea(el);
+                }
+              }
+            });
+
+            // Checkbox-ok betöltése
+            csapatTagokDiv.querySelectorAll('input[type="checkbox"]').forEach(el => {
+              if (el.name && res.data[el.name] && Array.isArray(res.data[el.name])) {
+                // Csak akkor pipáljuk ki, ha az érték nem üres
+                if (el.value && el.value.trim() !== '') {
+                  el.checked = res.data[el.name].includes(el.value);
+                } else {
+                  el.checked = false;
+                }
+              } else {
+                el.checked = false;
+              }
+            });
+            window.isLoadingForm = false;
+          }
+
+          // Végső textarea méretezés minden textarea-ra
+          setTimeout(() => {
+            document.querySelectorAll('textarea').forEach(textarea => {
+              if (textarea.value && textarea.value.trim() !== '') {
+                autoResizeTextarea(textarea);
+              }
+            });
+          }, 100);
+        }, 200);
+
+        showLink(session_id);
+        // --- ADMINVIEW: minden mező readonly/disabled, mentés/véglegesítés gombok elrejtése ---
+        if (adminView || window.forceReadonlyView) {
+          console.log("Readonly view detected - making all fields readonly");
+          applyReadOnlyMode(form);
+        }
       }
+    } catch (e) {
+      // Nincs adat vagy hiba
+    }
   }
 
+  // Expose loadForm globally so login handler can call it
+  window.loadForm = loadForm;
+
   // Toast üzenet (Bootstrap 5)
-  function showToast(msg, type="info") {
-      let toast = document.getElementById("mtmi-toast");
-      if (!toast) {
-          toast = document.createElement("div");
-          toast.id = "mtmi-toast";
-          toast.className = "toast align-items-center text-bg-"+type+" border-0 position-fixed bottom-0 end-0 m-4";
-          toast.style.zIndex = 9999;
-          toast.innerHTML = `<div class="d-flex"><div class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
-          document.body.appendChild(toast);
-      }
-      toast.querySelector(".toast-body").textContent = msg;
-      const bsToast = new bootstrap.Toast(toast, { delay: 2500 });
-      bsToast.show();
+  function showToast(msg, type = "info") {
+    let toast = document.getElementById("mtmi-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "mtmi-toast";
+      toast.className = "toast align-items-center text-bg-" + type + " border-0 position-fixed bottom-0 end-0 m-4";
+      toast.style.zIndex = 9999;
+      toast.innerHTML = `<div class="d-flex"><div class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+      document.body.appendChild(toast);
+    }
+    toast.querySelector(".toast-body").textContent = msg;
+    const bsToast = new bootstrap.Toast(toast, { delay: 2500 });
+    bsToast.show();
   }
 
   // Események bekötése
-  window.addEventListener("DOMContentLoaded", () => {
-      const form = document.getElementById(FORM_ID);
-      if (!form) return;
-      
-      // Admin view ellenőrzés és alkalmazása
-      const urlParams = new URLSearchParams(window.location.search);
-      const adminView = urlParams.get('adminview');
-      if (adminView) {
-        console.log("Admin view detected on page load");
-        // Késleltetett alkalmazás, hogy a form betöltődjön
-        setTimeout(() => {
-          form.querySelectorAll('input, select, textarea, button').forEach(el => {
-            if (el.type === "checkbox" || el.type === "radio") {
-              el.disabled = true;
-              el.style.pointerEvents = "none";
-            } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
-              el.disabled = true;
-              el.style.pointerEvents = "none";
-            } else if (["text","number","email","url","tel"].includes(el.type)) {
-              el.readOnly = true;
-              el.style.backgroundColor = "#f8f9fa";
-              el.style.pointerEvents = "none";
-            } else if (el.type === "submit" || el.type === "button") {
-              el.style.display = "none";
-            }
-          });
-          // Gombok elrejtése
-          const saveBtn = document.getElementById("mtmi-save-btn");
-          const pdfUploadBtn = document.getElementById("pdf-upload-btn");
-          const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
-          if (saveBtn) saveBtn.style.display = "none";
-          if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
-          if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
-          document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
-            btn.style.display = "none";
-          });
-          console.log("Admin view applied on page load");
-        }, 1000);
-      }
-      
-      // Betöltés session_id alapján
-      loadForm();
-      const session_id = getSessionIdFromUrl() || localStorage.getItem("mtmi_session_id");
-      if (session_id) {
-        const welcome = document.getElementById("welcome-screen");
-        const mainForm = document.getElementById("main-form-content");
+  const initFormRuntime = () => {
+    console.log('[FORM_INIT] initFormRuntime start');
+    const form = document.getElementById(FORM_ID);
+    if (!form) {
+      console.warn('[FORM_INIT] form not found, init skipped');
+      return;
+    }
+
+    // Admin view ellenőrzés és alkalmazása
+    const urlParams = new URLSearchParams(window.location.search);
+    const adminView = urlParams.get('adminview');
+    if (adminView) {
+      console.log("Admin view detected on page load");
+      // Késleltetett alkalmazás, hogy a form betöltődjön
+      setTimeout(() => {
+        form.querySelectorAll('input, select, textarea, button').forEach(el => {
+          if (el.type === "checkbox" || el.type === "radio") {
+            el.disabled = true;
+            el.style.pointerEvents = "none";
+          } else if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+            el.disabled = true;
+            el.style.pointerEvents = "none";
+          } else if (["text", "number", "email", "url", "tel"].includes(el.type)) {
+            el.readOnly = true;
+            el.style.backgroundColor = "#f8f9fa";
+            el.style.pointerEvents = "none";
+          } else if (el.type === "submit" || el.type === "button") {
+            el.style.display = "none";
+          }
+        });
+        // Gombok elrejtése
+        const saveBtn = document.getElementById("mtmi-save-btn");
+        const pdfUploadBtn = document.getElementById("pdf-upload-btn");
+        const pdfRemoveBtn = document.getElementById("pdf-remove-btn");
+        if (saveBtn) saveBtn.style.display = "none";
+        if (pdfUploadBtn) pdfUploadBtn.style.display = "none";
+        if (pdfRemoveBtn) pdfRemoveBtn.style.display = "none";
+        document.querySelectorAll('.next-step, .prev-step').forEach(btn => {
+          btn.style.display = "none";
+        });
+        console.log("Admin view applied on page load");
+      }, 1000);
+    }
+
+    // Betöltés session_id alapján
+    console.log('[FORM_INIT] calling loadForm');
+    loadForm();
+    const session_id = getSessionIdFromUrl() || localStorage.getItem("mtmi_session_id");
+    console.log('[FORM_INIT] session candidate', session_id);
+    if (session_id) {
+      const welcome = document.getElementById("welcome-screen");
+      const loginScreen = document.getElementById("login-screen");
+      const mainForm = document.getElementById("main-form-content");
+      // Csak akkor rejtsük el a welcome-t és mutassuk a formot,
+      // ha a login screen már el van rejtve (vagyis a user belépett vagy adminview)
+      if (loginScreen && loginScreen.style.display === 'none') {
         if (welcome) welcome.style.display = "none";
         if (mainForm) mainForm.style.display = "";
+        console.log('[FORM_INIT] login hidden + session found -> main form visible');
       }
-      // Automatikus mentés minden mező változásakor
-      form.addEventListener("input", () => {
-          if (!window.isLoadingForm) {
-              saveForm(true);
-          }
-      });
-      form.addEventListener("change", () => {
-          if (!window.isLoadingForm) {
-              saveForm(true);
-          }
-      });
-      // Manuális mentés gomb hozzáadása
-      let saveBtn = document.getElementById("mtmi-save-btn");
-      if (!saveBtn) {
-          saveBtn = document.createElement("button");
-          saveBtn.id = "mtmi-save-btn";
-          saveBtn.type = "button";
-          saveBtn.className = "btn btn-warning mb-3 me-2";
-          saveBtn.textContent = "Mentés";
-          // A progress bar fölé helyezzük a mentés gombot
-          const progressContainer = document.querySelector('.d-flex.align-items-center.mb-4');
-          if (progressContainer) {
-              progressContainer.parentNode.insertBefore(saveBtn, progressContainer);
-          } else {
-              form.parentNode.insertBefore(saveBtn, form);
-          }
+    }
+    // Automatikus mentés minden mező változásakor
+    form.addEventListener("input", () => {
+      if (!window.isLoadingForm) {
+        saveForm(true);
+        scheduleRequiredQuickfixRender();
       }
-      saveBtn.addEventListener("click", () => saveForm(false));
-      
-      // PDF feltöltés kezelése
-      setupPdfUpload();
-      
-      // Formátumellenőrzési eseménykezelők
-      setupFormatValidation();
+    });
+    form.addEventListener("change", () => {
+      if (!window.isLoadingForm) {
+        saveForm(true);
+        scheduleRequiredQuickfixRender();
+      }
+    });
+    // Manuális mentés gomb hozzáadása
+    let saveBtn = document.getElementById("mtmi-save-btn");
+    if (!saveBtn) {
+      saveBtn = document.createElement("button");
+      saveBtn.id = "mtmi-save-btn";
+      saveBtn.type = "button";
+      saveBtn.className = "btn btn-warning mb-3 me-2";
+      saveBtn.textContent = "Mentés";
+      // A progress bar fölé helyezzük a mentés gombot
+      const progressContainer = document.querySelector('.d-flex.align-items-center.mb-4');
+      if (progressContainer) {
+        progressContainer.parentNode.insertBefore(saveBtn, progressContainer);
+      } else {
+        form.parentNode.insertBefore(saveBtn, form);
+      }
+    }
+    saveBtn.addEventListener("click", () => saveForm(false));
+    scheduleRequiredQuickfixRender();
 
-      // Textarea automatikus méretezés beállítása
-      setupTextareaAutoResize();
+    // PDF feltöltés kezelése
+    setupPdfUpload();
 
-      // Textarea-k méretezése betöltés után (késleltetéssel)
-      setTimeout(() => {
-        document.querySelectorAll('textarea').forEach(textarea => {
-          autoResizeTextarea(textarea);
-        });
-      }, 500);
-  });
+    // Formátumellenőrzési eseménykezelők
+    setupFormatValidation();
+
+    // Textarea automatikus méretezés beállítása
+    setupTextareaAutoResize();
+
+    // Textarea-k méretezése betöltés után (késleltetéssel)
+    setTimeout(() => {
+      document.querySelectorAll('textarea').forEach(textarea => {
+        autoResizeTextarea(textarea);
+      });
+    }, 500);
+    console.log('[FORM_INIT] initFormRuntime done');
+  };
+  initFormRuntime();
 });
 
 // Véglegesítés gomb eseménykezelő
+function isFieldVisibleForValidation(el) {
+  if (!el) return false;
+  const step = el.closest(".form-step");
+  if (step && step.style.display === "none") return false;
+  return true;
+}
+
+function getFieldLabelText(el) {
+  if (!el) return el?.name || "Ismeretlen mező";
+  const wrapped = el.closest(".mb-2, .mb-3, .mb-4, .row");
+  const label = wrapped?.querySelector("label");
+  if (label && label.textContent?.trim()) return label.textContent.trim();
+  if (el.id) {
+    const forLabel = document.querySelector(`label[for="${el.id}"]`);
+    if (forLabel && forLabel.textContent?.trim()) return forLabel.textContent.trim();
+  }
+  return el.name || "Ismeretlen mező";
+}
+
+function getStepIndexFromField(el) {
+  const step = el?.closest(".form-step");
+  if (!step?.id) return 0;
+  if (step.id === "step-final") return 8;
+  const m = step.id.match(/^step-(\d+)$/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+function getMissingOriginalRequiredFields(form) {
+  const missing = [];
+  const requiredEls = Array.from(form.querySelectorAll("input, select, textarea"))
+    .filter(el => el.dataset.originalRequired === "true");
+
+  const seenRadio = new Set();
+  const seenCheckbox = new Set();
+
+  requiredEls.forEach(el => {
+    if (el.type === "radio") {
+      if (seenRadio.has(el.name)) return;
+      seenRadio.add(el.name);
+      const checked = form.querySelector(`input[type="radio"][name="${el.name}"]:checked`);
+      if (!checked && isFieldVisibleForValidation(el)) missing.push(el);
+      return;
+    }
+
+    if (el.type === "checkbox") {
+      if (seenCheckbox.has(el.name)) return;
+      seenCheckbox.add(el.name);
+      const checked = form.querySelector(`input[type="checkbox"][name="${el.name}"]:checked`);
+      if (!checked && isFieldVisibleForValidation(el)) missing.push(el);
+      return;
+    }
+
+    if (isFieldVisibleForValidation(el) && (!el.value || !String(el.value).trim())) {
+      missing.push(el);
+    }
+  });
+
+  return missing;
+}
+
+function renderRequiredQuickfixPanel() {
+  const panel = document.getElementById("required-quickfix-panel");
+  const listEl = document.getElementById("required-quickfix-list");
+  const countEl = document.getElementById("required-quickfix-count");
+  const form = document.getElementById(FORM_ID);
+  if (!panel || !listEl || !countEl || !form) return;
+  if (window.forceReadonlyView) {
+    panel.style.display = "none";
+    return;
+  }
+
+  const missing = getMissingOriginalRequiredFields(form);
+  countEl.textContent = String(missing.length);
+  if (missing.length === 0) {
+    panel.style.display = "none";
+    listEl.textContent = "";
+    return;
+  }
+
+  panel.style.display = "";
+  listEl.innerHTML = "";
+  missing.slice(0, 25).forEach((field) => {
+    const item = document.createElement("span");
+    item.className = "required-quickfix-item";
+    const jump = document.createElement("button");
+    jump.type = "button";
+    jump.className = "required-quickfix-jump";
+    jump.textContent = `${getStepIndexFromField(field)}. ${getFieldLabelText(field)}`;
+    jump.addEventListener("click", () => {
+      const stepIdx = getStepIndexFromField(field);
+      if (typeof showStep === "function" && Number.isInteger(stepIdx) && stepIdx >= 0 && stepIdx <= 8) {
+        showStep(stepIdx);
+      }
+      field.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (typeof field.focus === "function") field.focus();
+    });
+    item.appendChild(jump);
+    listEl.appendChild(item);
+  });
+}
+
+function scheduleRequiredQuickfixRender() {
+  if (requiredQuickfixRaf) cancelAnimationFrame(requiredQuickfixRaf);
+  requiredQuickfixRaf = requestAnimationFrame(() => {
+    renderRequiredQuickfixPanel();
+    requiredQuickfixRaf = null;
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const finalizeBtn = document.getElementById("finalize-btn");
   if (finalizeBtn) {
-    finalizeBtn.addEventListener("click", async function(e) {
+    finalizeBtn.addEventListener("click", async function (e) {
       console.log("[FINALIZE] Esemény indult");
       e.preventDefault();
-      
-      // Először minden mezőről eltávolítjuk a required attribútumot
-      document.querySelectorAll("input, select, textarea").forEach(el => {
-        el.required = false;
-      });
-      
-      // Késleltetés, hogy a DOM frissüljön
-      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const form = document.getElementById(FORM_ID);
+      if (form) {
+        const missingRequired = getMissingOriginalRequiredFields(form);
+        if (missingRequired.length > 0) {
+          const first = missingRequired[0];
+          const label = first.closest('.mb-2, .mb-3, .mb-4, .row')?.querySelector('label')?.textContent?.trim() || first.name || 'ismeretlen mező';
+          alert(`Hiányzó kötelező mező: ${label}`);
+          first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (typeof first.focus === 'function') first.focus();
+          console.warn("[FINALIZE] missing required fields:", missingRequired.map(f => f.name));
+          return;
+        }
+      }
 
       // --- VÉGLEGESÍTÉS: backend submit meghívása ---
       let session_id = localStorage.getItem("mtmi_session_id");
@@ -936,6 +1664,13 @@ document.addEventListener("DOMContentLoaded", () => {
           console.log("[FINALIZE] Backend válasz status:", resp.status);
           const respText = await resp.text();
           console.log("[FINALIZE] Backend válasz body:", respText);
+          if (resp.ok) {
+            updateSchoolDashboardCard({
+              form_id: session_id,
+              form_status: "submitted",
+              updated_at: new Date().toISOString()
+            });
+          }
         } catch (err) {
           console.error("[FINALIZE] Backend submit hiba:", err);
         }
@@ -947,10 +1682,11 @@ document.addEventListener("DOMContentLoaded", () => {
       // Elrejtem minden fő tartalmat
       document.getElementById("main-form-content").style.display = "none";
       document.getElementById("welcome-screen").style.display = "none";
-      if(document.getElementById("step-final")) document.getElementById("step-final").style.display = "block";
+      if (document.getElementById("step-final")) document.getElementById("step-final").style.display = "block";
       document.getElementById("thankyou-fullscreen").style.display = "flex";
+      updateThankyouEditButton();
       document.body.style.overflow = "auto";
-      window.scrollTo(0,0);
+      window.scrollTo(0, 0);
 
       // DOM állapot logolása
       console.log("[FINALIZE] main-form-content display:", document.getElementById("main-form-content").style.display);
@@ -961,21 +1697,21 @@ document.addEventListener("DOMContentLoaded", () => {
       // Főoldalra vissza gomb SPA élmény
       const backBtn = document.querySelector("#thankyou-fullscreen a.btn");
       if (backBtn) {
-        backBtn.addEventListener("click", function(ev) {
+        backBtn.addEventListener("click", function (ev) {
           ev.preventDefault();
           document.getElementById("thankyou-fullscreen").style.display = "none";
           document.getElementById("welcome-screen").style.display = "";
           document.body.style.overflow = "auto";
-          window.scrollTo(0,0);
+          window.scrollTo(0, 0);
         });
       }
     });
   }
-}); 
+});
 
 function updateRequiredAttributes() {
   document.querySelectorAll(".form-step").forEach(step => {
-    const visible = step.style.display !== "none" && step.style.display !== "";
+    const visible = step.style.display !== "none";
     step.querySelectorAll("input, select, textarea").forEach(el => {
       if (visible) {
         // Látható lépésekben visszaállítjuk az eredeti required attribútumokat
@@ -991,7 +1727,7 @@ function updateRequiredAttributes() {
 }
 
 // Eredeti required attribútumok mentése (azonnal, amikor a script betöltődik)
-(function() {
+(function () {
   // Minden mezőt ellenőrizzünk, függetlenül attól, hogy látható-e
   document.querySelectorAll("input, select, textarea").forEach(el => {
     // Ha van required attribútum az HTML-ben, akkor beállítjuk
@@ -1006,7 +1742,7 @@ function updateRequiredAttributes() {
 // DOMContentLoaded eseményben csak frissítjük a required attribútumokat
 document.addEventListener("DOMContentLoaded", () => {
   updateRequiredAttributes();
-}); 
+});
 
 // Régi submit gomb eseménykezelő eltávolítva, mert most a véglegesítés gombot használjuk 
 
@@ -1014,15 +1750,15 @@ document.addEventListener("DOMContentLoaded", () => {
 function setupBackToWelcome(selector) {
   const backBtn = document.querySelector(selector);
   if (backBtn) {
-    backBtn.addEventListener("click", function(ev) {
+    backBtn.addEventListener("click", function (ev) {
       ev.preventDefault();
-      if(document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none";
-      if(document.getElementById("thankyou-fullscreen")) document.getElementById("thankyou-fullscreen").style.display = "none";
+      if (document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none";
+      if (document.getElementById("thankyou-fullscreen")) document.getElementById("thankyou-fullscreen").style.display = "none";
       // Welcome screen mutatása
       document.getElementById("welcome-screen").style.display = "";
-      if(document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none"; // <-- ÚJ: mindig elrejtjük
+      if (document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none"; // <-- ÚJ: mindig elrejtjük
       document.body.style.overflow = "auto";
-      window.scrollTo(0,0);
+      window.scrollTo(0, 0);
     });
   }
 }
@@ -1031,34 +1767,35 @@ function setupBackToWelcome(selector) {
 document.addEventListener("DOMContentLoaded", () => {
   setupBackToWelcome("#thankyou-fullscreen a.btn");
   // Üdvözlőképernyőnél mindig elrejtjük a formot
-  if(document.getElementById("welcome-screen") && document.getElementById("main-form-content")) {
-    if(document.getElementById("welcome-screen").style.display !== "none") {
+  if (document.getElementById("welcome-screen") && document.getElementById("main-form-content")) {
+    if (document.getElementById("welcome-screen").style.display !== "none") {
       document.getElementById("main-form-content").style.display = "none";
     }
   }
   // Welcome screen induláskor: body scroll engedélyezése
-  if(document.getElementById("welcome-screen") && document.getElementById("welcome-screen").style.display !== "none") {
+  if (document.getElementById("welcome-screen") && document.getElementById("welcome-screen").style.display !== "none") {
     document.body.style.overflow = "auto";
   }
-}); 
+});
 
-document.addEventListener("click", function(ev) {
+document.addEventListener("click", function (ev) {
   if (ev.target.matches("#thankyou-fullscreen a.btn")) {
     ev.preventDefault();
-    if(document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none";
-    if(document.getElementById("thankyou-fullscreen")) document.getElementById("thankyou-fullscreen").style.display = "none";
+    if (document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none";
+    if (document.getElementById("thankyou-fullscreen")) document.getElementById("thankyou-fullscreen").style.display = "none";
     document.getElementById("welcome-screen").style.display = "";
-    if(document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none"; // <-- ÚJ: mindig elrejtjük
+    if (document.getElementById("main-form-content")) document.getElementById("main-form-content").style.display = "none"; // <-- ÚJ: mindig elrejtjük
     document.body.style.overflow = "auto";
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
   }
-}); 
+});
 
 // --- Eredmények letöltése gomb a köszönőképernyőn ---
 document.addEventListener("DOMContentLoaded", () => {
   const downloadBtn = document.getElementById("download-results-btn");
+  const editBtn = document.getElementById("edit-submission-btn");
   if (downloadBtn) {
-    downloadBtn.addEventListener("click", async function() {
+    downloadBtn.addEventListener("click", async function () {
       let session_id = localStorage.getItem("mtmi_session_id");
       const urlSession = getSessionIdFromUrl();
       if (urlSession) session_id = urlSession;
@@ -1087,7 +1824,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = el.name;
         if (!key) return;
         const value = data[key];
-        console.log('[Összefoglaló kitöltés]', {name: key, type: el.type, tag: el.tagName, backendValue: value});
+        console.log('[Összefoglaló kitöltés]', { name: key, type: el.type, tag: el.tagName, backendValue: value });
         if (typeof value === 'undefined') return;
         if (el.type === "checkbox") {
           if (Array.isArray(value)) {
@@ -1274,12 +2011,45 @@ window.addEventListener('DOMContentLoaded', function() {
       printWindow.document.close();
     });
   }
-}); 
+
+  if (editBtn) {
+    editBtn.addEventListener("click", async function () {
+      let session_id = localStorage.getItem(SESSION_KEY);
+      const urlSession = getSessionIdFromUrl();
+      if (urlSession) session_id = urlSession;
+      if (!session_id) {
+        alert("Nincs session azonosító.");
+        return;
+      }
+
+      await applyPublicSubmissionStatus();
+      const status = window.submissionStatusData;
+      if (!status || !status.is_available) {
+        alert(status?.message || "A szerkesztés jelenleg nem elérhető.");
+        return;
+      }
+
+      const resp = await fetch(`${API_BASE}/reopen/${session_id}`, { method: "POST" });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        alert(err.detail || "Nem sikerült megnyitni szerkesztésre a pályázatot.");
+        return;
+      }
+
+      window.forceReadonlyView = false;
+      setPrimaryScreen("form");
+      if (typeof window.loadForm === "function") {
+        await window.loadForm();
+      }
+      window.scrollTo(0, 0);
+    });
+  }
+});
 
 // Validációs popup megjelenítése
 function showValidationPopup(emptyFields) {
   console.log('showValidationPopup hívva, emptyFields:', emptyFields.length);
-  
+
   // Mezőnév leképezés
   const fieldNameMapping = {
     'iskolatipus': 'Iskolatípus',
@@ -1300,7 +2070,7 @@ function showValidationPopup(emptyFields) {
     'mtmi_csapat_tag1_tevekenyseg': 'Tevékenységek (1. csapattag)',
     'mtmi_csapat_tag1_szak': 'Tanított szak/szakpár (1. csapattag)'
   };
-  
+
   // Mezők sorrendje a formon (0. blokk)
   const fieldOrder = [
     'iskolatipus',
@@ -1319,53 +2089,53 @@ function showValidationPopup(emptyFields) {
     'iskola_honlap_link',
     'iskola_mukodo_alapitvany'
   ];
-  
+
   // Mezők összegyűjtése és címkékkel ellátása
   const fieldInfo = [];
-  
+
   emptyFields.forEach(field => {
     let label = '';
-    
+
     // Label keresése különböző helyeken
-    const labelElement = field.closest('.mb-3')?.querySelector('label') || 
-                        field.closest('.row')?.querySelector('label') ||
-                        field.closest('.form-check')?.querySelector('label') ||
-                        field.previousElementSibling?.tagName === 'LABEL' ? field.previousElementSibling : null;
-    
+    const labelElement = field.closest('.mb-3')?.querySelector('label') ||
+      field.closest('.row')?.querySelector('label') ||
+      field.closest('.form-check')?.querySelector('label') ||
+      field.previousElementSibling?.tagName === 'LABEL' ? field.previousElementSibling : null;
+
     if (labelElement) {
       label = labelElement.textContent.trim();
     } else {
       // Ha nincs label, akkor a mezőnév leképezést használjuk
       label = fieldNameMapping[field.name] || field.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
-    
+
     fieldInfo.push({
       name: field.name,
       label: label,
       order: fieldOrder.indexOf(field.name)
     });
   });
-  
+
   // Duplikációk elkerülése és sorrend szerint rendezés
   const uniqueFields = [];
   const seenLabels = new Set();
-  
+
   fieldInfo.forEach(field => {
     if (!seenLabels.has(field.label)) {
       seenLabels.add(field.label);
       uniqueFields.push(field);
     }
   });
-  
+
   // Sorrend szerint rendezés (a fieldOrder alapján)
   uniqueFields.sort((a, b) => {
     const orderA = a.order === -1 ? 999 : a.order; // Ha nincs a listában, a végére kerül
     const orderB = b.order === -1 ? 999 : b.order;
     return orderA - orderB;
   });
-  
+
   const fieldLabels = uniqueFields.map(field => field.label);
-  
+
   // Popup HTML létrehozása
   const popupHTML = `
     <div id="validation-popup" class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);">
@@ -1393,14 +2163,14 @@ function showValidationPopup(emptyFields) {
       </div>
     </div>
   `;
-  
+
   // Popup hozzáadása a body-hoz
   document.body.insertAdjacentHTML('beforeend', popupHTML);
-  
+
   // Popup megjelenítése
   const popup = document.getElementById('validation-popup');
   console.log('Popup létrehozva:', popup);
-  
+
   if (popup) {
     popup.style.display = 'block';
     console.log('Popup megjelenítve');
@@ -1436,16 +2206,16 @@ function skipToNextStep() {
 // Kötelező mezők kitöltése gomb kezelése
 function fillRequiredFields() {
   closeValidationPopup();
-  
+
   // Az első üres kötelező mezőre fókuszálás
   const currentStepElement = steps[currentStep];
   const requiredFields = currentStepElement.querySelectorAll('[required]');
   let firstEmptyField = null;
-  
+
   // Keressük meg az első üres kötelező mezőt
   for (let field of requiredFields) {
     let isEmpty = false;
-    
+
     if (field.type === 'checkbox') {
       // Checkbox esetén ellenőrizzük, hogy van-e kiválasztott opció
       const checkboxGroup = field.name;
@@ -1458,17 +2228,17 @@ function fillRequiredFields() {
       // Input mezők esetén ellenőrizzük, hogy van-e érték
       isEmpty = !field.value.trim();
     }
-    
+
     if (isEmpty) {
       firstEmptyField = field;
       break;
     }
   }
-  
+
   if (firstEmptyField) {
     // Scroll a mezőhöz
     firstEmptyField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    
+
     // Kis késleltetés után fókuszálás
     setTimeout(() => {
       if (firstEmptyField.type === 'checkbox') {
@@ -1495,42 +2265,42 @@ function setupPdfUpload() {
   const pdfRemoveBtn = document.getElementById('pdf-remove-btn');
   const pdfUploadProgress = document.getElementById('pdf-upload-progress');
   const pdfUploadStatus = document.getElementById('pdf-upload-status');
-  
+
   if (!pdfUpload || !pdfUploadBtn) return;
-  
+
   // PDF kiválasztás gomb
   pdfUploadBtn.addEventListener('click', () => {
     pdfUpload.click();
   });
-  
+
   // PDF fájl kiválasztása
   pdfUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     // Ellenőrizzük a fájl típusát
     if (!file.type.includes('pdf')) {
       showPdfStatus('Csak PDF fájlok tölthetők fel!', 'danger');
       return;
     }
-    
+
     // Ellenőrizzük a fájl méretét (10MB)
     if (file.size > 10 * 1024 * 1024) {
       showPdfStatus('A fájl mérete nem lehet nagyobb 10MB-nál!', 'danger');
       return;
     }
-    
+
     // Fájl adatok megjelenítése
     pdfFilename.textContent = file.name;
     pdfPreviewName.textContent = file.name;
     pdfPreviewSize.textContent = `(${formatFileSize(file.size)})`;
     pdfPreview.style.display = 'block';
     pdfUploadStatus.style.display = 'none';
-    
+
     // Automatikus feltöltés
     uploadPdfFile(file);
   });
-  
+
   // PDF törlés
   pdfRemoveBtn.addEventListener('click', () => {
     pdfUpload.value = '';
@@ -1545,26 +2315,26 @@ function setupPdfUpload() {
 async function uploadPdfFile(file) {
   const pdfUploadProgress = document.getElementById('pdf-upload-progress');
   const progressBar = pdfUploadProgress.querySelector('.progress-bar');
-  
+
   pdfUploadProgress.style.display = 'block';
   progressBar.style.width = '0%';
   progressBar.textContent = '0%';
-  
+
   const formData = new FormData();
   formData.append('file', file);
-  
+
   let session_id = localStorage.getItem(SESSION_KEY);
   const urlSession = getSessionIdFromUrl();
   if (urlSession) session_id = urlSession;
-  
+
   if (!session_id) {
     showPdfStatus('Nincs session_id, nem tudom feltölteni a fájlt!', 'danger');
     return;
   }
-  
+
   try {
     const xhr = new XMLHttpRequest();
-    
+
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
         const percentComplete = Math.round((e.loaded / e.total) * 100);
@@ -1572,10 +2342,10 @@ async function uploadPdfFile(file) {
         progressBar.textContent = percentComplete + '%';
       }
     });
-    
+
     xhr.addEventListener('load', () => {
       pdfUploadProgress.style.display = 'none';
-      
+
       if (xhr.status === 200) {
         const response = JSON.parse(xhr.responseText);
         showPdfStatus('PDF sikeresen feltöltve!', 'success');
@@ -1584,15 +2354,15 @@ async function uploadPdfFile(file) {
         showPdfStatus(error.detail || 'Hiba a feltöltés során!', 'danger');
       }
     });
-    
+
     xhr.addEventListener('error', () => {
       pdfUploadProgress.style.display = 'none';
       showPdfStatus('Hálózati hiba a feltöltés során!', 'danger');
     });
-    
+
     xhr.open('POST', `${API_BASE}/upload-pdf/${session_id}`);
     xhr.send(formData);
-    
+
   } catch (error) {
     pdfUploadProgress.style.display = 'none';
     showPdfStatus('Hiba a feltöltés során!', 'danger');
@@ -1604,14 +2374,14 @@ async function deletePdfFile() {
   let session_id = localStorage.getItem(SESSION_KEY);
   const urlSession = getSessionIdFromUrl();
   if (urlSession) session_id = urlSession;
-  
+
   if (!session_id) return;
-  
+
   try {
     const response = await fetch(`${API_BASE}/delete-pdf/${session_id}`, {
       method: 'DELETE'
     });
-    
+
     if (response.ok) {
       showPdfStatus('PDF sikeresen törölve!', 'success');
     } else {
@@ -1626,11 +2396,11 @@ async function deletePdfFile() {
 function showPdfStatus(message, type) {
   const pdfUploadStatus = document.getElementById('pdf-upload-status');
   if (!pdfUploadStatus) return;
-  
+
   pdfUploadStatus.className = `alert alert-${type}`;
   pdfUploadStatus.textContent = message;
   pdfUploadStatus.style.display = 'block';
-  
+
   // Automatikus elrejtés 5 másodperc után
   setTimeout(() => {
     pdfUploadStatus.style.display = 'none';
@@ -1649,11 +2419,11 @@ function formatFileSize(bytes) {
 // PDF betöltése meglévő adatokból
 function loadPdfFromData(pdfFilePath) {
   if (!pdfFilePath) return;
-  
+
   const pdfFilename = document.getElementById('pdf-filename');
   const pdfPreview = document.getElementById('pdf-preview');
   const pdfPreviewName = document.getElementById('pdf-preview-name');
-  
+
   if (pdfFilename && pdfPreview && pdfPreviewName) {
     const filename = pdfFilePath.split('/').pop();
     pdfFilename.textContent = filename;
@@ -1666,12 +2436,12 @@ function loadPdfFromData(pdfFilePath) {
 function setupFormatValidation() {
   // Email mezők ellenőrzése
   document.querySelectorAll('input[type="email"]').forEach(emailInput => {
-    emailInput.addEventListener('blur', function() {
+    emailInput.addEventListener('blur', function () {
       const email = this.value.trim();
       if (email && !validateEmail(email)) {
         this.classList.add('is-invalid');
         this.setCustomValidity('Kérjük, adjon meg egy érvényes email címet!');
-        
+
         // Hibaüzenet megjelenítése
         let errorDiv = this.parentNode.querySelector('.invalid-feedback');
         if (!errorDiv) {
@@ -1683,7 +2453,7 @@ function setupFormatValidation() {
       } else {
         this.classList.remove('is-invalid');
         this.setCustomValidity('');
-        
+
         // Hibaüzenet eltávolítása
         const errorDiv = this.parentNode.querySelector('.invalid-feedback');
         if (errorDiv) {
@@ -1691,8 +2461,8 @@ function setupFormatValidation() {
         }
       }
     });
-    
-    emailInput.addEventListener('input', function() {
+
+    emailInput.addEventListener('input', function () {
       if (this.classList.contains('is-invalid')) {
         this.classList.remove('is-invalid');
         this.setCustomValidity('');
@@ -1703,15 +2473,15 @@ function setupFormatValidation() {
       }
     });
   });
-  
+
   // Telefonszám mezők ellenőrzése és formázása
   document.querySelectorAll('input[type="tel"]').forEach(phoneInput => {
-    phoneInput.addEventListener('blur', function() {
+    phoneInput.addEventListener('blur', function () {
       const phone = this.value.trim();
       if (phone && !validatePhoneNumber(phone)) {
         this.classList.add('is-invalid');
         this.setCustomValidity('Kérjük, adjon meg egy érvényes telefonszámot!');
-        
+
         // Hibaüzenet megjelenítése
         let errorDiv = this.parentNode.querySelector('.invalid-feedback');
         if (!errorDiv) {
@@ -1723,7 +2493,7 @@ function setupFormatValidation() {
       } else {
         this.classList.remove('is-invalid');
         this.setCustomValidity('');
-        
+
         // Telefonszám formázása
         if (phone && validatePhoneNumber(phone)) {
           const formattedPhone = formatPhoneNumber(phone);
@@ -1731,7 +2501,7 @@ function setupFormatValidation() {
             this.value = formattedPhone;
           }
         }
-        
+
         // Hibaüzenet eltávolítása
         const errorDiv = this.parentNode.querySelector('.invalid-feedback');
         if (errorDiv) {
@@ -1739,8 +2509,8 @@ function setupFormatValidation() {
         }
       }
     });
-    
-    phoneInput.addEventListener('input', function() {
+
+    phoneInput.addEventListener('input', function () {
       if (this.classList.contains('is-invalid')) {
         this.classList.remove('is-invalid');
         this.setCustomValidity('');
@@ -1767,7 +2537,7 @@ function setupTextareaAutoResize() {
   // Minden textarea-ra alkalmazunk automatikus méretezést
   document.querySelectorAll('textarea').forEach(textarea => {
     // Input eseményre automatikus méretezés
-    textarea.addEventListener('input', function() {
+    textarea.addEventListener('input', function () {
       autoResizeTextarea(this);
     });
 
@@ -1779,13 +2549,13 @@ function setupTextareaAutoResize() {
   });
 
   // Dinamikusan hozzáadott textarea-k figyelése
-  const observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-      mutation.addedNodes.forEach(function(node) {
+  const observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      mutation.addedNodes.forEach(function (node) {
         if (node.nodeType === 1) { // Element node
           const textareas = node.querySelectorAll ? node.querySelectorAll('textarea') : [];
           textareas.forEach(textarea => {
-            textarea.addEventListener('input', function() {
+            textarea.addEventListener('input', function () {
               autoResizeTextarea(this);
             });
             // ResizeObserver hozzáadása
