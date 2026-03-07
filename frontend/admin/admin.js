@@ -89,10 +89,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
 let deleteSessionId = null;
 
+function normalizeAdminListResponse(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.items)) return payload.items;
+  if (payload && Array.isArray(payload.data)) return payload.data;
+  if (payload && Array.isArray(payload.results)) return payload.results;
+  return null;
+}
+
 // --- Kitöltések listázása ---
 async function loadAdminList() {
   const resp = await fetch(`${API_BASE}/admin/list`);
-  const list = await resp.json();
+  const listRaw = await resp.json();
+  const list = normalizeAdminListResponse(listRaw);
+  if (!list) {
+    alert("Nem sikerült betölteni a kitöltéseket.");
+    return;
+  }
   const tbody = document.getElementById("admin-list-tbody");
   tbody.innerHTML = "";
   for (const row of list) {
@@ -562,7 +575,12 @@ async function exportToExcel() {
   try {
     // Lekérjük az összes kitöltést
     const resp = await fetch(`${API_BASE}/admin/list`);
-    const submissions = await resp.json();
+    const submissionsRaw = await resp.json();
+    const submissions = normalizeAdminListResponse(submissionsRaw);
+    if (!submissions) {
+      alert("Nem sikerült betölteni a kitöltéseket.");
+      return;
+    }
     
     if (submissions.length === 0) {
       alert('Nincsenek kitöltések az exportáláshoz!');

@@ -10,6 +10,7 @@ import os
 import psycopg2
 from psycopg2.extras import Json
 import shutil
+import json
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -264,7 +265,16 @@ def admin_list():
         result = []
         for row in rows:
             id, data_json, created_at, submitted, pdf_file_path = row
-            data = data_json
+            data = {}
+            if isinstance(data_json, dict):
+                data = data_json
+            elif isinstance(data_json, str):
+                try:
+                    parsed = json.loads(data_json)
+                    if isinstance(parsed, dict):
+                        data = parsed
+                except Exception:
+                    data = {}
             iskola_nev = data.get("palyazo_iskola_neve", "(nincs megadva)")
             result.append({
                 "id": id,
