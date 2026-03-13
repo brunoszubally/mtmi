@@ -10,13 +10,18 @@ const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";
 const SCHOOL_ID_KEY = "mtmi_school_id";
 const SCHOOL_NAME_KEY = "mtmi_school_name";
+const LINKED_FORM_ID_KEY = "mtmi_linked_form_id";
 const MAX_LINK_FIELDS_PER_GROUP = 10;
+const AUTO_SAVE_DEBOUNCE_MS = 1000;
 window.currentLoadedFormSchoolId = null;
 window.mtmiPublicGateLocked = false;
 window.submissionStatusData = null;
 window.forceReadonlyView = false;
 window.mtmiDashboardData = null;
 let requiredQuickfixRaf = null;
+let autoSaveTimer = null;
+let saveInFlight = false;
+let pendingAutoSave = false;
 
 // --- Iskolai login kezelés ---
 function getSchoolSession() {
@@ -34,6 +39,7 @@ function clearSchoolSession() {
   localStorage.removeItem(SCHOOL_ID_KEY);
   localStorage.removeItem(SCHOOL_NAME_KEY);
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(LINKED_FORM_ID_KEY);
   window.mtmiDashboardData = null;
   const card = document.getElementById("school-dashboard-card");
   if (card) card.style.display = "none";
@@ -423,6 +429,9 @@ async function handleSchoolLogin(email, password) {
     const res = await resp.json();
     console.log('[LOGIN] login success payload', res);
     setSchoolSession(res.school_id, res.school_name);
+    if (res.form_id) {
+      localStorage.setItem(LINKED_FORM_ID_KEY, res.form_id);
+    }
     syncSchoolNameField('after-login-success');
     updateSchoolDashboardCard({
       form_id: res.form_id || null,
@@ -1173,8 +1182,20 @@ document.addEventListener('DOMContentLoaded', async function () {
   // Mentés a backendre
   async function saveForm(auto = false) {
     if (window.forceReadonlyView) return;
+    if (saveInFlight) {
+      if (auto) {
+        pendingAutoSave = true;
+        return;
+      }
+      showToast("Mentés folyamatban, kérlek várj...", "info");
+      return;
+    }
+    saveInFlight = true;
     const form = document.getElementById(FORM_ID);
-    if (!form) return;
+    if (!form) {
+      saveInFlight = false;
+      return;
+    }
     const data = getFormData(form);
     let session_id = localStorage.getItem(SESSION_KEY);
     // Ha az URL-ben van session_id, azt is elfogadjuk
@@ -1204,13 +1225,15 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // Ha be van lépve iskolaként, hozzárendeljük az űrlapot az iskolához
         const schoolSession = getSchoolSession();
-        if (schoolSession) {
+        const alreadyLinkedFormId = localStorage.getItem(LINKED_FORM_ID_KEY);
+        if (schoolSession && alreadyLinkedFormId !== res.session_id) {
           try {
             await fetch(`${API_BASE}/school/link-form`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ school_id: schoolSession.school_id, form_id: res.session_id })
             });
+            localStorage.setItem(LINKED_FORM_ID_KEY, res.session_id);
           } catch (linkErr) {
             console.error('Form-school link error:', linkErr);
           }
@@ -1225,7 +1248,21 @@ document.addEventListener('DOMContentLoaded', async function () {
       }
     } catch (e) {
       if (!auto) showToast("Hálózati hiba a mentés során!", "danger");
+    } finally {
+      saveInFlight = false;
+      if (pendingAutoSave) {
+        pendingAutoSave = false;
+        saveForm(true);
+      }
     }
+  }
+
+  function scheduleAutoSave() {
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      autoSaveTimer = null;
+      if (!window.isLoadingForm) saveForm(true);
+    }, AUTO_SAVE_DEBOUNCE_MS);
   }
 
   function applyReadOnlyMode(form) {
@@ -1275,6 +1312,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.log('loadForm: Adatok betöltve:', res.data);
         console.log('loadForm: PDF fájl:', res.pdf_file_path);
         window.currentLoadedFormSchoolId = res.school_id || null;
+        if (res.session_id) {
+          localStorage.setItem(LINKED_FORM_ID_KEY, res.session_id);
+        }
         console.log('loadForm: Form school_id:', window.currentLoadedFormSchoolId);
         updateSchoolDashboardCard({
           form_id: res.session_id || session_id,
@@ -1473,13 +1513,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Automatikus mentés minden mező változásakor
     form.addEventListener("input", () => {
       if (!window.isLoadingForm) {
-        saveForm(true);
+        scheduleAutoSave();
         scheduleRequiredQuickfixRender();
       }
     });
     form.addEventListener("change", () => {
       if (!window.isLoadingForm) {
-        saveForm(true);
+        scheduleAutoSave();
         scheduleRequiredQuickfixRender();
       }
     });
@@ -1499,7 +1539,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         form.parentNode.insertBefore(saveBtn, form);
       }
     }
-    saveBtn.addEventListener("click", () => saveForm(false));
+    saveBtn.addEventListener("click", () => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+      }
+      saveForm(false);
+    });
     scheduleRequiredQuickfixRender();
 
     // PDF feltöltés kezelése

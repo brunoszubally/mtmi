@@ -13,6 +13,7 @@ load_dotenv()
 
 import psycopg2
 from psycopg2.extras import Json
+from psycopg2.pool import SimpleConnectionPool
 import shutil
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
@@ -25,10 +26,14 @@ import bcrypt
 from xml.sax.saxutils import escape
 import tempfile
 import subprocess
+from contextlib import contextmanager
 
 # --- Adatbázis inicializálás ---
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
+DB_POOL_MIN_CONN = int(os.environ.get("DB_POOL_MIN_CONN", "1"))
+DB_POOL_MAX_CONN = int(os.environ.get("DB_POOL_MAX_CONN", "8"))
+DB_POOL: Optional[SimpleConnectionPool] = None
 
 # --- FTP konfiguráció ---
 FTP_HOST = "move-on.hu"
@@ -68,8 +73,44 @@ def delete_from_ftp(filename: str) -> bool:
         print(f"FTP törlés hiba: {e}")
         return False
 
+
+def init_db_pool():
+    global DB_POOL
+    try:
+        DB_POOL = SimpleConnectionPool(
+            minconn=max(1, DB_POOL_MIN_CONN),
+            maxconn=max(DB_POOL_MIN_CONN, DB_POOL_MAX_CONN),
+            dsn=DATABASE_URL
+        )
+        print(f"DB pool initialized (min={DB_POOL_MIN_CONN}, max={DB_POOL_MAX_CONN})")
+    except Exception as e:
+        DB_POOL = None
+        print(f"DB pool init failed, falling back to direct connections: {e}")
+
+
+@contextmanager
+def db_connection():
+    conn = None
+    try:
+        if DB_POOL is not None:
+            conn = DB_POOL.getconn()
+        else:
+            conn = psycopg2.connect(DATABASE_URL)
+        yield conn
+        conn.commit()
+    except Exception:
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            if DB_POOL is not None:
+                DB_POOL.putconn(conn)
+            else:
+                conn.close()
+
 def init_db():
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             # Create forms table if not exists
             c.execute('''
@@ -116,6 +157,7 @@ def init_db():
             conn.commit()
 
 init_db()
+init_db_pool()
 
 # --- FastAPI app ---
 app = FastAPI()
@@ -165,7 +207,7 @@ def _to_utc_iso(dt):
 
 
 def get_submission_settings():
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("""
                 SELECT submission_mode, submission_start_at, submission_end_at
@@ -457,7 +499,7 @@ def save_form(req: SaveRequest, request: Request):
     ensure_submission_available()
     now = datetime.utcnow()
     session_id = req.session_id or str(uuid4())
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT id FROM forms WHERE id = %s", (session_id,))
             if c.fetchone():
@@ -476,7 +518,7 @@ def save_form(req: SaveRequest, request: Request):
 
 @app.get("/api/load/{session_id}", response_model=LoadResponse)
 def load_form(session_id: str):
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT data, submitted, pdf_file_path, school_id, created_at, updated_at FROM forms WHERE id = %s", (session_id,))
             row = c.fetchone()
@@ -537,7 +579,7 @@ async def upload_pdf(session_id: str, file: UploadFile = File(...)):
             os.remove(local_file_path)
             
             # Adatbázis frissítése
-            with psycopg2.connect(DATABASE_URL) as conn:
+            with db_connection() as conn:
                 with conn.cursor() as c:
                     c.execute("UPDATE forms SET pdf_file_path = %s, updated_at = %s WHERE id = %s", 
                              (filename, datetime.utcnow(), session_id))
@@ -559,7 +601,7 @@ async def upload_pdf(session_id: str, file: UploadFile = File(...)):
 # PDF törlés végpont
 @app.delete("/api/delete-pdf/{session_id}")
 def delete_pdf(session_id: str):
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             # Lekérjük a jelenlegi PDF fájl nevét
             c.execute("SELECT pdf_file_path FROM forms WHERE id = %s", (session_id,))
@@ -582,7 +624,7 @@ def delete_pdf(session_id: str):
 @app.post("/api/submit/{session_id}")
 def submit_form(session_id: str):
     ensure_submission_available()
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("UPDATE forms SET submitted = 1, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
             conn.commit()
@@ -592,7 +634,7 @@ def submit_form(session_id: str):
 @app.post("/api/reopen/{session_id}")
 def reopen_form(session_id: str):
     ensure_submission_available()
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("UPDATE forms SET submitted = 0, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
             conn.commit()
@@ -610,7 +652,7 @@ def admin_login(data: dict):
 @app.get("/api/admin/list")
 def admin_list():
     try:
-        with psycopg2.connect(DATABASE_URL) as conn:
+        with db_connection() as conn:
             with conn.cursor() as c:
                 c.execute("SELECT id, data, created_at, submitted, pdf_file_path FROM forms ORDER BY created_at DESC")
                 rows = c.fetchall()
@@ -633,7 +675,7 @@ def admin_list():
 
 @app.get("/api/admin/result/{session_id}")
 def admin_result(session_id: str):
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT data, pdf_file_path FROM forms WHERE id = %s", (session_id,))
             row = c.fetchone()
@@ -645,7 +687,7 @@ def admin_result(session_id: str):
 
 @app.delete("/api/admin/delete/{session_id}")
 def admin_delete(session_id: str):
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             # PDF fájl törlése is
             c.execute("SELECT pdf_file_path FROM forms WHERE id = %s", (session_id,))
@@ -674,7 +716,7 @@ def admin_bulk_forms(payload: dict):
     if not session_ids:
         raise HTTPException(status_code=400, detail="Nincs érvényes session_id.")
 
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             if action == "mark_submitted":
                 c.execute(
@@ -708,7 +750,7 @@ def school_login(data: dict):
     if not email or not password:
         raise HTTPException(status_code=400, detail="Email és jelszó megadása kötelező!")
     
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT id, name, password_hash, form_id FROM schools WHERE LOWER(email) = %s", (email,))
             row = c.fetchone()
@@ -730,7 +772,7 @@ def school_login(data: dict):
     form_created_at = None
     form_submitted = None
     if form_id:
-        with psycopg2.connect(DATABASE_URL) as conn:
+        with db_connection() as conn:
             with conn.cursor() as c:
                 c.execute("SELECT submitted, created_at, updated_at FROM forms WHERE id = %s", (form_id,))
                 form_row = c.fetchone()
@@ -753,7 +795,7 @@ def school_login(data: dict):
 
 @app.get("/api/school/dashboard/{school_id}")
 def school_dashboard(school_id: str):
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT id, name, email, form_id FROM schools WHERE id = %s", (school_id,))
             school_row = c.fetchone()
@@ -799,7 +841,7 @@ def public_submission_status():
 # --- Admin: Iskolák kezelése ---
 @app.get("/api/admin/schools")
 def admin_list_schools():
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("""
                 SELECT s.id, s.name, s.email, s.password_hash IS NOT NULL as has_password, 
@@ -864,7 +906,7 @@ def admin_update_submission_window(payload: dict):
     if start_at and end_at and start_at >= end_at:
         raise HTTPException(status_code=400, detail="A kezdő időpontnak korábbinak kell lennie, mint a záró időpontnak.")
 
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("""
                 UPDATE app_settings
@@ -891,7 +933,7 @@ def admin_create_school(data: dict):
     now = datetime.utcnow()
     password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8') if password else None
     
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             # Check for duplicate email
             if email:
@@ -915,7 +957,7 @@ def admin_update_school(school_id: str, data: dict):
     
     now = datetime.utcnow()
     
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             # Check school exists
             c.execute("SELECT id FROM schools WHERE id = %s", (school_id,))
@@ -947,7 +989,7 @@ def admin_update_school(school_id: str, data: dict):
 
 @app.delete("/api/admin/schools/{school_id}")
 def admin_delete_school(school_id: str):
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             # Unlink form if any
             c.execute("UPDATE forms SET school_id = NULL WHERE school_id = %s", (school_id,))
@@ -963,7 +1005,7 @@ def school_link_form(data: dict):
     if not school_id or not form_id:
         raise HTTPException(status_code=400, detail="school_id és form_id megadása kötelező!")
     
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("UPDATE schools SET form_id = %s, updated_at = %s WHERE id = %s", (form_id, datetime.utcnow(), school_id))
             c.execute("UPDATE forms SET school_id = %s WHERE id = %s", (school_id, form_id))
@@ -985,7 +1027,7 @@ def generate_pdf(request: dict):
 
 @app.get("/api/export/pdf/{session_id}")
 def export_submission_pdf(session_id: str, request: Request):
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("""
                 SELECT f.data, f.created_at, f.updated_at, s.name
