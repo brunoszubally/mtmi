@@ -41,6 +41,76 @@ function renderSubmissionStatusText(status) {
   return `Állapot: ${label} | Mód: ${status.mode}${countdown} | Üzenet: ${status.message}`;
 }
 
+function showAdminToast(message, type = "success") {
+  let stack = document.getElementById("admin-toast-stack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "admin-toast-stack";
+    stack.className = "admin-toast-stack";
+    document.body.appendChild(stack);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `admin-toast admin-toast-${type}`;
+  toast.innerHTML = `
+    <div class="admin-toast-icon">${type === "success" ? "✓" : "!"}</div>
+    <div class="admin-toast-text">${message}</div>
+  `;
+  stack.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 260);
+  }, 3000);
+}
+
+function setSubmissionSaveButtonState(state = "idle") {
+  const btn = document.getElementById("submission-save-btn");
+  if (!btn) return;
+
+  if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
+  btn.classList.remove("is-saving", "is-saved");
+  btn.disabled = false;
+  btn.textContent = btn.dataset.originalText;
+
+  if (state === "saving") {
+    btn.disabled = true;
+    btn.classList.add("is-saving");
+    btn.textContent = "Mentés...";
+  } else if (state === "saved") {
+    btn.classList.add("is-saved");
+    btn.textContent = "Mentve";
+    setTimeout(() => {
+      btn.classList.remove("is-saved");
+      btn.textContent = btn.dataset.originalText || "Mentés";
+    }, 900);
+  }
+}
+
+function setSchoolSaveButtonState(state = "idle") {
+  const btn = document.getElementById("school-edit-save-btn");
+  if (!btn) return;
+  if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
+
+  btn.classList.remove("is-saving", "is-saved");
+  btn.disabled = false;
+  btn.textContent = btn.dataset.originalText;
+
+  if (state === "saving") {
+    btn.disabled = true;
+    btn.classList.add("is-saving");
+    btn.textContent = "Mentés...";
+  } else if (state === "saved") {
+    btn.classList.add("is-saved");
+    btn.textContent = "Mentve";
+    setTimeout(() => {
+      btn.classList.remove("is-saved");
+      btn.textContent = btn.dataset.originalText || "Mentés";
+    }, 900);
+  }
+}
+
 async function loadSubmissionWindowSettings() {
   try {
     const resp = await fetch(`${API_BASE}/admin/submission-window`);
@@ -76,6 +146,7 @@ async function saveSubmissionWindowSettings() {
     start_at: startEl.value || null,
     end_at: endEl.value || null
   };
+  setSubmissionSaveButtonState("saving");
 
   try {
     const resp = await fetch(`${API_BASE}/admin/submission-window`, {
@@ -87,14 +158,20 @@ async function saveSubmissionWindowSettings() {
     if (!resp.ok) {
       errorEl.textContent = json.detail || "Mentési hiba.";
       errorEl.style.display = "block";
+      showAdminToast(errorEl.textContent, "error");
+      setSubmissionSaveButtonState("idle");
       return;
     }
 
     statusEl.textContent = renderSubmissionStatusText(json);
     await loadSubmissionWindowSettings();
+    setSubmissionSaveButtonState("saved");
+    showAdminToast("Beadási időzítés sikeresen mentve.", "success");
   } catch (e) {
     errorEl.textContent = "Hálózati hiba.";
     errorEl.style.display = "block";
+    showAdminToast("Hálózati hiba mentés közben.", "error");
+    setSubmissionSaveButtonState("idle");
   }
 }
 
@@ -172,6 +249,8 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 let deleteSessionId = null;
+let deleteSchoolId = null;
+let deleteSchoolName = "";
 let adminFormRows = [];
 const selectedFormIds = new Set();
 const ADMIN_LINK_KEY_RE = /^(.*_link)(\d+)$/;
@@ -1175,6 +1254,20 @@ document.addEventListener("DOMContentLoaded", function () {
   const bulkDeleteBtn = document.getElementById("bulk-delete-selected-btn");
   if (bulkDeleteBtn) bulkDeleteBtn.addEventListener("click", () => runBulkAction("delete"));
 
+  const confirmSchoolDeleteBtn = document.getElementById("confirmSchoolDeleteBtn");
+  if (confirmSchoolDeleteBtn) {
+    confirmSchoolDeleteBtn.addEventListener("click", async () => {
+      if (!deleteSchoolId) return;
+      const schoolId = deleteSchoolId;
+      deleteSchoolId = null;
+      deleteSchoolName = "";
+      const modalEl = document.getElementById("schoolDeleteConfirmModal");
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+      await deleteSchool(schoolId);
+    });
+  }
+
   updateBulkToolbarState();
   loadSubmissionWindowSettings();
 });
@@ -1226,7 +1319,7 @@ function renderSchoolsTable(schools) {
             <button class="btn btn-sm btn-outline-primary me-1" onclick="openSchoolModal('${s.id}', '${s.name.replace(/'/g, "\\'")}', '${(s.email || '').replace(/'/g, "\\'")}')">
               <i class="bi bi-pencil"></i> Szerkesztés
             </button>
-            <button class="btn btn-sm btn-outline-danger" onclick="deleteSchool('${s.id}', '${s.name.replace(/'/g, "\\'")}')">
+            <button class="btn btn-sm btn-outline-danger" onclick="openDeleteSchoolModal('${s.id}', '${s.name.replace(/'/g, "\\'")}')">
               <i class="bi bi-trash"></i>
             </button>
           </td>
@@ -1257,6 +1350,7 @@ function openSchoolModal(id, name, email) {
   document.getElementById('school-edit-name').value = name || '';
   document.getElementById('school-edit-email').value = email || '';
   document.getElementById('school-edit-password').value = '';
+  setSchoolSaveButtonState("idle");
 
   titleEl.textContent = id ? 'Iskola szerkesztése' : 'Új iskola hozzáadása';
   modal.show();
@@ -1274,14 +1368,17 @@ async function saveSchool() {
   if (!name) {
     errorEl.textContent = 'Az iskola neve kötelező!';
     errorEl.style.display = 'block';
+    showAdminToast(errorEl.textContent, "error");
     return;
   }
 
   const body = { name, email: email || null, password };
+  const isEdit = Boolean(id);
+  setSchoolSaveButtonState("saving");
 
   try {
     let resp;
-    if (id) {
+    if (isEdit) {
       // Szerkesztés
       resp = await fetch(`${API_BASE}/admin/schools/${id}`, {
         method: 'PUT',
@@ -1301,6 +1398,8 @@ async function saveSchool() {
       const err = await resp.json();
       errorEl.textContent = err.detail || 'Hiba történt!';
       errorEl.style.display = 'block';
+      showAdminToast(errorEl.textContent, "error");
+      setSchoolSaveButtonState("idle");
       return;
     }
 
@@ -1308,24 +1407,36 @@ async function saveSchool() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('schoolEditModal'));
     modal.hide();
     loadSchoolsList();
+    setSchoolSaveButtonState("saved");
+    showAdminToast(isEdit ? "Iskola adatai frissítve." : "Új iskola sikeresen létrehozva.", "success");
   } catch (e) {
     errorEl.textContent = 'Hálózati hiba!';
     errorEl.style.display = 'block';
+    showAdminToast("Hálózati hiba mentés közben.", "error");
+    setSchoolSaveButtonState("idle");
   }
 }
 
-// --- Iskola törlése ---
-async function deleteSchool(id, name) {
-  if (!confirm(`Biztosan törli a(z) "${name}" iskolát?`)) return;
+function openDeleteSchoolModal(id, name) {
+  deleteSchoolId = id;
+  deleteSchoolName = name || "";
+  const nameEl = document.getElementById("school-delete-confirm-name");
+  if (nameEl) nameEl.textContent = deleteSchoolName;
+  const modal = new bootstrap.Modal(document.getElementById("schoolDeleteConfirmModal"));
+  modal.show();
+}
 
+// --- Iskola törlése ---
+async function deleteSchool(id) {
   try {
     const resp = await fetch(`${API_BASE}/admin/schools/${id}`, { method: 'DELETE' });
     if (resp.ok) {
       loadSchoolsList();
+      showAdminToast("Iskola törölve.", "success");
     } else {
-      alert('Hiba történt a törlés során!');
+      showAdminToast('Hiba történt a törlés során!', "error");
     }
   } catch (e) {
-    alert('Hálózati hiba!');
+    showAdminToast('Hálózati hiba!', "error");
   }
 }
