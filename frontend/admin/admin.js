@@ -503,10 +503,19 @@ function applyFormsFilters() {
 }
 
 async function loadAdminList() {
-  const resp = await fetch(`${API_BASE}/admin/list`);
-  const list = await resp.json();
-  adminFormRows = Array.isArray(list) ? list : [];
-  if (!Array.isArray(list)) {
+  try {
+    const resp = await fetch(`${API_BASE}/admin/list`);
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const list = await resp.json();
+    if (!Array.isArray(list)) {
+      throw new Error("Unexpected response format");
+    }
+    adminFormRows = list;
+  } catch (e) {
+    console.error("loadAdminList error:", e);
+    adminFormRows = [];
     alert("Nem sikerült betölteni a kitöltéseket.");
   }
   refreshAdminStats();

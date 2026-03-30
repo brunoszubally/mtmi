@@ -651,6 +651,7 @@ def admin_login(data: dict):
 
 @app.get("/api/admin/list")
 def admin_list():
+    import json as _json
     try:
         with db_connection() as conn:
             with conn.cursor() as c:
@@ -659,7 +660,15 @@ def admin_list():
         result = []
         for row in rows:
             id, data_json, created_at, submitted, pdf_file_path = row
-            data = data_json
+            if isinstance(data_json, dict):
+                data = data_json
+            elif isinstance(data_json, str):
+                try:
+                    data = _json.loads(data_json)
+                except Exception:
+                    data = {}
+            else:
+                data = {}
             iskola_nev = data.get("palyazo_iskola_neve", "(nincs megadva)")
             result.append({
                 "id": id,
@@ -670,8 +679,8 @@ def admin_list():
             })
         return result
     except Exception as e:
-        print(f"Database error: {e}")
-        return {"error": str(e), "database_url": DATABASE_URL}
+        print(f"Database error in admin_list: {e}")
+        raise HTTPException(status_code=500, detail="Nem sikerült betölteni a kitöltéseket.")
 
 @app.get("/api/admin/result/{session_id}")
 def admin_result(session_id: str):
