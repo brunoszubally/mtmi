@@ -94,6 +94,49 @@ body {
   border-radius: 6px;
   font-weight: 500;
 }
+
+#school-login-card {
+  transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.22s ease;
+}
+
+#school-login-card.is-loading {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(42, 77, 105, 0.18);
+}
+
+#school-login-submit-btn {
+  min-height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+#school-login-submit-btn.is-loading {
+  position: relative;
+  pointer-events: none;
+  background: linear-gradient(90deg, #244564 0%, #4278a3 100%);
+  box-shadow: 0 8px 24px rgba(42, 77, 105, 0.2);
+}
+
+.login-btn-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  animation: loginSpin 0.7s linear infinite;
+}
+
+@keyframes loginSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 textarea.form-control {
   min-height: 80px;
   resize: none;

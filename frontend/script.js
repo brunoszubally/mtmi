@@ -55,6 +55,27 @@ function updateSchoolLogoutButtonVisibility() {
   logoutBtn.style.display = getSchoolSession() && !adminView ? "" : "none";
 }
 
+function setSchoolLoginUiState(isLoading) {
+  const submitBtn = document.getElementById("school-login-submit-btn");
+  const loginCard = document.getElementById("school-login-card");
+  const emailInput = document.getElementById("school-login-email");
+  const passwordInput = document.getElementById("school-login-password");
+
+  if (submitBtn) {
+    if (!submitBtn.dataset.originalHtml) submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+    submitBtn.disabled = isLoading;
+    submitBtn.classList.toggle("is-loading", isLoading);
+    submitBtn.setAttribute("aria-busy", isLoading ? "true" : "false");
+    submitBtn.innerHTML = isLoading
+      ? '<span class="login-btn-spinner" aria-hidden="true"></span><span>Belépés...</span>'
+      : submitBtn.dataset.originalHtml;
+  }
+
+  if (loginCard) loginCard.classList.toggle("is-loading", isLoading);
+  if (emailInput) emailInput.disabled = isLoading;
+  if (passwordInput) passwordInput.disabled = isLoading;
+}
+
 function performSchoolLogout() {
   if (autoSaveTimer) {
     clearTimeout(autoSaveTimer);
@@ -79,6 +100,7 @@ function performSchoolLogout() {
     loginError.textContent = "";
     loginError.style.display = "none";
   }
+  setSchoolLoginUiState(false);
 
   hideSubmissionClosedScreen();
   updateThankyouEditButton();
@@ -508,6 +530,7 @@ async function handleSchoolLogin(email, password) {
     return;
   }
   errorEl.style.display = 'none';
+  setSchoolLoginUiState(true);
 
   try {
     console.log('[LOGIN] sending POST /api/school/login');
@@ -523,6 +546,7 @@ async function handleSchoolLogin(email, password) {
       console.warn('[LOGIN] backend rejected login', err);
       errorEl.textContent = err.detail || 'Hib\u00e1s email vagy jelsz\u00f3!';
       errorEl.style.display = 'block';
+      setSchoolLoginUiState(false);
       return;
     }
 
@@ -592,6 +616,7 @@ async function handleSchoolLogin(email, password) {
     console.error('[LOGIN] network/runtime error', e);
     errorEl.textContent = 'H\u00e1l\u00f3zati hiba! Pr\u00f3b\u00e1lja \u00fajra k\u00e9s\u0151bb.';
     errorEl.style.display = 'block';
+    setSchoolLoginUiState(false);
   }
 }
 

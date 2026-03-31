@@ -25,7 +25,7 @@
     <img src="/logo.png" alt="MTMI Iskola Program logó" style="max-width: 180px; margin-bottom: 24px;">
     <h1 class="fw-bold text-center mb-2" style="font-size:2.2rem;">MTMI Iskola Program<br><span
         class="text-primary">Pályázati belépés</span></h1>
-    <div class="card shadow-lg border-0 mt-3 mb-3" style="max-width: 450px; width: 100%;">
+    <div id="school-login-card" class="card shadow-lg border-0 mt-3 mb-3" style="max-width: 450px; width: 100%;">
       <div class="card-body p-4">
         <p class="mb-3 text-center">Kérjük, lépjen be az iskolája számára kiosztott email címmel és jelszóval.</p>
         <form id="school-login-form">
@@ -40,7 +40,7 @@
               autocomplete="current-password" placeholder="Jelszó">
           </div>
           <div id="school-login-error" class="text-danger mb-3" style="display:none;"></div>
-          <button type="submit" class="btn btn-primary btn-lg w-100">Belépés</button>
+          <button id="school-login-submit-btn" type="submit" class="btn btn-primary btn-lg w-100">Belépés</button>
         </form>
         <p class="mt-3 text-center text-muted" style="font-size: 0.9em;">Amennyiben nem rendelkezik belépési adatokkal,
           kérjük keresse az <a href="mailto:program@mtmi-iskola.hu"
