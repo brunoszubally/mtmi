@@ -56,10 +56,41 @@ function updateSchoolLogoutButtonVisibility() {
 }
 
 function performSchoolLogout() {
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+  pendingAutoSave = false;
+  saveInFlight = false;
   clearSchoolSession();
   window.forceReadonlyView = false;
   window.currentLoadedFormSchoolId = null;
-  window.location.assign("/");
+  window.mtmiDashboardData = null;
+
+  const form = document.getElementById(FORM_ID);
+  if (form) form.reset();
+
+  const loginEmail = document.getElementById("school-login-email");
+  const loginPassword = document.getElementById("school-login-password");
+  const loginError = document.getElementById("school-login-error");
+  if (loginEmail) loginEmail.value = "";
+  if (loginPassword) loginPassword.value = "";
+  if (loginError) {
+    loginError.textContent = "";
+    loginError.style.display = "none";
+  }
+
+  hideSubmissionClosedScreen();
+  updateThankyouEditButton();
+  syncSchoolNameField("logout");
+  history.replaceState({}, "", "/");
+  window.scrollTo(0, 0);
+
+  if (window.submissionStatusData && !window.submissionStatusData.is_available) {
+    showSubmissionClosedScreen(window.submissionStatusData);
+  } else {
+    setPrimaryScreen("login");
+  }
 }
 
 function formatHuDateTime(isoValue) {
