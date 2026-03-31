@@ -135,6 +135,26 @@ textarea.form-control {
   background: #fff;
   box-shadow: 0 2px 8px rgba(31,38,135,0.04);
 }
+
+#school-logout-btn {
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-color: #cfd9ea;
+  color: #2a4d69;
+  background: linear-gradient(180deg, rgba(244, 248, 255, 0.98) 0%, rgba(233, 240, 252, 0.98) 100%);
+  box-shadow: 0 10px 24px rgba(42, 77, 105, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+#school-logout-btn:hover {
+  transform: translateY(-1px);
+  border-color: #aebfdc;
+  color: #1f3a52;
+  background: linear-gradient(180deg, rgba(239, 245, 255, 1) 0%, rgba(222, 233, 250, 1) 100%);
+  box-shadow: 0 14px 28px rgba(42, 77, 105, 0.14);
+}
 .stepper-vertical .stepper-link {
   border-radius: 30px !important;
   font-weight: 600;
@@ -730,4 +750,94 @@ input[type="number"] {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
   }
-} 
+}
+
+.submission-closed-screen {
+  background: radial-gradient(circle at 16% 20%, #ecf4ff 0%, #dbe8ff 34%, #eef3fb 100%);
+  overflow: hidden;
+}
+
+.submission-closed-backdrop {
+  position: absolute;
+  width: min(88vw, 960px);
+  height: min(88vw, 960px);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  filter: blur(1px);
+}
+
+.submission-closed-card {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  width: min(92vw, 760px);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.93);
+  backdrop-filter: blur(3px);
+}
+
+.submission-closed-logo {
+  max-width: 132px;
+  margin-bottom: 14px;
+}
+
+.submission-closed-badge {
+  display: inline-block;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-bottom: 14px;
+}
+
+.submission-closed-title-main {
+  font-size: 2rem;
+}
+
+.submission-closed-title {
+  font-weight: 800;
+  margin-bottom: 12px;
+  font-size: 1.48rem;
+}
+
+.submission-closed-message {
+  font-size: 1.14rem;
+  margin-bottom: 12px;
+}
+
+.submission-closed-help {
+  margin: 0 auto;
+  max-width: 560px;
+  border-radius: 14px;
+  padding: 11px 14px;
+  font-size: 0.96rem;
+}
+
+.submission-closed-screen.status-review .submission-closed-badge {
+  background: #ffebee;
+  color: #9e1d35;
+}
+
+.submission-closed-screen.status-review .submission-closed-title {
+  color: #9e1d35;
+}
+
+.submission-closed-screen.status-review .submission-closed-help {
+  background: #fff1f3;
+  color: #6b2230;
+}
+
+.submission-closed-screen.status-inactive .submission-closed-badge {
+  background: #e6f0ff;
+  color: #1f4c96;
+}
+
+.submission-closed-screen.status-inactive .submission-closed-title {
+  color: #1f4c96;
+}
+
+.submission-closed-screen.status-inactive .submission-closed-help {
+  background: #ecf4ff;
+  color: #1f4c96;
+}

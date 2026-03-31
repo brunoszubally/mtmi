@@ -245,9 +245,12 @@ def compute_submission_status():
         status = "review"
         message = "A pályázati felület jelenleg nem elérhető, bírálat zajlik."
     else:
-        if start_at and now_utc < start_at and mode == "auto":
-            status = "preopen"
-            message = "A pályázati felület még nem nyílt meg."
+        if mode == "auto" and not start_at and not end_at:
+            status = "inactive"
+            message = "Jelenleg nincs aktív pályázati időszak."
+        elif start_at and now_utc < start_at and mode == "auto":
+            status = "inactive"
+            message = "Jelenleg nincs aktív pályázati időszak."
         elif end_at and now_utc > end_at and mode == "auto":
             status = "review"
             message = "A pályázati felület lezárva, bírálat zajlik."

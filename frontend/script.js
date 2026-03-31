@@ -33,6 +33,7 @@ function getSchoolSession() {
 function setSchoolSession(schoolId, schoolName) {
   localStorage.setItem(SCHOOL_ID_KEY, schoolId);
   localStorage.setItem(SCHOOL_NAME_KEY, schoolName);
+  updateSchoolLogoutButtonVisibility();
 }
 
 function clearSchoolSession() {
@@ -43,6 +44,22 @@ function clearSchoolSession() {
   window.mtmiDashboardData = null;
   const card = document.getElementById("school-dashboard-card");
   if (card) card.style.display = "none";
+  updateSchoolLogoutButtonVisibility();
+}
+
+function updateSchoolLogoutButtonVisibility() {
+  const logoutBtn = document.getElementById("school-logout-btn");
+  if (!logoutBtn) return;
+  const urlParams = new URLSearchParams(window.location.search);
+  const adminView = urlParams.get("adminview");
+  logoutBtn.style.display = getSchoolSession() && !adminView ? "" : "none";
+}
+
+function performSchoolLogout() {
+  clearSchoolSession();
+  window.forceReadonlyView = false;
+  window.currentLoadedFormSchoolId = null;
+  window.location.assign("/");
 }
 
 function formatHuDateTime(isoValue) {
@@ -305,21 +322,26 @@ function ensureSubmissionStatusUi() {
   if (!closedScreen) {
     closedScreen = document.createElement("div");
     closedScreen.id = "submission-closed-screen";
+    closedScreen.className = "submission-closed-screen status-review";
     closedScreen.style.display = "none";
     closedScreen.style.position = "fixed";
     closedScreen.style.inset = "0";
     closedScreen.style.zIndex = "30000";
-    closedScreen.style.background = "linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%)";
     closedScreen.style.alignItems = "center";
     closedScreen.style.justifyContent = "center";
     closedScreen.innerHTML = `
-      <div class="card shadow-lg border-0" style="max-width:760px;width:min(92vw,760px);">
+      <div class="submission-closed-backdrop"></div>
+      <div class="submission-closed-card card shadow-lg border-0">
         <div class="card-body p-4 p-md-5 text-center">
-          <img src="/logo.png" alt="MTMI Iskola Program logó" style="max-width: 140px; margin-bottom: 16px;">
-          <h1 class="fw-bold mb-2" style="font-size:2rem;">MTMI Iskola Program</h1>
-          <h2 class="text-danger fw-bold mb-3" style="font-size:1.5rem;">Pályázati felület lezárva</h2>
-          <p id="submission-closed-message" class="lead mb-4">A pályázati felület jelenleg nem elérhető, bírálat zajlik.</p>
-          <button id="submission-logout-btn" type="button" class="btn btn-outline-secondary btn-lg">Kilépés</button>
+          <img src="/logo.png" alt="MTMI Iskola Program logó" class="submission-closed-logo">
+          <span id="submission-closed-badge" class="submission-closed-badge">Bírálat zajlik</span>
+          <h1 class="fw-bold mb-2 submission-closed-title-main">MTMI Iskola Program</h1>
+          <h2 id="submission-closed-title" class="submission-closed-title">Pályázati felület lezárva</h2>
+          <p id="submission-closed-message" class="submission-closed-message">A pályázati felület jelenleg nem elérhető, bírálat zajlik.</p>
+          <div id="submission-closed-help" class="submission-closed-help">
+            A rendszer automatikusan engedélyezi a hozzáférést, amint új pályázati időszak indul.
+          </div>
+          <button id="submission-logout-btn" type="button" class="btn btn-outline-secondary btn-lg mt-3">Kilépés</button>
         </div>
       </div>
     `;
@@ -327,25 +349,67 @@ function ensureSubmissionStatusUi() {
 
     const logoutBtn = document.getElementById("submission-logout-btn");
     if (logoutBtn) {
-      logoutBtn.addEventListener("click", () => {
-        clearSchoolSession();
-        window.forceReadonlyView = false;
-        window.currentLoadedFormSchoolId = null;
-        setPrimaryScreen("login");
-        hideSubmissionClosedScreen();
-        history.replaceState({}, "", "/");
-      });
+      logoutBtn.addEventListener("click", () => performSchoolLogout());
     }
   }
 }
 
-function showSubmissionClosedScreen(message) {
+function getSubmissionClosedUiConfig(statusData) {
+  const status = statusData?.status || "review";
+  if (status === "inactive") {
+    return {
+      rootClass: "status-inactive",
+      badge: "Nincs aktív időszak",
+      title: "Jelenleg nincs aktív pályázati időszak",
+      message: statusData?.message || "A pályázati felület jelenleg nem elérhető.",
+      help: "A belépés és kitöltés az új pályázati időszak indulásakor lesz elérhető."
+    };
+  }
+  return {
+    rootClass: "status-review",
+    badge: "Bírálat zajlik",
+    title: "Pályázati felület lezárva",
+    message: statusData?.message || "A pályázati felület jelenleg nem elérhető, bírálat zajlik.",
+    help: "Ha már véglegesítve beküldte a pályázatát, az továbbra is megtekinthető."
+  };
+}
+
+function hidePrimaryScreensForClosedState() {
+  const loginScreen = document.getElementById("login-screen");
+  const welcomeScreen = document.getElementById("welcome-screen");
+  const mainForm = document.getElementById("main-form-content");
+  const thankyouScreen = document.getElementById("thankyou-fullscreen");
+  if (loginScreen) loginScreen.style.setProperty("display", "none", "important");
+  if (welcomeScreen) welcomeScreen.style.setProperty("display", "none", "important");
+  if (mainForm) mainForm.style.setProperty("display", "none", "important");
+  if (thankyouScreen) thankyouScreen.style.setProperty("display", "none", "important");
+}
+
+function showSubmissionClosedScreen(statusOrMessage) {
   ensureSubmissionStatusUi();
   const closedScreen = document.getElementById("submission-closed-screen");
+  const closedBadge = document.getElementById("submission-closed-badge");
+  const closedTitle = document.getElementById("submission-closed-title");
   const closedMessage = document.getElementById("submission-closed-message");
-  if (closedMessage) {
-    closedMessage.textContent = message || "A pályázati felület jelenleg nem elérhető, bírálat zajlik.";
+  const closedHelp = document.getElementById("submission-closed-help");
+  const logoutBtn = document.getElementById("submission-logout-btn");
+  const statusData = typeof statusOrMessage === "string"
+    ? { status: window.submissionStatusData?.status || "review", message: statusOrMessage }
+    : (statusOrMessage || window.submissionStatusData || { status: "review" });
+  const ui = getSubmissionClosedUiConfig(statusData);
+
+  if (closedScreen) {
+    closedScreen.classList.remove("status-review", "status-inactive");
+    closedScreen.classList.add(ui.rootClass);
   }
+  if (closedBadge) closedBadge.textContent = ui.badge;
+  if (closedTitle) closedTitle.textContent = ui.title;
+  if (closedMessage) {
+    closedMessage.textContent = ui.message;
+  }
+  if (closedHelp) closedHelp.textContent = ui.help;
+  if (logoutBtn) logoutBtn.style.display = getSchoolSession() ? "" : "none";
+  hidePrimaryScreensForClosedState();
   if (closedScreen) closedScreen.style.display = "flex";
 }
 
@@ -382,8 +446,13 @@ async function applyPublicSubmissionStatus() {
       banner.style.display = "block";
     } else if (!status.is_available && status.message) {
       banner.textContent = status.message;
-      banner.style.background = "#f8d7da";
-      banner.style.color = "#842029";
+      if (status.status === "inactive") {
+        banner.style.background = "#e8f1ff";
+        banner.style.color = "#154a92";
+      } else {
+        banner.style.background = "#f8d7da";
+        banner.style.color = "#842029";
+      }
       banner.style.display = "block";
     } else {
       banner.style.display = "none";
@@ -454,7 +523,7 @@ async function handleSchoolLogin(email, password) {
         if (typeof window.loadForm === 'function') window.loadForm();
       } else {
         window.forceReadonlyView = false;
-        showSubmissionClosedScreen(submissionStatus.message);
+        showSubmissionClosedScreen(submissionStatus);
       }
       return;
     }
@@ -710,6 +779,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     console.log('[LOGIN] submit listener attached');
   }
 
+  const schoolLogoutBtn = document.getElementById('school-logout-btn');
+  if (schoolLogoutBtn) {
+    schoolLogoutBtn.addEventListener('click', () => performSchoolLogout());
+  }
+  updateSchoolLogoutButtonVisibility();
+
   const quickfixRefreshBtn = document.getElementById("required-quickfix-refresh-btn");
   if (quickfixRefreshBtn) {
     quickfixRefreshBtn.addEventListener("click", () => renderRequiredQuickfixPanel());
@@ -730,8 +805,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       // Van session → betöltjük az űrlapot (a loadForm kezeli a submitted státuszt)
       if (window.mtmiPublicGateLocked) {
         window.forceReadonlyView = true;
-        setPrimaryScreen('login');
-        showSubmissionClosedScreen(window.submissionStatusData?.message);
+        showSubmissionClosedScreen(window.submissionStatusData);
         console.log('[LOGIN] session found during closed gate, waiting for loadForm decision');
       } else {
         setPrimaryScreen('form');
@@ -740,7 +814,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     } else {
       // Be van lépve de nincs session → welcome screen
       if (window.mtmiPublicGateLocked) {
-        showSubmissionClosedScreen(window.submissionStatusData?.message);
+        showSubmissionClosedScreen(window.submissionStatusData);
         console.log('[LOGIN] school session found, no form session, but public gate closed');
       } else {
         hideSubmissionClosedScreen();
@@ -748,6 +822,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.log('[LOGIN] school session found, no form session, welcome shown');
       }
     }
+  } else if (window.mtmiPublicGateLocked) {
+    showSubmissionClosedScreen(window.submissionStatusData);
   }
   // Ha nincs belépve → login screen (alapértelmezett)
 
@@ -1335,8 +1411,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           const isSubmitted = parseInt(res.submitted) === 1;
           if (!isSubmitted) {
             window.forceReadonlyView = false;
-            setPrimaryScreen('login');
-            showSubmissionClosedScreen(window.submissionStatusData?.message);
+            showSubmissionClosedScreen(window.submissionStatusData);
             console.log('loadForm: Closed gate + non-submitted form -> hidden');
             return;
           }

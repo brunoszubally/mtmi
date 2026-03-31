@@ -34,7 +34,7 @@ function renderSubmissionStatusText(status) {
     open: "Nyitott",
     countdown: "Nyitott (visszaszámláló)",
     review: "Bírálat zajlik / lezárva",
-    preopen: "Még nem nyílt meg"
+    inactive: "Nincs aktív pályázati időszak"
   };
   const label = map[status.status] || status.status;
   const countdown = status.countdown_days_left ? ` | Hátralévő napok: ${status.countdown_days_left}` : "";
