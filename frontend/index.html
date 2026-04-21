@@ -221,8 +221,8 @@
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Ebből mennyi a programban érintett tanulók száma (szakköri, verseny
-                          részvétel, pályaválasztási programok, laborlátogatások stb. résztvevőinek összes száma. Az
-                          adatot a pályázati űrlap kitöltése alapján adja meg.)</label>
+                          részvétel, pályaválasztási programok, laborlátogatások stb. résztvevőinek összes száma). Az
+                          adatot a pályázati űrlapban később megjelenő részvételi adatok alapján adja meg.</label>
                         <input type="number" class="form-control" name="programban_erintett_tanulok_szama" min="0"
                           required placeholder="saját szöveg beírása">
                       </div>
@@ -355,16 +355,15 @@
                       <h4 class="mb-3">1. Az MTMI működés iskolai személyi feltételei: MTMI csapat létrehozása,
                         pedagógusok, diákok, szülők bevonása</h4>
                       <div class="alert alert-info" style="font-size: 0.98em;">
-                        1.1 Az iskola létrehozza és bemutatja az MTMI csapatot: az MTMI ügyekért felelős személyt (MTMI
-                        felelős) és a MTMI csapat többi tagját (pl. matematika és természettudományos munkaközösségi
-                        tagok és/vagy vezetők), beleértve a csapattagok tantárgyi kötődését és a feladataik leírását is.
+                        1.1 Az iskola létrehozza és bemutatja az MTMI csapatot:<br>
+                        - az MTMI ügyekért felelős személyt (MTMI felelős)<br>
+                        - a MTMI csapat többi tagját (pl. matematika és természettudományos munkaközösségi tagok
+                        és/vagy vezetők), beleértve a csapattagok tantárgyi kötődését és a feladataik leírását is.<br>
                         Az iskola az MTMI csapat bemutatását közzéteszi a honlapján.
-
                       </div>
                       <div class="mb-3">
-                        <label class="form-label">Az iskola MTMI csapatának létszáma (Itt az MTMI tárgyakat tanító
-                          tanárok közül csak azon kollégák számát kérjük megadni, akik a saját tantárgyi területükön túl
-                          együttműködnek a többi MTMI tantárgy vagy munkaközösség tagjaival.)</label>
+                        <label class="form-label">Az iskola MTMI csapatának létszáma (csak azokat a pedagógusokat
+                          számolja, akik aktívan részt vesznek a közös MTMI szervezésben vagy együttműködésben).</label>
                         <input type="number" class="form-control mb-2" name="mtmi_csapat_letszam"
                           id="mtmi-csapat-letszam" min="1" max="8" placeholder="Csapat létszáma (1-8)" required>
                         <div id="mtmi-csapat-tagok">
@@ -1169,7 +1168,8 @@
                             <div style="margin-bottom: 1rem;"></div>
                           </div>
                         </div>
-                        <label class="form-label">MTMI csapat közös tevékenységeinek bemutatása</label>
+                        <label class="form-label">MTMI csapat tagjai közötti együttműködés és közös tevékenységeik
+                          bemutatása</label>
                         <textarea class="form-control mb-2" name="mtmi_csapat_kozos_tevekenyseg" maxlength="2000"
                           placeholder="saját szöveg beírása"></textarea>
                         <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1232,9 +1232,13 @@
                           <option value="megvalosul">megvalósul</option>
                           <option value="nem">nem valósul meg</option>
                         </select>
-                        <label class="form-label">Kérjük, fejtse ki szövegszerűen: hogyan, milyen formában és
-                          időközönként valósul meg a szülőkkel való egyeztetés az MTMI célokról! Ha a fent említetteken
-                          túl további gyakorlatok és elvek is megvalósulnak, kérjük, sorolja fel azokat is!</label>
+                        <label class="form-label">Kérjük, fejtse ki szövegszerűen:<br>
+                          - Hogyan, milyen formában és időközönként valósul meg a szülőkkel való egyeztetés az MTMI
+                          célokról!<br>
+                          - Ha már megvalósult ilyen egyeztetés, röviden fogalmazza meg a szülői észrevételeket és
+                          visszajelzések lényegét!<br>
+                          - Ha a fent említetteken túl további gyakorlatok és elvek is megvalósulnak, kérjük, sorolja
+                          fel azokat is!</label>
                         <textarea class="form-control mb-2" name="szulo_egyeztetes_szoveg" maxlength="2000"
                           placeholder="saját szöveg beírása"></textarea>
                         <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1281,7 +1285,12 @@
                       </div>
                       <div class="alert alert-info" style="font-size: 0.98em;">
                         2.2 Az iskola megfogalmaz egy a pedagógiai programjához illeszkedő MTMI koncepciót, amit az
-                        iskola honlapján elérhetővé tesz.
+                        iskola honlapján elérhetővé tesz.<br>
+                        Az MTMI koncepció lehetőség szerint bemutatja:<br>
+                        - az alkalmazott pedagógiai alapelveket,<br>
+                        - konkrét célmegfogalmazásokat,<br>
+                        - szükséges strukturális alapokat<br>
+                        - és a megvalósítás alapformáit.
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Az iskolának van MTMI koncepciója?</label>
@@ -1389,7 +1398,8 @@
 
                           </div>
                           <div class="mb-2">
-                            <label class="form-label">Kérjük, adja meg a szakkörökön résztvevő diákok számát:</label>
+                            <label class="form-label">Kérjük, adja meg a szakkörökön résztvevő diákok összesített
+                              számát (ha egy tanuló több szakkörben is részt vesz, több alkalommal is számolható):</label>
                             <input type="number" class="form-control mb-2" name="mtmi_szakkor_diakok_szama" min="0"
                               max="10000" required>
                           </div>
@@ -1398,8 +1408,8 @@
                             <input type="number" class="form-control mb-2" name="mtmi_szakkor_tanarok_szama" min="0"
                               max="1000" required>
                           </div>
-                          <label class="form-label">Kérjük, sorolja fel / röviden mutassa be az iskolai
-                            szakköröket!</label>
+                          <label class="form-label">Kérjük, sorolja fel / röviden mutassa be az iskolai szakköröket
+                            - és adja meg a felelős kolléga nevét is!</label>
                           <textarea class="form-control mb-2" name="mtmi_szakkorok_bemutatasa" maxlength="2000"
                             placeholder="saját szöveg beírása"></textarea>
                           <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1439,8 +1449,9 @@
                               vonatkozásában!</label>
                           </div>
                           <div class="mb-2">
-                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI nyílt
-                              napok:</label>
+                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI nyílt napok
+                              (Olyan esemény, ahol az iskola megmutatja MTMI tevékenységeit, például diákoknak,
+                              szülőknek, érdeklődőknek.):</label>
                             <textarea class="form-control mb-2" name="mtmi_nyilt_napok" maxlength="2000"
                               placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1450,7 +1461,8 @@
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI
-                              projektnapok:</label>
+                              projektnapok (Tematikus iskolai nap vagy programsor, ahol egy téma köré szerveződnek a
+                              foglalkozások.):</label>
                             <textarea class="form-control mb-2" name="mtmi_projektnapok" maxlength="2000"
                               placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1459,8 +1471,9 @@
                             <div style="margin-bottom: 1rem;"></div>
                           </div>
                           <div class="mb-2">
-                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI szakmai
-                              gyakorlatok:</label>
+                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">MTMI területen
+                              végzett, diákok önálló szakmai gyakorlatai külső együttműködő partnereknél (általános
+                              iskolák esetében nem releváns):</label>
                             <textarea class="form-control mb-2" name="mtmi_szakmai_gyakorlatok" maxlength="2000"
                               placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1490,8 +1503,8 @@
                           </div>
                           <div class="mb-2">
                             <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Az iskola
-                              MTMI-fókuszú legalább egy évfolyamot érintő egyéb tevékenységeinek száma (a fenti
-                              tevékenységeket összesítve):</label>
+                              MTMI-fókuszú legalább egy évfolyamot érintő egyéb tevékenységeinek száma (a fenti, külön
+                              alkalomként megvalósult tevékenységeket összesítve):</label>
                             <input type="number" class="form-control mb-2" name="mtmi_egyeb_tevekenysegek_szama" min="0"
                               max="1000" placeholder="Szám megadása">
                           </div>
@@ -1506,8 +1519,9 @@
                           </div>
 
                           <div class="mb-2">
-                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Legalább egy
-                              interdiszciplináris MTMI projekt megvalósul az iskolában.</label>
+                            <label class="form-label" style="font-weight: bold; font-size: 1.05rem;">Legalább egy,
+                              egész évfolyamot érintő interdiszciplináris oktatási MTMI projekt megvalósul az
+                              iskolában. (Olyan projekt, amelyben legalább két MTMI tantárgy kapcsolódik össze).</label>
                             <select class="form-select mb-2" name="mtmi_interdiszciplinaris_projekt"
                               id="mtmi-interdiszciplinaris-projekt-select"
                               onchange="document.getElementById('mtmi-interdiszciplinaris-projekt-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
@@ -1540,7 +1554,6 @@
                         </div>
 
                         <!-- 3.2 blokk: Pályaorientációs program, szakmai tanácsadás az MTMI területen -->
-                        <h4 class="mb-3">3.2. Pályaorientációs program, szakmai tanácsadás az MTMI területen</h4>
                         <div>
                           <h5 class="mb-2">3.2. Pályaorientációs program, szakmai tanácsadás az MTMI területen</h5>
                           <!-- 3.2.1 -->
@@ -1769,7 +1782,7 @@
 
                         <div class="mb-3">
                           <label class="form-label fw-bold">Kérjük, adja meg a tanulmányi versenyeken résztvevő diákok
-                            számát:</label>
+                            összesített számát:</label>
                           <input type="number" class="form-control mb-2" name="mtmi_tanulmányi_verseny_diakok_szama"
                             min="0" max="10000" placeholder="saját szöveg beírása">
                         </div>
@@ -1782,9 +1795,9 @@
                         </div>
 
                         <div class="mb-3">
-                          <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be, mely tanulmányi
-                            versenyeken vesznek részt (verseny megnevezése, esetleg az elért eredmények címszavas
-                            felsorolása)!</label>
+                          <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be a legfontosabb tanulmányi
+                            versenyeket (max. 10 db), a résztvevő diákok számával és esetleg az elért legmagasabb
+                            eredményekkel! (A kutatási alapú versenyeket a 4.2 pontban kérjük majd felsorolni.)</label>
                           <textarea class="form-control mb-2" name="mtmi_tanulmányi_versenyek_bemutatasa"
                             maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                           <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1807,14 +1820,16 @@
                         <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
                           <strong>4.2</strong> A tanulók valamilyen kutatási alapú verseny keretében kutatási
                           projektekben vesznek részt. Az iskola a kutatási versenyeken való részvételt honlapján
-                          bemutatja.<br><br>
+                          bemutatja.<br>
+                          (ahol a tanulók saját kutatást, vizsgálatot vagy fejlesztést mutatnak be).<br><br>
                           <strong>FIGYELEM!</strong> A tanulmányi és a kutatási alapú versenyek kimutatását külön
                           bontásban kérjük!
                         </div>
 
                         <div class="mb-3">
                           <label class="form-label fw-bold">Az MTMI kutatási alapú versenyen való részvétel megvalósul
-                            az iskolában.</label>
+                            az iskolában. (ahol a tanulók saját kutatást, vizsgálatot vagy fejlesztést mutatnak
+                            be).</label>
                           <select class="form-select mb-2" name="mtmi_kutatási_verseny_reszvetel"
                             id="mtmi-kutatási-verseny-reszvetel-select"
                             onchange="document.getElementById('mtmi-kutatási-verseny-reszvetel-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
@@ -1847,9 +1862,9 @@
                           </div>
 
                           <div class="mb-3">
-                            <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be, mely kutatási alapú
-                              versenyeken/projektekben vesznek részt (verseny megnevezése, esetleg az elért eredmények
-                              felsorolása)!</label>
+                            <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be a legfontosabb
+                              kutatási alapú versenyeket (max. 10 db), a résztvevő diákok számával és esetleg az elért
+                              legmagasabb eredményekkel!</label>
                             <textarea class="form-control mb-2" name="mtmi_kutatási_versenyek_bemutatasa"
                               maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -1879,7 +1894,7 @@
 
                         <div class="mb-3">
                           <label class="form-label fw-bold">Az MTMI ötlet-/esszépályázatokon való részvétel megvalósul
-                            az iskolában.</label>
+                            az iskolában. (Nem tanulmányi verseny, hanem pályázati jellegű részvétel).</label>
                           <select class="form-select mb-2" name="mtmi_otlet_esszepalyazat_reszvetel"
                             id="mtmi-otlet-esszepalyazat-reszvetel-select"
                             onchange="document.getElementById('mtmi-otlet-esszepalyazat-reszvetel-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
@@ -1911,9 +1926,9 @@
                           </div>
 
                           <div class="mb-3">
-                            <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be, mely
-                              ötlet-/esszépályázatokon vesznek részt (pályázat megnevezése, esetleg az elért eredmények
-                              felsorolása)!</label>
+                            <label class="form-label fw-bold">Kérjük, sorolja fel / mutassa be a legfontosabb
+                              ötlet-/esszépályázatokat (max. 10 db), a résztvevő diákok számával és esetleg az elért
+                              legmagasabb eredményekkel!</label>
                             <textarea class="form-control mb-2" name="mtmi_otlet_esszepalyazat_bemutatasa"
                               maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -2013,8 +2028,8 @@
                           középpontjában a MTMI területek állnak, és erről beszámol honlapján.
                         </div>
                         <div class="mb-3">
-                          <label class="form-label fw-bold">Lányok számára szervezett MTMI programokon való részvétel
-                            megvalósul az iskolában.</label>
+                          <label class="form-label fw-bold">Megvalósul az iskolában olyan MTMI programokon való
+                            részvétel, amelyeket kifejezetten lányok megszólítására szerveztek.</label>
                           <select class="form-select mb-2" name="lanyoknak_szolo_mtmi_programok"
                             id="lanyoknak-szolo-mtmi-programok-select"
                             onchange="document.getElementById('lanyoknak-szolo-mtmi-programok-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
@@ -2049,7 +2064,7 @@
                         </div>
                         <div class="mb-3">
                           <label class="form-label fw-bold">Lányoknak szóló MTMI-t népszerűsítő programok szervezése
-                            megvalósul az iskolában.</label>
+                            megvalósul az iskolában (az iskola saját szervezésében megvalósuló programok).</label>
                           <select class="form-select mb-2" name="lanyok_mtmi_nepszerusito"
                             id="lanyok-mtmi-nepszerusito-select"
                             onchange="document.getElementById('lanyok-mtmi-nepszerusito-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
@@ -2091,12 +2106,14 @@
                           6.1.1 Az iskola kapcsolatot tart fenn legalább egy vállalattal, vagy az illetékes ipari és
                           kereskedelmi kamarával vagy egy munkaadói és kereskedelmi szövetséggel, melynek célja, hogy a
                           diákok megismerhessenek MTMI területhez kapcsolódó cégeket céglátogatások keretein belül
-                          (iskolai csoportok látogatnak cégeket). Az iskola az erről szóló beszámolókat elérhetővé teszi
-                          honlapján.
+                          (iskolai csoportok látogatnak cégeket).<br>
+                          Az iskola az erről szóló beszámolókat elérhetővé teszi honlapján.<br>
+                          Fontos: az oktatási partnerekkel való együttműködéseket a 6.2 pontban kérjük bemutatni.
                         </div>
                         <div class="mb-3">
                           <label class="form-label fw-bold">Diákok számára szervezett céglátogatások megvalósulnak az
-                            iskolában.</label>
+                            iskolában. (MTMI területekhez kapcsolódó vállalati vagy szakmai helyszínek
+                            látogatása).</label>
                           <select class="form-select mb-2" name="mtmi_kapcsolatok_egyuttmukodes"
                             id="mtmi-kapcsolatok-egyuttmukodes-select"
                             onchange="document.getElementById('mtmi-kapcsolatok-egyuttmukodes-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
@@ -2162,7 +2179,8 @@
                           </div>
                         </div>
 
-                        <h5 class="mb-2">6.2. Az MTMI szakmai partnerek bevonása az MTMI programok megvalósításába</h5>
+                        <h5 class="mb-2">6.2 Az MTMI szakmai (oktatási) partnerek bevonása az MTMI programok
+                          megvalósításába</h5>
 
                         <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
                           6.2.1 Az iskola a technikai és természettudományos múzeumok látogatását beépíti az éves
@@ -2199,8 +2217,8 @@
                         </div>
 
                         <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                          6.2.2 Az iskola részt vesz „Kutatók éjszakája" jellegű, regionális vagy országos MTMI-
-                          fókuszú rendezvényeken, ami honlapján is megtalálható.
+                          6.2.2 Az iskola kapcsolódik országos vagy regionális MTMI-fókuszú rendezvényekhez, ami a
+                          honlapján is megtalálható. (pl. Kutatók éjszakája)
                         </div>
 
                         <div class="mb-3">
@@ -2240,7 +2258,7 @@
 
                         <div class="mb-3">
                           <label class="form-label fw-bold">Egyetemi / iskolai laboratóriumok látogatása megvalósul az
-                            iskolában.</label>
+                            iskolában (külső vagy partnerintézményi laborhasználat/laborlátogatás).</label>
                           <select class="form-select mb-2" name="mtmi_laboratoriumok_latogatasa"
                             id="mtmi-laboratoriumok-latogatasa-select"
                             onchange="document.getElementById('mtmi-laboratoriumok-latogatasa-block').style.display = (this.value === 'nem') ? 'none' : 'block';">
@@ -2306,7 +2324,7 @@
 
                         <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
                           7.1.1 Rendszeresen használják a digitális eszközöket / digitális módszereket az MTMI
-                          tanórákon.
+                          tanórákon (nemcsak eszközhasználat, hanem digitális tanórai megoldások is).
                         </div>
 
                         <div class="mb-3">
@@ -2320,8 +2338,9 @@
                             <option value="nem">Nem</option>
                           </select>
                           <div id="mtmi-digitalis-eszkozok-megvalosul-block">
-                            <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét
-                              formáját/formáit a fentiek vonatkozásában!</label>
+                            <label class="form-label">Kérjük, mutassa be a fentiek megvalósulásának konkrét
+                              formáját/formáit, lehetőség szerint mindenhol nevezze meg a használt digitális
+                              eszközöket és programokat.</label>
                             <textarea class="form-control mb-2" name="mtmi_digitalis_eszkozok_megvalosul_bemutatasa"
                               maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -2394,10 +2413,10 @@
                         </div>
 
                         <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                          7.1.4 Az iskola ösztönzi a diákokat az aktív tanulásra. A tanulási folyamatban szerephez jut a
-                          projektmódszer, a páros- és csoportmunka, a problémamegoldás, interaktivitás, a diákok
-                          autonómiája. Az értékelésben fontos szerephez jut a diákok önreflexiója, a pedagógusok
-                          visszajelzése folyamatos, támogató.
+                          7.1.4 Az iskola ösztönzi a diákokat az aktív tanulásra. A normál tanítási-tanulási
+                          folyamatban szerephez jut a projektmódszer, a páros- és csoportmunka, a problémamegoldás,
+                          interaktivitás, a diákok autonómiája. Az értékelésben fontos szerephez jut a diákok
+                          önreflexiója, a pedagógusok visszajelzése folyamatos, támogató.
                         </div>
 
                         <div class="mb-3">
@@ -2411,8 +2430,9 @@
                             <option value="nem">Nem</option>
                           </select>
                           <div id="mtmi-aktiv-tanulas-megvalosul-block">
-                            <label class="form-label">Kérjük, mutassa be és fejtse ki a megvalósulás konkrét
-                              formáját/formáit a fentiek vonatkozásában!</label>
+                            <label class="form-label">Kérjük, mutassa be és fejtse ki a normál tanítási-tanulási
+                              folyamatban történő megvalósulás konkrét formáját/formáit a fentiek
+                              vonatkozásában!</label>
                             <textarea class="form-control mb-2" name="mtmi_aktiv_tanulas_megvalosul_bemutatasa"
                               maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -2423,8 +2443,8 @@
                         </div>
 
                         <div class="alert alert-info" style="font-size: 0.98em; font-weight: normal;">
-                          7.1.5 Az iskola az MTMI oktatás során használ digitális tananyagokat, feladatlapokat és
-                          méréseket.
+                          7.1.5 Az iskola az MTMI tanórai oktatás során használ digitális tananyagokat, feladatlapokat
+                          és méréseket. (pl. online feladatlap, digitális teszt, szimuláció, digitális adatgyűjtés).
                         </div>
 
                         <div class="mb-3">
@@ -2438,8 +2458,8 @@
                             <option value="nem">Nem</option>
                           </select>
                           <div id="mtmi-digitalis-tananyagok-megvalosul-block">
-                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét
-                              formáját/formáit!</label>
+                            <label class="form-label">Kérjük, mutassa be a megvalósulás konkrét formáját/formáit és
+                              sorolja fel a használt digitális anyagok forrását (pl. linkek megadása).</label>
                             <textarea class="form-control mb-2" name="mtmi_digitalis_tananyagok_megvalosul_bemutatasa"
                               maxlength="2000" placeholder="saját szöveg beírása"></textarea>
                             <small class="form-text text-muted">max. 2000 karakter</small>
@@ -2698,7 +2718,5 @@
     </div>
   </div>
 </body>
-
-</html>
 
 </html>
