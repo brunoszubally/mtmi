@@ -11,7 +11,6 @@ const LINK_BOX_ID = "mtmi-link-box";
 const SCHOOL_ID_KEY = "mtmi_school_id";
 const SCHOOL_NAME_KEY = "mtmi_school_name";
 const LINKED_FORM_ID_KEY = "mtmi_linked_form_id";
-const GUIDE_PDF_URL = "/kitoltesi-utmutato.pdf";
 const MAX_LINK_FIELDS_PER_GROUP = 10;
 const AUTO_SAVE_DEBOUNCE_MS = 1000;
 window.currentLoadedFormSchoolId = null;
@@ -128,14 +127,12 @@ function formatHuDateTime(isoValue) {
 function setGuidePanelOpen(isOpen) {
   const panel = document.getElementById("guide-panel");
   const backdrop = document.getElementById("guide-panel-backdrop");
-  const frame = document.getElementById("guide-panel-frame");
   if (!panel || !backdrop) return;
 
   if (isOpen) {
     backdrop.style.display = "block";
     panel.classList.add("is-open");
     panel.setAttribute("aria-hidden", "false");
-    if (frame && !frame.src) frame.src = GUIDE_PDF_URL;
     document.body.style.overflow = "hidden";
   } else {
     panel.classList.remove("is-open");
@@ -151,6 +148,7 @@ function setupGuidePanel() {
   const openBtn = document.getElementById("open-guide-panel-btn");
   const closeBtn = document.getElementById("close-guide-panel-btn");
   const backdrop = document.getElementById("guide-panel-backdrop");
+  const panel = document.getElementById("guide-panel");
 
   if (openBtn && !openBtn.dataset.bound) {
     openBtn.dataset.bound = "1";
@@ -168,6 +166,20 @@ function setupGuidePanel() {
     document.body.dataset.guideEscBound = "1";
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") setGuidePanelOpen(false);
+    });
+  }
+
+  if (panel && !panel.dataset.jumpBound) {
+    panel.dataset.jumpBound = "1";
+    panel.addEventListener("click", (event) => {
+      const trigger = event.target.closest('.guide-panel-jump-pill');
+      if (!trigger) return;
+      const targetId = trigger.getAttribute('href');
+      if (!targetId || !targetId.startsWith('#')) return;
+      const target = panel.querySelector(targetId);
+      if (!target) return;
+      event.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
 }
