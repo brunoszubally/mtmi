@@ -1080,22 +1080,6 @@ def export_submission_pdf(session_id: str, request: Request):
 
 from fastapi.responses import FileResponse
 
-@app.get("/kitoltesi-utmutato.pdf")
-async def serve_submission_guide():
-    guide_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "Kitoltesi_Utmutato_MTMI_Iskola_Palyazat_Urlap.pdf"
-    )
-    if not os.path.isfile(guide_path):
-        raise HTTPException(status_code=404, detail="A kitöltési útmutató nem található.")
-    return FileResponse(
-        guide_path,
-        media_type="application/pdf",
-        filename="Kitoltesi_Utmutato_MTMI_Iskola_Palyazat_Urlap.pdf",
-        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
-    )
-
 # Kiszolgálni a kért fájlt, ha létezik, különben index.html (SPA routing)
 @app.get("/{full_path:path}")
 async def serve_static_or_spa(full_path: str):

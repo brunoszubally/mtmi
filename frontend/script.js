@@ -124,66 +124,6 @@ function formatHuDateTime(isoValue) {
   }
 }
 
-function setGuidePanelOpen(isOpen) {
-  const panel = document.getElementById("guide-panel");
-  const backdrop = document.getElementById("guide-panel-backdrop");
-  if (!panel || !backdrop) return;
-
-  if (isOpen) {
-    backdrop.style.display = "block";
-    panel.classList.add("is-open");
-    panel.setAttribute("aria-hidden", "false");
-    document.body.style.overflow = "hidden";
-  } else {
-    panel.classList.remove("is-open");
-    panel.setAttribute("aria-hidden", "true");
-    backdrop.style.display = "none";
-    const loginScreen = document.getElementById("login-screen");
-    const isLoginVisible = loginScreen && loginScreen.style.display !== "none";
-    document.body.style.overflow = isLoginVisible ? "hidden" : "auto";
-  }
-}
-
-function setupGuidePanel() {
-  const openBtn = document.getElementById("open-guide-panel-btn");
-  const closeBtn = document.getElementById("close-guide-panel-btn");
-  const backdrop = document.getElementById("guide-panel-backdrop");
-  const panel = document.getElementById("guide-panel");
-
-  if (openBtn && !openBtn.dataset.bound) {
-    openBtn.dataset.bound = "1";
-    openBtn.addEventListener("click", () => setGuidePanelOpen(true));
-  }
-  if (closeBtn && !closeBtn.dataset.bound) {
-    closeBtn.dataset.bound = "1";
-    closeBtn.addEventListener("click", () => setGuidePanelOpen(false));
-  }
-  if (backdrop && !backdrop.dataset.bound) {
-    backdrop.dataset.bound = "1";
-    backdrop.addEventListener("click", () => setGuidePanelOpen(false));
-  }
-  if (!document.body.dataset.guideEscBound) {
-    document.body.dataset.guideEscBound = "1";
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") setGuidePanelOpen(false);
-    });
-  }
-
-  if (panel && !panel.dataset.jumpBound) {
-    panel.dataset.jumpBound = "1";
-    panel.addEventListener("click", (event) => {
-      const trigger = event.target.closest('.guide-panel-jump-pill');
-      if (!trigger) return;
-      const targetId = trigger.getAttribute('href');
-      if (!targetId || !targetId.startsWith('#')) return;
-      const target = panel.querySelector(targetId);
-      if (!target) return;
-      event.preventDefault();
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }
-}
-
 function updateSchoolDashboardCard(partial = {}) {
   const card = document.getElementById("school-dashboard-card");
   if (!card) return;
@@ -390,7 +330,6 @@ function setPrimaryScreen(screen) {
   if (welcomeScreen) welcomeScreen.style.setProperty('display', 'none', 'important');
   if (mainForm) mainForm.style.setProperty('display', 'none', 'important');
   if (thankyouScreen) thankyouScreen.style.setProperty('display', 'none', 'important');
-  setGuidePanelOpen(false);
 
   if (screen === 'login' && loginScreen) {
     loginScreen.style.setProperty('display', 'flex', 'important');
@@ -881,7 +820,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // --- School login form kezelése ---
   console.log('[LOGIN] DOMContentLoaded (login init)');
-  setupGuidePanel();
   setupMultiLinkFields();
   syncSchoolNameField('dom-content-loaded');
   const schoolLoginForm = document.getElementById('school-login-form');
