@@ -387,6 +387,13 @@ textarea.form-control {
   margin-bottom: 18px;
 }
 
+.guide-page-subtitle {
+  font-size: clamp(1.15rem, 2vw, 1.6rem);
+  font-weight: 600;
+  color: #2d5aa6;
+  margin: -4px 0 16px;
+}
+
 .guide-page-lead {
   max-width: 820px;
   margin: 0 auto;
@@ -416,6 +423,102 @@ textarea.form-control {
   flex-direction: column;
   gap: 18px;
   margin-top: 20px;
+}
+
+.guide-page-header {
+  margin-bottom: 8px;
+}
+
+.guide-page-paragraph {
+  color: #364f69;
+  line-height: 1.75;
+  margin: 0 0 14px;
+}
+
+.guide-page-jump-list {
+  margin-bottom: 22px;
+}
+
+.guide-tip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.guide-tip-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f7fbff 0%, #edf4ff 100%);
+  border: 1px solid #dbe6f5;
+  color: #3a536e;
+  line-height: 1.6;
+}
+
+.guide-tip-title {
+  font-weight: 700;
+  color: #1f4079;
+  margin-bottom: 6px;
+}
+
+.guide-subsection + .guide-subsection {
+  margin-top: 26px;
+}
+
+.guide-subsection-title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #203a62;
+  margin: 0 0 12px;
+}
+
+.guide-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #dbe6f5;
+  box-shadow: 0 10px 24px rgba(42, 77, 105, 0.05);
+}
+
+.guide-table thead th {
+  background: linear-gradient(180deg, #eef5ff 0%, #e2edff 100%);
+  color: #204172;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 14px 16px;
+  border-bottom: 1px solid #d7e3f7;
+  vertical-align: top;
+}
+
+.guide-table tbody td {
+  background: rgba(255, 255, 255, 0.95);
+  color: #364f69;
+  line-height: 1.65;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e6eef9;
+  border-right: 1px solid #eef3fb;
+  vertical-align: top;
+}
+
+.guide-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.guide-table tbody td:last-child,
+.guide-table thead th:last-child {
+  border-right: 0;
+}
+
+.guide-table tbody td:first-child {
+  width: 32%;
+  min-width: 220px;
+  font-weight: 600;
+  color: #213d69;
+}
+
+.guide-table-compact tbody td:first-child {
+  width: 28%;
 }
 
 .guide-panel-header {
@@ -587,6 +690,41 @@ textarea.form-control {
 
   .guide-page-actions .btn {
     width: 100%;
+  }
+
+  .guide-tip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-table,
+  .guide-table thead,
+  .guide-table tbody,
+  .guide-table tr,
+  .guide-table th,
+  .guide-table td {
+    display: block;
+  }
+
+  .guide-table {
+    border-radius: 16px;
+  }
+
+  .guide-table thead {
+    display: none;
+  }
+
+  .guide-table tbody td {
+    width: 100%;
+    min-width: 0;
+    border-right: 0;
+  }
+
+  .guide-table tbody td:first-child {
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 8px;
+    border-bottom: 0;
+    background: #f7fbff;
   }
 
   #welcome-screen .card {
