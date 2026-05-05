@@ -11,6 +11,7 @@ const LINK_BOX_ID = "mtmi-link-box";
 const SCHOOL_ID_KEY = "mtmi_school_id";
 const SCHOOL_NAME_KEY = "mtmi_school_name";
 const LINKED_FORM_ID_KEY = "mtmi_linked_form_id";
+const GUIDE_PDF_URL = "/kitoltesi-utmutato.pdf";
 const MAX_LINK_FIELDS_PER_GROUP = 10;
 const AUTO_SAVE_DEBOUNCE_MS = 1000;
 window.currentLoadedFormSchoolId = null;
@@ -121,6 +122,53 @@ function formatHuDateTime(isoValue) {
     return new Date(isoValue).toLocaleString("hu-HU");
   } catch (e) {
     return isoValue;
+  }
+}
+
+function setGuidePanelOpen(isOpen) {
+  const panel = document.getElementById("guide-panel");
+  const backdrop = document.getElementById("guide-panel-backdrop");
+  const frame = document.getElementById("guide-panel-frame");
+  if (!panel || !backdrop) return;
+
+  if (isOpen) {
+    backdrop.style.display = "block";
+    panel.classList.add("is-open");
+    panel.setAttribute("aria-hidden", "false");
+    if (frame && !frame.src) frame.src = GUIDE_PDF_URL;
+    document.body.style.overflow = "hidden";
+  } else {
+    panel.classList.remove("is-open");
+    panel.setAttribute("aria-hidden", "true");
+    backdrop.style.display = "none";
+    const loginScreen = document.getElementById("login-screen");
+    const isLoginVisible = loginScreen && loginScreen.style.display !== "none";
+    document.body.style.overflow = isLoginVisible ? "hidden" : "auto";
+  }
+}
+
+function setupGuidePanel() {
+  const openBtn = document.getElementById("open-guide-panel-btn");
+  const closeBtn = document.getElementById("close-guide-panel-btn");
+  const backdrop = document.getElementById("guide-panel-backdrop");
+
+  if (openBtn && !openBtn.dataset.bound) {
+    openBtn.dataset.bound = "1";
+    openBtn.addEventListener("click", () => setGuidePanelOpen(true));
+  }
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.dataset.bound = "1";
+    closeBtn.addEventListener("click", () => setGuidePanelOpen(false));
+  }
+  if (backdrop && !backdrop.dataset.bound) {
+    backdrop.dataset.bound = "1";
+    backdrop.addEventListener("click", () => setGuidePanelOpen(false));
+  }
+  if (!document.body.dataset.guideEscBound) {
+    document.body.dataset.guideEscBound = "1";
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") setGuidePanelOpen(false);
+    });
   }
 }
 
@@ -330,6 +378,7 @@ function setPrimaryScreen(screen) {
   if (welcomeScreen) welcomeScreen.style.setProperty('display', 'none', 'important');
   if (mainForm) mainForm.style.setProperty('display', 'none', 'important');
   if (thankyouScreen) thankyouScreen.style.setProperty('display', 'none', 'important');
+  setGuidePanelOpen(false);
 
   if (screen === 'login' && loginScreen) {
     loginScreen.style.setProperty('display', 'flex', 'important');
@@ -414,7 +463,7 @@ function getSubmissionClosedUiConfig(statusData) {
       rootClass: "status-inactive",
       badge: "Nincs aktív időszak",
       title: "Jelenleg nincs aktív pályázati időszak",
-      message: statusData?.message || "A pályázati felület jelenleg nem elérhető.",
+      message: "",
       help: "Köszönjük az érdeklődést. Az új pályázati időszak megnyitásáról ezen a felületen adunk majd tájékoztatást."
     };
   }
@@ -458,7 +507,8 @@ function showSubmissionClosedScreen(statusOrMessage) {
   if (closedBadge) closedBadge.textContent = ui.badge;
   if (closedTitle) closedTitle.textContent = ui.title;
   if (closedMessage) {
-    closedMessage.textContent = ui.message;
+    closedMessage.textContent = ui.message || "";
+    closedMessage.style.display = ui.message ? "" : "none";
   }
   if (closedHelp) closedHelp.textContent = ui.help;
   if (logoutBtn) logoutBtn.style.display = getSchoolSession() ? "" : "none";
@@ -819,6 +869,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // --- School login form kezelése ---
   console.log('[LOGIN] DOMContentLoaded (login init)');
+  setupGuidePanel();
   setupMultiLinkFields();
   syncSchoolNameField('dom-content-loaded');
   const schoolLoginForm = document.getElementById('school-login-form');
