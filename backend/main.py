@@ -241,7 +241,10 @@ def compute_submission_status():
     message = "A pályázati felület elérhető."
     countdown_days_left = None
 
-    if mode == "forced_review":
+    if mode == "forced_inactive":
+        status = "inactive"
+        message = "Jelenleg nincs aktív pályázati időszak."
+    elif mode == "forced_review":
         status = "review"
         message = "A pályázati felület jelenleg nem elérhető, bírálat zajlik."
     else:
@@ -910,8 +913,8 @@ def _parse_admin_datetime(value):
 @app.put("/api/admin/submission-window")
 def admin_update_submission_window(payload: dict):
     mode = (payload.get("mode") or "auto").strip()
-    if mode not in ("auto", "forced_open", "forced_review"):
-        raise HTTPException(status_code=400, detail="Érvénytelen mód! (auto/forced_open/forced_review)")
+    if mode not in ("auto", "forced_open", "forced_inactive", "forced_review"):
+        raise HTTPException(status_code=400, detail="Érvénytelen mód! (auto/forced_open/forced_inactive/forced_review)")
 
     start_at = _parse_admin_datetime(payload.get("start_at"))
     end_at = _parse_admin_datetime(payload.get("end_at"))

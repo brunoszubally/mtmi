@@ -415,7 +415,7 @@ function getSubmissionClosedUiConfig(statusData) {
       badge: "Nincs aktív időszak",
       title: "Jelenleg nincs aktív pályázati időszak",
       message: statusData?.message || "A pályázati felület jelenleg nem elérhető.",
-      help: "A belépés és kitöltés az új pályázati időszak indulásakor lesz elérhető."
+      help: "Köszönjük az érdeklődést. Az új pályázati időszak megnyitásáról ezen a felületen adunk majd tájékoztatást."
     };
   }
   return {
