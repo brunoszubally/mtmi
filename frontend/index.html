@@ -133,10 +133,9 @@
                 <!-- Form tartalom jobb oldalt -->
                 <div class="col-md-8 col-12 p-5">
                   <div class="form-guide-toolbar">
-                    <a href="/kitoltesi-utmutato.html" target="_blank" rel="noopener noreferrer"
-                      class="btn btn-outline-primary form-guide-trigger">
+                    <button id="open-guide-panel-btn" type="button" class="btn btn-outline-primary form-guide-trigger">
                       <i class="bi bi-life-preserver me-2"></i>Súgó
-                    </a>
+                    </button>
                   </div>
                   <h1 class="mb-4 text-center fw-bold d-md-none">MTMI Iskola Program<br><span
                       class="text-primary">Pályázati űrlap</span></h1>
@@ -2707,6 +2706,191 @@
       </div>
     </div>
   </div>
+
+  <div id="guide-panel-backdrop" class="guide-panel-backdrop" style="display:none;"></div>
+  <aside id="guide-panel" class="guide-panel" aria-hidden="true">
+    <div class="guide-panel-header">
+      <div>
+        <div class="guide-panel-eyebrow">Kitöltési segítség</div>
+        <h3 class="guide-panel-title">MTMI Iskola Program Pályázat</h3>
+      </div>
+      <button id="close-guide-panel-btn" type="button" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <p class="guide-panel-copy">A teljes útmutató itt is elérhető kitöltés közben, és külön oldalon is megnyitható.</p>
+    <div class="guide-panel-actions">
+      <a href="/kitoltesi-utmutato.html" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-box-arrow-up-right me-2"></i>Megnyitás külön oldalon
+      </a>
+    </div>
+    <div class="guide-panel-scroll">
+      <div class="guide-page-jump-list guide-panel-jump-list">
+        <a href="#sidebar-guide-intro" class="guide-panel-jump-pill">1. Bevezetés</a>
+        <a href="#sidebar-guide-usage" class="guide-panel-jump-pill">2. Használat</a>
+        <a href="#sidebar-guide-sections" class="guide-panel-jump-pill">3. Szekciók</a>
+        <a href="#sidebar-guide-mistakes" class="guide-panel-jump-pill">4. Hibák</a>
+        <a href="#sidebar-guide-glossary" class="guide-panel-jump-pill">5. Fogalomtár</a>
+        <a href="#sidebar-guide-closing" class="guide-panel-jump-pill">6. Zárás</a>
+      </div>
+
+      <section id="sidebar-guide-intro" class="guide-panel-section">
+        <div class="guide-panel-section-kicker">1. fejezet</div>
+        <h4 class="guide-panel-section-title">Bevezetés</h4>
+        <div class="guide-panel-note">
+          Ez az útmutató abban segít, hogy a pályázó a pályázati űrlapot pontosan, egyértelműen és az értékelési
+          logikának megfelelően töltse ki.
+        </div>
+        <p class="guide-page-paragraph">A pályázat értékelése az intézmény adottságait is figyelembe veszi, ezért nem
+          az a cél, hogy minden iskola ugyanazt a mélységet vagy mennyiséget mutassa fel, hanem az, hogy a saját
+          működését valósághűen, átgondoltan és konkrétan mutassa be.</p>
+        <p class="guide-page-paragraph">A szöveges mezőkben a rövid, általános kijelentések helyett konkrét
+          gyakorlatokat, példákat, szereplőket és működési formákat érdemes bemutatni. A linkeket minden esetben
+          lehetőleg a konkrét aloldalra vagy konkrét tartalomra kell megadni, nem a honlap főoldalára.</p>
+      </section>
+
+      <section id="sidebar-guide-usage" class="guide-panel-section">
+        <div class="guide-panel-section-kicker">2. fejezet</div>
+        <h4 class="guide-panel-section-title">Hogyan használja ezt az útmutatót</h4>
+        <div class="guide-tip-grid">
+          <div class="guide-tip-card">
+            <div class="guide-tip-title">Mit kér a mező?</div>
+            <p class="mb-0">Pontosan azt írja be, amit a kérdés kér: ne többet, de ne is kevesebbet.</p>
+          </div>
+          <div class="guide-tip-card">
+            <div class="guide-tip-title">Mit vár az értékelés?</div>
+            <p class="mb-0">A legtöbb pontnál nem az elvi támogatás, hanem a megvalósult gyakorlat számít.</p>
+          </div>
+          <div class="guide-tip-card">
+            <div class="guide-tip-title">Mit kell számolni?</div>
+            <p class="mb-0">Ahol darabszámot, létszámot vagy részvételt kér az űrlap, mindig a kérdés logikáját kell
+              követni.</p>
+          </div>
+          <div class="guide-tip-card">
+            <div class="guide-tip-title">Mit lehet linkkel alátámasztani?</div>
+            <p class="mb-0">Mindenhol, ahol van nyilvános nyoma a programnak, érdemes azt linkkel alátámasztani.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="sidebar-guide-sections" class="guide-panel-section">
+        <div class="guide-panel-section-kicker">3. fejezet</div>
+        <h4 class="guide-panel-section-title">Szekciónkénti kitöltési útmutató</h4>
+
+        <div class="guide-subsection">
+          <h5 class="guide-subsection-title">0. szekció - Alapadatok</h5>
+          <table class="guide-table guide-table-compact">
+            <thead>
+              <tr>
+                <th>Elem</th>
+                <th>Mit kell érteni / mit érdemes írni</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>A szekció célja</td><td>Az intézmény azonosítása és alapvető kontextusának bemutatása. Az itt szereplő adatok segítik az értékelőt abban, hogy az iskola MTMI tevékenységét a saját intézményi méretéhez, típusához és környezetéhez viszonyítva értelmezze.</td></tr>
+              <tr><td>Pályázó iskola neve, címe</td><td>Az intézmény hivatalos, teljes megnevezését és pontos címét kell megadni. Rövidítés helyett a hivatalos elnevezés javasolt.</td></tr>
+              <tr><td>Településforma</td><td>A megadott kategóriák közül kell választani. Ez fontos háttérinformáció, mert más lehetőségei vannak egy fővárosi, egy városi és egy községi iskolának.</td></tr>
+              <tr><td>Iskolatípus</td><td>Azt kell jelölni, hogy milyen intézménytípussal vesz részt az iskola a pályázaton. Összetett intézmény esetén azokat a típuso(ka)t kell kijelölni, amelyekre a pályázati bemutatás ténylegesen vonatkozik.</td></tr>
+              <tr><td>Az iskola tanulói létszáma</td><td>Az intézmény teljes tanulólétszáma.</td></tr>
+              <tr><td>A pályázó intézménytípus tanulói létszáma</td><td>Csak az adott intézménytípushoz tartozó tanulók száma. Ez főleg összetett intézményeknél fontos.</td></tr>
+              <tr><td>Ebből mennyi a programban érintett tanulók száma</td><td>Az MTMI-hez kapcsolódó tevékenységekben részt vevő tanulók összesített száma. Ide tartozhat például a szakkör, verseny, pályaorientációs program, laborlátogatás, projektnap vagy szakmai program. Ez a mező az MTMI elérés nagyságrendjét mutatja.</td></tr>
+              <tr><td>Az iskola MTMI tanári létszáma</td><td>A kérdésben felsorolt tantárgyakat tanító pedagógusok számát kell a megadott kategóriák egyikébe besorolni.</td></tr>
+              <tr><td>MTMI felelős kapcsolattartó</td><td>Az a személy, aki a program szakmai vagy operatív koordinációjában érintett, és akivel az MTMI programmal kapcsolatban kapcsolatot lehet tartani.</td></tr>
+              <tr><td>Intézményvezetés részéről kapcsolattartó</td><td>Az intézményvezetés felől megadott felelős személy.</td></tr>
+              <tr><td>Az iskolai honlap linkje</td><td>A hivatalos honlap linkje szükséges, mert az értékelés több ponton nyilvános tartalmakra is támaszkodik.</td></tr>
+              <tr><td>Rendelkezik az iskola működő alapítvánnyal?</td><td>Egyszerű igen/nem kérdés. Akkor is a valós állapotot kell megadni, ha az alapítvány nem közvetlenül MTMI célú.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="guide-subsection">
+          <h5 class="guide-subsection-title">1. szekció - Az MTMI működés iskolai személyi feltételei</h5>
+          <table class="guide-table guide-table-compact">
+            <thead><tr><th>Elem</th><th>Mit kell érteni / mit érdemes írni</th></tr></thead>
+            <tbody>
+              <tr><td>A szekció célja</td><td>Annak bemutatása, hogy az MTMI működés mennyire szervezetten jelenik meg az iskolában, van-e felelős csapat, és bekapcsolódnak-e a szülők.</td></tr>
+              <tr><td>1.1 MTMI csapat bemutatása</td><td>A kérdés lényege nem az, hogy hány MTMI szakos tanár van az iskolában, hanem hogy van-e aktívan együttműködő MTMI csapat, amely a saját tantárgyán túl közös MTMI célok mentén dolgozik.</td></tr>
+              <tr><td>Az MTMI csapat létszáma</td><td>Csak azokat kell ide számolni, akik ténylegesen részt vesznek a közös MTMI működésben.</td></tr>
+              <tr><td>Név, tanított szak, tevékenységek</td><td>A szerep és a feladat a lényeg. Röviden érdemes bemutatni, ki mivel járul hozzá az MTMI működéshez, például szakkörvezetéssel, versenyfelkészítéssel, projektszervezéssel, pályaorientációval vagy digitális módszertannal.</td></tr>
+              <tr><td>MTMI csapat közös tevékenységei</td><td>A közös működés lényegét kell bemutatni: milyen ügyekben, milyen rendszerességgel, milyen programok köré szerveződik a csapat.</td></tr>
+              <tr><td>Linkek</td><td>A csapat bemutatásához vagy közös tevékenységeihez kapcsolódó konkrét honlapoldalakat érdemes megadni.</td></tr>
+              <tr><td>1.2 Szülők bevonása</td><td>Azt mutatja meg, hogy a szülői oldal mennyire kapcsolódik az MTMI célokhoz, különösen pályaorientációs szempontból.</td></tr>
+              <tr><td>Mit érdemes leírni a szöveges mezőben</td><td>Azt, hogyan, milyen formában és milyen időközönként történik a kapcsolattartás. Itt a konkrét működés leírása fontosabb, mint az elvi szándék.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="guide-subsection">
+          <h5 class="guide-subsection-title">2-7. szekciók</h5>
+          <div class="guide-panel-note guide-panel-note-soft">
+            A teljes részletes szekciómagyarázat a külön útmutató oldalon teljes terjedelemben továbbra is megnyitható.
+            A sidebar célja, hogy kitöltés közben gyorsan vissza lehessen nézni a lényegi értelmezéseket és a
+            legfontosabb különbségeket.
+          </div>
+          <ul class="guide-panel-list">
+            <li><strong>2. szekció:</strong> az MTMI szemlélet megjelenése a pedagógiai programban és az iskola saját MTMI koncepciójában.</li>
+            <li><strong>3. szekció:</strong> saját programkínálat, szakkörök, versenyfelkészítés, projektnapok, interdiszciplináris projektek és pályaorientáció.</li>
+            <li><strong>4. szekció:</strong> tanulmányi versenyek, kutatási alapú versenyek és projektek, ötlet- és esszépályázatok, eredmények láthatóvá tétele.</li>
+            <li><strong>5. szekció:</strong> a lányok célzott megszólítása, példaképek, részvétel külső programokon és saját szervezésű kezdeményezések.</li>
+            <li><strong>6. szekció:</strong> cégek, egyetemek, múzeumok, laborok és egyéb szakmai partnerek bevonása.</li>
+            <li><strong>7. szekció:</strong> digitális eszközök, aktív tanulás, továbbképzések, műhelymunkák és pedagógus ösztönzési elemek.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="sidebar-guide-mistakes" class="guide-panel-section">
+        <div class="guide-panel-section-kicker">4. fejezet</div>
+        <h4 class="guide-panel-section-title">Gyakori hibák a kitöltés során</h4>
+        <table class="guide-table guide-table-compact">
+          <thead><tr><th>Hiba</th><th>Miért probléma / mit tegyen helyette</th></tr></thead>
+          <tbody>
+            <tr><td>Túl általános válasz</td><td>Az ilyen kijelentések önmagukban gyengék: „Iskolánk fontosnak tartja az MTMI-t.” Mindig konkrétummal kell folytatni: hogyan, mikor, kikkel, milyen programban.</td></tr>
+            <tr><td>Főoldal linkelése konkrét aloldal helyett</td><td>A pályázat értékelése szempontjából a főoldal általában nem elég. Konkrét cikket, aloldalt, dokumentumot vagy programleírást kell linkelni.</td></tr>
+            <tr><td>Ugyanannak a programnak az ismételgetése több helyen</td><td>Egy program több szekcióhoz is kapcsolódhat, de minden pontnál más szempontból kell róla írni. Nem ugyanazt a leírást kell ismételni.</td></tr>
+            <tr><td>Összekevert kategóriák</td><td>Gyakori hiba a projektnap és interdiszciplináris projekt, a tanulmányi verseny és kutatási verseny, illetve a külső programon való részvétel és a saját szervezés összekeverése.</td></tr>
+            <tr><td>Egyedi létszám helyett részvételi szám, vagy fordítva</td><td>Ahol az űrlap részvételi logikát követ, ott ugyanaz a tanuló több alkalommal is megjelenhet az összesítésben. A mező jelentését mindig a kérdés alapján kell értelmezni.</td></tr>
+            <tr><td>Nincs valós alátámasztás</td><td>Ha van linkmező, érdemes használni. Ha nincs link, de van nyilvános nyoma a programnak, az alátámasztás hiánya gyengítheti a pályázatot.</td></tr>
+            <tr><td>Túl hosszú, de nem informatív szöveg</td><td>A karakterkorlát miatt különösen fontos, hogy a leírás tömör, de tartalmas legyen.</td></tr>
+            <tr><td>Az érintett tanulók mező kihagyása</td><td>Az „Ebből mennyi a programban érintett tanulók száma” mező kiemelt jelentőségű, nem maradhat üresen.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="sidebar-guide-glossary" class="guide-panel-section">
+        <div class="guide-panel-section-kicker">5. fejezet</div>
+        <h4 class="guide-panel-section-title">Fogalomtár</h4>
+        <table class="guide-table guide-table-compact">
+          <thead><tr><th>Fogalom</th><th>Meghatározás</th></tr></thead>
+          <tbody>
+            <tr><td>MTMI</td><td>Matematika, természettudomány, műszaki tudomány és informatika.</td></tr>
+            <tr><td>MTMI csapat</td><td>Az iskola azon pedagóguscsoportja, amely közösen szervezi, koordinálja vagy támogatja az MTMI működést.</td></tr>
+            <tr><td>MTMI felelős</td><td>Az a személy, aki az iskola MTMI ügyeiért kiemelten felel vagy azok koordinációját végzi.</td></tr>
+            <tr><td>MTMI koncepció</td><td>Az iskola saját, tudatosan megfogalmazott szakmai elképzelése arról, hogyan építi fel és fejleszti MTMI működését.</td></tr>
+            <tr><td>Pedagógiai program</td><td>Az iskola hivatalos szakmai alapdokumentuma.</td></tr>
+            <tr><td>Szakkör</td><td>Tanórán kívüli, rendszeres foglalkozás valamely tématerületen.</td></tr>
+            <tr><td>Szakköri részvétel</td><td>Egy tanuló részvétele egy adott szakkörön. Több szakkör esetén ugyanaz a tanuló többször is megjelenhet az összesítésben.</td></tr>
+            <tr><td>Versenyrészvétel</td><td>Egy tanuló indulása egy adott versenyen. Több verseny esetén ugyanaz a tanuló többször is számítható.</td></tr>
+            <tr><td>Tanulmányi verseny</td><td>Elsősorban tantárgyi tudásra, feladatmegoldásra, problémamegoldásra épülő verseny.</td></tr>
+            <tr><td>Kutatási alapú verseny vagy projekt</td><td>Olyan tevékenység, ahol a tanuló saját kutatást, vizsgálatot, projektmunkát vagy fejlesztést mutat be.</td></tr>
+            <tr><td>Ötletpályázat</td><td>Innovatív ötletre, megoldási javaslatra épülő pályázat.</td></tr>
+            <tr><td>Esszépályázat</td><td>Írásos munkára, gondolatkifejtésre épülő pályázat.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="sidebar-guide-closing" class="guide-panel-section">
+        <div class="guide-panel-section-kicker">6. fejezet</div>
+        <h4 class="guide-panel-section-title">Záró megjegyzés</h4>
+        <div class="guide-panel-note guide-panel-note-soft">
+          A legerősebb pályázati anyagok nem attól erősek, hogy minden kérdésre a lehető leghosszabban válaszolnak,
+          hanem attól, hogy világosan, hitelesen és konkrétan mutatják be az iskola MTMI működését.
+        </div>
+        <p class="guide-page-paragraph">Ahol van valós gyakorlat, ott azt érdemes pontosan megnevezni, röviden
+          bemutatni, és lehetőség szerint linkkel alátámasztani. Ahol egy elem még csak részben valósul meg, ott azt
+          is érdemes őszintén, de rendezett módon bemutatni.</p>
+      </section>
+    </div>
+  </aside>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/script.js"></script>

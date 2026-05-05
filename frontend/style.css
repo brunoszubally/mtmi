@@ -338,6 +338,58 @@ textarea.form-control {
   box-shadow: 0 10px 24px rgba(42, 77, 105, 0.08);
 }
 
+.guide-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 33, 54, 0.28);
+  backdrop-filter: blur(4px);
+  z-index: 25000;
+}
+
+.guide-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(760px, 96vw);
+  height: 100vh;
+  background: linear-gradient(180deg, rgba(247, 251, 255, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
+  box-shadow: -24px 0 54px rgba(18, 34, 56, 0.18);
+  z-index: 26000;
+  transform: translateX(102%);
+  transition: transform 0.28s ease;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 24px 20px;
+  border-left: 1px solid rgba(214, 228, 247, 0.9);
+}
+
+.guide-panel.is-open {
+  transform: translateX(0);
+}
+
+.guide-panel-actions {
+  margin-bottom: 14px;
+}
+
+.guide-panel-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.guide-panel-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.guide-panel-scroll::-webkit-scrollbar-thumb {
+  background: rgba(76, 114, 158, 0.24);
+  border-radius: 999px;
+}
+
 .guide-page {
   min-height: 100vh;
   margin: 0;
@@ -725,6 +777,11 @@ textarea.form-control {
     padding-bottom: 8px;
     border-bottom: 0;
     background: #f7fbff;
+  }
+
+  .guide-panel {
+    width: 100vw;
+    padding: 18px 14px 16px;
   }
 
   #welcome-screen .card {
