@@ -142,7 +142,7 @@ def init_db():
             c.execute('''
                 CREATE TABLE IF NOT EXISTS app_settings (
                     id INTEGER PRIMARY KEY,
-                    submission_mode TEXT NOT NULL DEFAULT 'auto',
+                    submission_mode TEXT NOT NULL DEFAULT 'forced_inactive',
                     submission_start_at TIMESTAMPTZ,
                     submission_end_at TIMESTAMPTZ,
                     updated_at TIMESTAMP NOT NULL
@@ -150,9 +150,14 @@ def init_db():
             ''')
             c.execute('''
                 INSERT INTO app_settings (id, submission_mode, submission_start_at, submission_end_at, updated_at)
-                VALUES (1, 'auto', NULL, NULL, %s)
+                VALUES (1, 'forced_inactive', NULL, NULL, %s)
                 ON CONFLICT (id) DO NOTHING
             ''', (datetime.utcnow(),))
+            c.execute("""
+                UPDATE app_settings
+                SET submission_mode = 'forced_inactive', updated_at = %s
+                WHERE id = 1 AND (submission_mode IS NULL OR submission_mode = 'auto')
+            """, (datetime.utcnow(),))
             
             conn.commit()
 
@@ -217,12 +222,12 @@ def get_submission_settings():
             row = c.fetchone()
     if not row:
         return {
-            "mode": "auto",
+            "mode": "forced_inactive",
             "start_at": None,
             "end_at": None
         }
     return {
-        "mode": row[0] or "auto",
+        "mode": row[0] or "forced_inactive",
         "start_at": row[1],
         "end_at": row[2]
     }
@@ -233,7 +238,7 @@ def compute_submission_status():
     now_utc = datetime.now(timezone.utc)
     now_budapest = now_utc.astimezone(BUDAPEST_TZ)
 
-    mode = cfg["mode"] or "auto"
+    mode = cfg["mode"] or "forced_inactive"
     start_at = cfg["start_at"]
     end_at = cfg["end_at"]
 
@@ -247,28 +252,17 @@ def compute_submission_status():
     elif mode == "forced_review":
         status = "review"
         message = "A pályázati felület jelenleg nem elérhető, bírálat zajlik."
-    else:
-        if mode == "auto" and not start_at and not end_at:
-            status = "inactive"
-            message = "Jelenleg nincs aktív pályázati időszak."
-        elif start_at and now_utc < start_at and mode == "auto":
-            status = "inactive"
-            message = "Jelenleg nincs aktív pályázati időszak."
-        elif end_at and now_utc > end_at and mode == "auto":
-            status = "review"
-            message = "A pályázati felület lezárva, bírálat zajlik."
-        else:
-            if end_at:
-                seconds_left = (end_at - now_utc).total_seconds()
-                if seconds_left <= 0 and mode != "forced_open":
-                    status = "review"
-                    message = "A pályázati felület lezárva, bírálat zajlik."
-                else:
-                    days_left = int((seconds_left + 86399) // 86400)
-                    if 0 < days_left <= 10:
-                        status = "countdown"
-                        countdown_days_left = days_left
-                        message = f"Még {days_left} napja van a beadásra."
+    elif mode != "forced_open":
+        status = "inactive"
+        message = "Jelenleg nincs aktív pályázati időszak."
+    elif end_at:
+        seconds_left = (end_at - now_utc).total_seconds()
+        if seconds_left > 0:
+            days_left = int((seconds_left + 86399) // 86400)
+            if 0 < days_left <= 10:
+                status = "countdown"
+                countdown_days_left = days_left
+                message = f"Még {days_left} napja van a beadásra."
 
     is_available = status in ("open", "countdown")
     return {
@@ -912,9 +906,9 @@ def _parse_admin_datetime(value):
 
 @app.put("/api/admin/submission-window")
 def admin_update_submission_window(payload: dict):
-    mode = (payload.get("mode") or "auto").strip()
-    if mode not in ("auto", "forced_open", "forced_inactive", "forced_review"):
-        raise HTTPException(status_code=400, detail="Érvénytelen mód! (auto/forced_open/forced_inactive/forced_review)")
+    mode = (payload.get("mode") or "forced_inactive").strip()
+    if mode not in ("forced_open", "forced_inactive", "forced_review"):
+        raise HTTPException(status_code=400, detail="Érvénytelen mód! (forced_open/forced_inactive/forced_review)")
 
     start_at = _parse_admin_datetime(payload.get("start_at"))
     end_at = _parse_admin_datetime(payload.get("end_at"))

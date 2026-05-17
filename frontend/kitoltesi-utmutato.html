@@ -23,7 +23,7 @@
       <p class="guide-page-lead">Ez az útmutató a pályázati kérdéssor pontos értelmezését, a kitöltés logikáját, a
         gyakori hibák elkerülését és az egységes fogalomhasználatot támogatja.</p>
       <div class="guide-page-actions">
-        <a href="/" class="btn btn-outline-primary btn-lg">
+        <a href="/" id="guide-back-btn" class="btn btn-outline-primary btn-lg">
           <i class="bi bi-arrow-left me-2"></i>Vissza a felületre
         </a>
         <a href="mailto:program@mtmi-iskola.hu" class="btn btn-primary btn-lg">
@@ -685,6 +685,19 @@
       </div>
     </section>
   </main>
+  <script>
+    (function () {
+      const GUIDE_RETURN_KEY = "mtmi_guide_return_to";
+      const backBtn = document.getElementById("guide-back-btn");
+      if (!backBtn) return;
+
+      const params = new URLSearchParams(window.location.search);
+      const queryReturn = params.get("return_to");
+      const storedReturn = localStorage.getItem(GUIDE_RETURN_KEY);
+      const target = queryReturn || storedReturn || "/";
+      backBtn.setAttribute("href", target);
+    })();
+  </script>
 </body>
 
 </html>

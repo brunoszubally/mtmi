@@ -123,7 +123,7 @@ async function loadSubmissionWindowSettings() {
     const statusEl = document.getElementById("submission-window-status");
     if (!modeEl || !startEl || !endEl || !statusEl) return;
 
-    modeEl.value = status.mode || "auto";
+    modeEl.value = status.mode === "auto" ? "forced_inactive" : (status.mode || "forced_inactive");
     startEl.value = utcIsoToDatetimeLocalBp(status.start_at);
     endEl.value = utcIsoToDatetimeLocalBp(status.end_at);
     statusEl.textContent = renderSubmissionStatusText(status);

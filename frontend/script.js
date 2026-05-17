@@ -11,6 +11,8 @@ const LINK_BOX_ID = "mtmi-link-box";
 const SCHOOL_ID_KEY = "mtmi_school_id";
 const SCHOOL_NAME_KEY = "mtmi_school_name";
 const LINKED_FORM_ID_KEY = "mtmi_linked_form_id";
+const GUIDE_PAGE_PATH = "/kitoltesi-utmutato.html";
+const GUIDE_RETURN_KEY = "mtmi_guide_return_to";
 const MAX_LINK_FIELDS_PER_GROUP = 10;
 const AUTO_SAVE_DEBOUNCE_MS = 1000;
 window.currentLoadedFormSchoolId = null;
@@ -113,6 +115,27 @@ function performSchoolLogout() {
   } else {
     setPrimaryScreen("login");
   }
+}
+
+function getGuideReturnTarget() {
+  const path = `${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}`;
+  return path || "/";
+}
+
+function setupGuideReturnLinks() {
+  const guideLinks = Array.from(document.querySelectorAll("[data-guide-link='true']"));
+  if (!guideLinks.length) return;
+  const returnTo = getGuideReturnTarget();
+  const guideUrl = `${GUIDE_PAGE_PATH}?return_to=${encodeURIComponent(returnTo)}`;
+
+  guideLinks.forEach((link) => {
+    link.setAttribute("href", guideUrl);
+    if (link.dataset.bound === "1") return;
+    link.dataset.bound = "1";
+    link.addEventListener("click", () => {
+      localStorage.setItem(GUIDE_RETURN_KEY, returnTo);
+    });
+  });
 }
 
 function formatHuDateTime(isoValue) {
@@ -882,6 +905,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   // --- School login form kezelése ---
   console.log('[LOGIN] DOMContentLoaded (login init)');
   setupGuidePanel();
+  setupGuideReturnLinks();
   setupMultiLinkFields();
   syncSchoolNameField('dom-content-loaded');
   const schoolLoginForm = document.getElementById('school-login-form');

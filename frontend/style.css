@@ -22,6 +22,10 @@
   padding: clamp(1rem, 4vw, 2rem) !important;
 }
 
+#welcome-screen .welcome-copy {
+  font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* Nagyítás esetén kisebb szövegméret és jobb térhasználat */
 @media (max-width: 768px) or (min-resolution: 150dpi) {
   #welcome-screen .card {
@@ -327,6 +331,10 @@ textarea.form-control {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 16px;
+  position: sticky;
+  top: 16px;
+  z-index: 120;
+  padding-top: 4px;
 }
 
 .form-guide-trigger {
@@ -336,6 +344,7 @@ textarea.form-control {
   border-color: #c7d7ee;
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 10px 24px rgba(42, 77, 105, 0.08);
+  backdrop-filter: blur(8px);
 }
 
 .guide-panel-backdrop {
