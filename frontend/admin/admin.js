@@ -52,15 +52,21 @@ function utcIsoToDatetimeLocalBp(iso) {
 }
 
 function renderSubmissionStatusText(status) {
-  const map = {
+  const statusMap = {
     open: "Nyitott",
     countdown: "Nyitott (visszaszámláló)",
     review: "Bírálat zajlik / lezárva",
     inactive: "Nincs aktív pályázati időszak"
   };
-  const label = map[status.status] || status.status;
+  const modeMap = {
+    forced_open: "Nyitott",
+    forced_inactive: "Nincs aktív időszak",
+    forced_review: "Bírálat zajlik"
+  };
+  const label = statusMap[status.status] || status.status;
+  const modeLabel = modeMap[status.mode] || status.mode;
   const countdown = status.countdown_days_left ? ` | Hátralévő napok: ${status.countdown_days_left}` : "";
-  return `Állapot: ${label} | Mód: ${status.mode}${countdown} | Üzenet: ${status.message}`;
+  return `Állapot: ${label} | Mód: ${modeLabel}${countdown} | Üzenet: ${status.message}`;
 }
 
 function showAdminToast(message, type = "success") {
