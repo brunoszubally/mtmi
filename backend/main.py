@@ -8,6 +8,10 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 import os
+import json
+import base64
+import hmac
+import hashlib
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -34,6 +38,9 @@ BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
 DB_POOL_MIN_CONN = int(os.environ.get("DB_POOL_MIN_CONN", "1"))
 DB_POOL_MAX_CONN = int(os.environ.get("DB_POOL_MAX_CONN", "8"))
 DB_POOL: Optional[SimpleConnectionPool] = None
+AUTH_SECRET = (os.environ.get("AUTH_SECRET") or DATABASE_URL or "mtmi-dev-auth-secret").encode("utf-8")
+SCHOOL_TOKEN_TTL_SECONDS = int(os.environ.get("SCHOOL_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 14)))
+ADMIN_TOKEN_TTL_SECONDS = int(os.environ.get("ADMIN_TOKEN_TTL_SECONDS", str(60 * 60 * 12)))
 
 # --- FTP konfiguráció ---
 FTP_HOST = "move-on.hu"
@@ -201,6 +208,108 @@ class LoadResponse(BaseModel):
     school_id: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(raw: str) -> bytes:
+    padding = "=" * (-len(raw) % 4)
+    return base64.urlsafe_b64decode(raw + padding)
+
+
+def _sign_token_payload(payload: dict) -> str:
+    body = _b64url_encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    signature = hmac.new(AUTH_SECRET, body.encode("utf-8"), hashlib.sha256).digest()
+    return f"{body}.{_b64url_encode(signature)}"
+
+
+def issue_auth_token(role: str, ttl_seconds: int, **claims) -> str:
+    payload = {
+        "role": role,
+        "exp": int(datetime.now(timezone.utc).timestamp()) + ttl_seconds,
+        **claims
+    }
+    return _sign_token_payload(payload)
+
+
+def verify_auth_token(token: str) -> Optional[dict]:
+    try:
+        body, sig = token.split(".", 1)
+        expected_sig = _b64url_encode(hmac.new(AUTH_SECRET, body.encode("utf-8"), hashlib.sha256).digest())
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+        payload = json.loads(_b64url_decode(body).decode("utf-8"))
+        if int(payload.get("exp", 0)) < int(datetime.now(timezone.utc).timestamp()):
+            return None
+        return payload
+    except Exception:
+        return None
+
+
+def get_auth_payload(request: Request, allowed_roles: Optional[List[str]] = None) -> dict:
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Hiányzó vagy érvénytelen hitelesítés.")
+    payload = verify_auth_token(auth_header.split(" ", 1)[1].strip())
+    if not payload:
+        raise HTTPException(status_code=401, detail="Lejárt vagy érvénytelen hitelesítés.")
+    if allowed_roles and payload.get("role") not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Nincs jogosultság ehhez a művelethez.")
+    return payload
+
+
+def require_admin_auth(request: Request) -> dict:
+    return get_auth_payload(request, ["admin"])
+
+
+def require_school_auth(request: Request, expected_school_id: Optional[str] = None) -> dict:
+    payload = get_auth_payload(request, ["school"])
+    if expected_school_id and payload.get("school_id") != expected_school_id:
+        raise HTTPException(status_code=403, detail="Nincs jogosultság ehhez az iskolához.")
+    return payload
+
+
+def resolve_form_owner_school_id(session_id: str) -> Optional[str]:
+    with db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT f.school_id, s.id
+                FROM forms f
+                LEFT JOIN schools s ON s.form_id = f.id
+                WHERE f.id = %s
+            """, (session_id,))
+            row = c.fetchone()
+    if not row:
+        return None
+    return row[0] or row[1]
+
+
+def require_form_access(request: Request, session_id: str, allow_admin: bool = True) -> dict:
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Hiányzó vagy érvénytelen hitelesítés.")
+    payload = verify_auth_token(auth_header.split(" ", 1)[1].strip())
+    if not payload:
+        raise HTTPException(status_code=401, detail="Lejárt vagy érvénytelen hitelesítés.")
+
+    role = payload.get("role")
+    if role == "admin":
+        if allow_admin:
+            return payload
+        raise HTTPException(status_code=403, detail="Admin hozzáférés ezen a végponton nem engedélyezett.")
+
+    if role != "school":
+        raise HTTPException(status_code=403, detail="Nincs jogosultság ehhez a művelethez.")
+
+    owner_school_id = resolve_form_owner_school_id(session_id)
+    school_id = payload.get("school_id")
+    if not owner_school_id:
+        raise HTTPException(status_code=403, detail="Ez az űrlap nincs iskolai fiókhoz rendelve.")
+    if owner_school_id and owner_school_id != school_id:
+        raise HTTPException(status_code=403, detail="Ez az űrlap nem ehhez az iskolához tartozik.")
+    return payload
 
 
 def _to_utc_iso(dt):
@@ -499,25 +608,36 @@ def save_form(req: SaveRequest, request: Request):
     ensure_submission_available()
     now = datetime.utcnow()
     session_id = req.session_id or str(uuid4())
+    school_auth = require_school_auth(request)
+    school_id = school_auth.get("school_id")
     with db_connection() as conn:
         with conn.cursor() as c:
-            c.execute("SELECT id FROM forms WHERE id = %s", (session_id,))
-            if c.fetchone():
+            c.execute("SELECT id, school_id FROM forms WHERE id = %s", (session_id,))
+            existing_row = c.fetchone()
+            if existing_row:
+                existing_school_id = existing_row[1]
+                if existing_school_id and existing_school_id != school_id:
+                    raise HTTPException(status_code=403, detail="Ez az űrlap nem ehhez az iskolához tartozik.")
                 c.execute(
-                    "UPDATE forms SET data = %s, updated_at = %s WHERE id = %s",
-                    (Json(req.data), now, session_id)
+                    "UPDATE forms SET data = %s, updated_at = %s, school_id = COALESCE(school_id, %s) WHERE id = %s",
+                    (Json(req.data), now, school_id, session_id)
                 )
             else:
                 c.execute(
-                    "INSERT INTO forms (id, data, created_at, updated_at, submitted) VALUES (%s, %s, %s, %s, 0)",
-                    (session_id, Json(req.data), now, now)
+                    "INSERT INTO forms (id, data, created_at, updated_at, submitted, school_id) VALUES (%s, %s, %s, %s, 0, %s)",
+                    (session_id, Json(req.data), now, now, school_id)
                 )
+            c.execute(
+                "UPDATE schools SET form_id = %s, updated_at = %s WHERE id = %s",
+                (session_id, now, school_id)
+            )
             conn.commit()
     url = str(request.base_url) + f"kitoltes/{session_id}"
     return SaveResponse(session_id=session_id, url=url, updated_at=now.isoformat())
 
 @app.get("/api/load/{session_id}", response_model=LoadResponse)
-def load_form(session_id: str):
+def load_form(session_id: str, request: Request):
+    require_form_access(request, session_id, allow_admin=True)
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT data, submitted, pdf_file_path, school_id, created_at, updated_at FROM forms WHERE id = %s", (session_id,))
@@ -542,7 +662,8 @@ def load_form(session_id: str):
 
 # PDF feltöltés végpont
 @app.post("/api/upload-pdf/{session_id}")
-async def upload_pdf(session_id: str, file: UploadFile = File(...)):
+async def upload_pdf(session_id: str, request: Request, file: UploadFile = File(...)):
+    require_form_access(request, session_id, allow_admin=False)
     # Ellenőrizzük, hogy a fájl PDF-e
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Csak PDF fájlok tölthetők fel!")
@@ -600,7 +721,8 @@ async def upload_pdf(session_id: str, file: UploadFile = File(...)):
 
 # PDF törlés végpont
 @app.delete("/api/delete-pdf/{session_id}")
-def delete_pdf(session_id: str):
+def delete_pdf(session_id: str, request: Request):
+    require_form_access(request, session_id, allow_admin=False)
     with db_connection() as conn:
         with conn.cursor() as c:
             # Lekérjük a jelenlegi PDF fájl nevét
@@ -622,8 +744,9 @@ def delete_pdf(session_id: str):
 
 
 @app.post("/api/submit/{session_id}")
-def submit_form(session_id: str):
+def submit_form(session_id: str, request: Request):
     ensure_submission_available()
+    require_form_access(request, session_id, allow_admin=False)
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("UPDATE forms SET submitted = 1, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
@@ -632,8 +755,9 @@ def submit_form(session_id: str):
 
 
 @app.post("/api/reopen/{session_id}")
-def reopen_form(session_id: str):
+def reopen_form(session_id: str, request: Request):
     ensure_submission_available()
+    require_form_access(request, session_id, allow_admin=False)
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("UPDATE forms SET submitted = 0, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
@@ -646,11 +770,12 @@ ADMIN_PASSWORDS = ["admin", "Suli2025!"]
 def admin_login(data: dict):
     password = data.get("password")
     if password in ADMIN_PASSWORDS:
-        return {"success": True}
+        return {"success": True, "access_token": issue_auth_token("admin", ADMIN_TOKEN_TTL_SECONDS)}
     return {"success": False}
 
 @app.get("/api/admin/list")
-def admin_list():
+def admin_list(request: Request):
+    require_admin_auth(request)
     import json as _json
     try:
         with db_connection() as conn:
@@ -683,7 +808,8 @@ def admin_list():
         raise HTTPException(status_code=500, detail="Nem sikerült betölteni a kitöltéseket.")
 
 @app.get("/api/admin/result/{session_id}")
-def admin_result(session_id: str):
+def admin_result(session_id: str, request: Request):
+    require_admin_auth(request)
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT data, pdf_file_path FROM forms WHERE id = %s", (session_id,))
@@ -695,7 +821,8 @@ def admin_result(session_id: str):
     return {"data": data, "pdf_file_path": pdf_file_path} 
 
 @app.delete("/api/admin/delete/{session_id}")
-def admin_delete(session_id: str):
+def admin_delete(session_id: str, request: Request):
+    require_admin_auth(request)
     with db_connection() as conn:
         with conn.cursor() as c:
             # PDF fájl törlése is
@@ -712,7 +839,8 @@ def admin_delete(session_id: str):
 
 
 @app.post("/api/admin/forms/bulk")
-def admin_bulk_forms(payload: dict):
+def admin_bulk_forms(payload: dict, request: Request):
+    require_admin_auth(request)
     action = (payload.get("action") or "").strip()
     session_ids = payload.get("session_ids") or []
 
@@ -794,6 +922,7 @@ def school_login(data: dict):
     return {
         "school_id": school_id,
         "school_name": school_name,
+        "access_token": issue_auth_token("school", SCHOOL_TOKEN_TTL_SECONDS, school_id=school_id),
         "form_id": form_id,
         "form_status": form_status,  # None, "in_progress", or "submitted"
         "form_submitted": form_submitted,
@@ -803,7 +932,8 @@ def school_login(data: dict):
 
 
 @app.get("/api/school/dashboard/{school_id}")
-def school_dashboard(school_id: str):
+def school_dashboard(school_id: str, request: Request):
+    require_school_auth(request, school_id)
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT id, name, email, form_id FROM schools WHERE id = %s", (school_id,))
@@ -849,7 +979,8 @@ def public_submission_status():
 
 # --- Admin: Iskolák kezelése ---
 @app.get("/api/admin/schools")
-def admin_list_schools():
+def admin_list_schools(request: Request):
+    require_admin_auth(request)
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("""
@@ -888,7 +1019,8 @@ def admin_list_schools():
 
 
 @app.get("/api/admin/submission-window")
-def admin_get_submission_window():
+def admin_get_submission_window(request: Request):
+    require_admin_auth(request)
     return compute_submission_status()
 
 
@@ -905,7 +1037,8 @@ def _parse_admin_datetime(value):
 
 
 @app.put("/api/admin/submission-window")
-def admin_update_submission_window(payload: dict):
+def admin_update_submission_window(payload: dict, request: Request):
+    require_admin_auth(request)
     mode = (payload.get("mode") or "forced_inactive").strip()
     if mode not in ("forced_open", "forced_inactive", "forced_review"):
         raise HTTPException(status_code=400, detail="Érvénytelen mód! (forced_open/forced_inactive/forced_review)")
@@ -930,7 +1063,8 @@ def admin_update_submission_window(payload: dict):
     return compute_submission_status()
 
 @app.post("/api/admin/schools")
-def admin_create_school(data: dict):
+def admin_create_school(data: dict, request: Request):
+    require_admin_auth(request)
     name = data.get("name", "").strip()
     email = data.get("email", "").strip().lower() if data.get("email") else None
     password = data.get("password", "")
@@ -959,7 +1093,8 @@ def admin_create_school(data: dict):
     return {"id": school_id, "name": name, "email": email}
 
 @app.put("/api/admin/schools/{school_id}")
-def admin_update_school(school_id: str, data: dict):
+def admin_update_school(school_id: str, data: dict, request: Request):
+    require_admin_auth(request)
     name = data.get("name", "").strip()
     email = data.get("email", "").strip().lower() if data.get("email") else None
     password = data.get("password", "")
@@ -997,7 +1132,8 @@ def admin_update_school(school_id: str, data: dict):
     return {"status": "updated"}
 
 @app.delete("/api/admin/schools/{school_id}")
-def admin_delete_school(school_id: str):
+def admin_delete_school(school_id: str, request: Request):
+    require_admin_auth(request)
     with db_connection() as conn:
         with conn.cursor() as c:
             # Unlink form if any
@@ -1008,12 +1144,14 @@ def admin_delete_school(school_id: str):
 
 # --- Iskolai save: form_id hozzárendelése az iskolához ---
 @app.post("/api/school/link-form")
-def school_link_form(data: dict):
+def school_link_form(data: dict, request: Request):
     school_id = data.get("school_id")
     form_id = data.get("form_id")
     if not school_id or not form_id:
         raise HTTPException(status_code=400, detail="school_id és form_id megadása kötelező!")
-    
+    require_school_auth(request, school_id)
+    require_form_access(request, form_id, allow_admin=False)
+
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("UPDATE schools SET form_id = %s, updated_at = %s WHERE id = %s", (form_id, datetime.utcnow(), school_id))
@@ -1022,9 +1160,10 @@ def school_link_form(data: dict):
     return {"status": "linked"}
 
 @app.post("/api/admin/generate-pdf")
-def generate_pdf(request: dict):
-    session_id = request.get("session_id")
-    data = request.get("data", {})
+def generate_pdf(payload: dict, request: Request):
+    require_admin_auth(request)
+    session_id = payload.get("session_id")
+    data = payload.get("data", {})
     buffer = _build_submission_pdf_buffer(session_id=session_id, data=data or {})
     
     return Response(
@@ -1036,6 +1175,7 @@ def generate_pdf(request: dict):
 
 @app.get("/api/export/pdf/{session_id}")
 def export_submission_pdf(session_id: str, request: Request):
+    require_form_access(request, session_id, allow_admin=True)
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("""

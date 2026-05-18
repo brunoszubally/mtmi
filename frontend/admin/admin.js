@@ -1,16 +1,38 @@
 // API_BASE dinamikus meghatározása
 const API_BASE = "/api";
+const ADMIN_TOKEN_KEY = "mtmi_admin_token";
 
 // --- Admin session kezelés ---
-function setAdminSession(loggedIn) {
-  if (loggedIn) {
-    localStorage.setItem("mtmi_admin_logged_in", "1");
+function setAdminSession(token) {
+  if (token) {
+    localStorage.setItem(ADMIN_TOKEN_KEY, token);
   } else {
-    localStorage.removeItem("mtmi_admin_logged_in");
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
   }
 }
+
+function getAdminToken() {
+  return localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
 function isAdminLoggedIn() {
-  return localStorage.getItem("mtmi_admin_logged_in") === "1";
+  return Boolean(getAdminToken());
+}
+
+function adminHeaders(json = false) {
+  const headers = {};
+  if (json) headers["Content-Type"] = "application/json";
+  const token = getAdminToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+async function adminFetch(url, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    ...adminHeaders(false)
+  };
+  return fetch(url, { ...options, headers });
 }
 
 function utcIsoToDatetimeLocalBp(iso) {
@@ -113,7 +135,7 @@ function setSchoolSaveButtonState(state = "idle") {
 
 async function loadSubmissionWindowSettings() {
   try {
-    const resp = await fetch(`${API_BASE}/admin/submission-window`);
+    const resp = await adminFetch(`${API_BASE}/admin/submission-window`);
     if (!resp.ok) return;
     const status = await resp.json();
 
@@ -149,9 +171,9 @@ async function saveSubmissionWindowSettings() {
   setSubmissionSaveButtonState("saving");
 
   try {
-    const resp = await fetch(`${API_BASE}/admin/submission-window`, {
+    const resp = await adminFetch(`${API_BASE}/admin/submission-window`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: adminHeaders(true),
       body: JSON.stringify(body)
     });
     const json = await resp.json();
@@ -226,10 +248,10 @@ document.getElementById("admin-login-form").addEventListener("submit", async fun
   });
   const res = await resp.json();
   if (res.success) {
-    setAdminSession(true);
+    setAdminSession(res.access_token);
     showAdminListBlock();
   } else {
-    setAdminSession(false);
+    setAdminSession(null);
     document.getElementById("admin-login-error").textContent = "Hibás felhasználónév vagy jelszó!";
     document.getElementById("admin-login-error").style.display = "block";
   }
@@ -240,7 +262,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const logoutBtn = document.getElementById("admin-logout-btn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", function () {
-      setAdminSession(false);
+      setAdminSession(null);
       showAdminLoginBlock();
     });
   }
@@ -424,7 +446,7 @@ function renderAdminFormsTable(rows) {
       pdfLink.addEventListener("click", function (e) {
         e.preventDefault();
         // Lekérjük a pontos PDF fájl nevét
-        fetch(`${API_BASE}/admin/result/${row.id}`)
+        adminFetch(`${API_BASE}/admin/result/${row.id}`)
           .then(resp => resp.json())
           .then(data => {
             if (data.pdf_file_path) {
@@ -504,7 +526,7 @@ function applyFormsFilters() {
 
 async function loadAdminList() {
   try {
-    const resp = await fetch(`${API_BASE}/admin/list`);
+    const resp = await adminFetch(`${API_BASE}/admin/list`);
     if (!resp.ok) {
       throw new Error(`HTTP ${resp.status}`);
     }
@@ -526,7 +548,7 @@ async function loadAdminList() {
 if (document.getElementById('confirmDeleteBtn')) {
   document.getElementById('confirmDeleteBtn').addEventListener('click', async function () {
     if (deleteSessionId) {
-      const resp = await fetch(`${API_BASE}/admin/delete/${deleteSessionId}`, { method: "DELETE" });
+      const resp = await adminFetch(`${API_BASE}/admin/delete/${deleteSessionId}`, { method: "DELETE" });
       if (resp.ok) {
         // Modal bezárása
         const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
@@ -557,7 +579,7 @@ function renderStatusIcon(submitted) {
 
 // --- Összefoglaló nézet megjelenítése ---
 async function showSummary(session_id) {
-  const resp = await fetch(`${API_BASE}/admin/result/${session_id}`);
+  const resp = await adminFetch(`${API_BASE}/admin/result/${session_id}`);
   if (!resp.ok) {
     alert("Nem sikerült letölteni az eredményeket a szerverről.");
     return;
@@ -896,7 +918,7 @@ async function showSummary(session_id) {
 async function exportToExcel() {
   try {
     // Lekérjük az összes kitöltést
-    const resp = await fetch(`${API_BASE}/admin/list`);
+    const resp = await adminFetch(`${API_BASE}/admin/list`);
     const submissions = await resp.json();
 
     if (submissions.length === 0) {
@@ -912,7 +934,7 @@ async function exportToExcel() {
     const headers = new Set();
 
     for (const submission of submissions) {
-      const detailResp = await fetch(`${API_BASE}/admin/result/${submission.id}`);
+      const detailResp = await adminFetch(`${API_BASE}/admin/result/${submission.id}`);
       const detail = await detailResp.json();
 
       // A 'data' objektumból vesszük az űrlap adatokat
@@ -989,7 +1011,7 @@ async function exportToExcel() {
 async function exportSingleToExcel(sessionId) {
   try {
     // Lekérjük a kitöltés részletes adatait
-    const resp = await fetch(`${API_BASE}/admin/result/${sessionId}`);
+    const resp = await adminFetch(`${API_BASE}/admin/result/${sessionId}`);
     if (!resp.ok) {
       alert('Nem sikerült letölteni a kitöltés adatait!');
       return;
@@ -1130,7 +1152,7 @@ async function exportSelectedToExcel() {
   try {
     const workbook = XLSX.utils.book_new();
     for (const sessionId of ids) {
-      const resp = await fetch(`${API_BASE}/admin/result/${sessionId}`);
+      const resp = await adminFetch(`${API_BASE}/admin/result/${sessionId}`);
       if (!resp.ok) continue;
       const result = await resp.json();
       const data = result.data || {};
@@ -1161,9 +1183,9 @@ async function runBulkAction(action) {
   if (action === "delete" && !confirm(`Biztosan törlöd a kijelölt ${ids.length} kitöltést?`)) return;
 
   try {
-    const resp = await fetch(`${API_BASE}/admin/forms/bulk`, {
+    const resp = await adminFetch(`${API_BASE}/admin/forms/bulk`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: adminHeaders(true),
       body: JSON.stringify({ action, session_ids: ids })
     });
     const json = await resp.json().catch(() => ({}));
@@ -1284,7 +1306,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // --- Iskolák listázása ---
 async function loadSchoolsList() {
   try {
-    const resp = await fetch(`${API_BASE}/admin/schools`);
+    const resp = await adminFetch(`${API_BASE}/admin/schools`);
     const schools = await resp.json();
     adminSchoolsRows = Array.isArray(schools) ? schools : [];
     refreshAdminStats();
@@ -1389,16 +1411,16 @@ async function saveSchool() {
     let resp;
     if (isEdit) {
       // Szerkesztés
-      resp = await fetch(`${API_BASE}/admin/schools/${id}`, {
+      resp = await adminFetch(`${API_BASE}/admin/schools/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(true),
         body: JSON.stringify(body)
       });
     } else {
       // Létrehozás
-      resp = await fetch(`${API_BASE}/admin/schools`, {
+      resp = await adminFetch(`${API_BASE}/admin/schools`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(true),
         body: JSON.stringify(body)
       });
     }
@@ -1438,7 +1460,7 @@ function openDeleteSchoolModal(id, name) {
 // --- Iskola törlése ---
 async function deleteSchool(id) {
   try {
-    const resp = await fetch(`${API_BASE}/admin/schools/${id}`, { method: 'DELETE' });
+    const resp = await adminFetch(`${API_BASE}/admin/schools/${id}`, { method: 'DELETE' });
     if (resp.ok) {
       loadSchoolsList();
       showAdminToast("Iskola törölve.", "success");

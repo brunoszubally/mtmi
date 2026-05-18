@@ -10,6 +10,8 @@ const SESSION_KEY = "mtmi_session_id";
 const LINK_BOX_ID = "mtmi-link-box";
 const SCHOOL_ID_KEY = "mtmi_school_id";
 const SCHOOL_NAME_KEY = "mtmi_school_name";
+const SCHOOL_TOKEN_KEY = "mtmi_school_token";
+const ADMIN_TOKEN_KEY = "mtmi_admin_token";
 const LINKED_FORM_ID_KEY = "mtmi_linked_form_id";
 const GUIDE_PAGE_PATH = "/kitoltesi-utmutato.html";
 const GUIDE_RETURN_KEY = "mtmi_guide_return_to";
@@ -32,15 +34,47 @@ function getSchoolSession() {
   return schoolId ? { school_id: schoolId, school_name: schoolName } : null;
 }
 
-function setSchoolSession(schoolId, schoolName) {
+function getSchoolAccessToken() {
+  return localStorage.getItem(SCHOOL_TOKEN_KEY);
+}
+
+function getAdminAccessToken() {
+  return localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+function isAdminViewActive() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return Boolean(urlParams.get("adminview"));
+}
+
+function getCurrentAccessToken() {
+  if (isAdminViewActive()) {
+    return getAdminAccessToken() || getSchoolAccessToken();
+  }
+  return getSchoolAccessToken();
+}
+
+function buildAuthorizedHeaders({ json = false, adminOnly = false } = {}) {
+  const headers = {};
+  if (json) headers["Content-Type"] = "application/json";
+  const token = adminOnly ? getAdminAccessToken() : getCurrentAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+function setSchoolSession(schoolId, schoolName, accessToken) {
   localStorage.setItem(SCHOOL_ID_KEY, schoolId);
   localStorage.setItem(SCHOOL_NAME_KEY, schoolName);
+  if (accessToken) {
+    localStorage.setItem(SCHOOL_TOKEN_KEY, accessToken);
+  }
   updateSchoolLogoutButtonVisibility();
 }
 
 function clearSchoolSession() {
   localStorage.removeItem(SCHOOL_ID_KEY);
   localStorage.removeItem(SCHOOL_NAME_KEY);
+  localStorage.removeItem(SCHOOL_TOKEN_KEY);
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(LINKED_FORM_ID_KEY);
   window.mtmiDashboardData = null;
@@ -236,7 +270,9 @@ async function loadSchoolDashboard() {
   const schoolSession = getSchoolSession();
   if (!schoolSession?.school_id) return;
   try {
-    const resp = await fetch(`${API_BASE}/school/dashboard/${schoolSession.school_id}`);
+    const resp = await fetch(`${API_BASE}/school/dashboard/${schoolSession.school_id}`, {
+      headers: buildAuthorizedHeaders()
+    });
     if (!resp.ok) return;
     const dashboard = await resp.json();
     updateSchoolDashboardCard(dashboard);
@@ -637,7 +673,7 @@ async function handleSchoolLogin(email, password) {
 
     const res = await resp.json();
     console.log('[LOGIN] login success payload', res);
-    setSchoolSession(res.school_id, res.school_name);
+    setSchoolSession(res.school_id, res.school_name, res.access_token);
     if (res.form_id) {
       localStorage.setItem(LINKED_FORM_ID_KEY, res.form_id);
     }
@@ -1423,7 +1459,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     try {
       const resp = await fetch(`${API_BASE}/save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildAuthorizedHeaders({ json: true }),
         body: JSON.stringify({ data, session_id })
       });
       if (resp.ok) {
@@ -1449,7 +1485,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           try {
             await fetch(`${API_BASE}/school/link-form`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: buildAuthorizedHeaders({ json: true }),
               body: JSON.stringify({ school_id: schoolSession.school_id, form_id: res.session_id })
             });
             localStorage.setItem(LINKED_FORM_ID_KEY, res.session_id);
@@ -1525,7 +1561,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
     console.log('loadForm: Session_id:', session_id);
     try {
-      const resp = await fetch(`${API_BASE}/load/${session_id}`);
+      const resp = await fetch(`${API_BASE}/load/${session_id}`, {
+        headers: buildAuthorizedHeaders()
+      });
       if (resp.ok) {
         const res = await resp.json();
         console.log('loadForm: Adatok betöltve:', res.data);
@@ -1924,7 +1962,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("[FINALIZE] session_id:", session_id);
       if (session_id) {
         try {
-          const resp = await fetch(`${API_BASE}/submit/${session_id}`, { method: "POST" });
+          const resp = await fetch(`${API_BASE}/submit/${session_id}`, {
+            method: "POST",
+            headers: buildAuthorizedHeaders()
+          });
           console.log("[FINALIZE] Backend válasz status:", resp.status);
           const respText = await resp.text();
           console.log("[FINALIZE] Backend válasz body:", respText);
@@ -2068,7 +2109,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       // Lekérjük a backendről az összes választ
-      const resp = await fetch(`${API_BASE}/load/${session_id}`);
+      const resp = await fetch(`${API_BASE}/load/${session_id}`, {
+        headers: buildAuthorizedHeaders()
+      });
       if (!resp.ok) {
         alert("Nem sikerült letölteni az eredményeket a szerverről.");
         return;
@@ -2293,7 +2336,10 @@ window.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      const resp = await fetch(`${API_BASE}/reopen/${session_id}`, { method: "POST" });
+      const resp = await fetch(`${API_BASE}/reopen/${session_id}`, {
+        method: "POST",
+        headers: buildAuthorizedHeaders()
+      });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         alert(err.detail || "Nem sikerült megnyitni szerkesztésre a pályázatot.");
@@ -2624,7 +2670,11 @@ async function uploadPdfFile(file) {
       showPdfStatus('Hálózati hiba a feltöltés során!', 'danger');
     });
 
+    const authToken = getCurrentAccessToken();
     xhr.open('POST', `${API_BASE}/upload-pdf/${session_id}`);
+    if (authToken) {
+      xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+    }
     xhr.send(formData);
 
   } catch (error) {
@@ -2643,7 +2693,8 @@ async function deletePdfFile() {
 
   try {
     const response = await fetch(`${API_BASE}/delete-pdf/${session_id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: buildAuthorizedHeaders()
     });
 
     if (response.ok) {
