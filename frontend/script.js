@@ -54,15 +54,29 @@ function formatPhoneNumber(phone) {
 let currentStep = 0;
 let steps = [];
 
+function syncFinalizeConsentState() {
+  const gdprCheckbox = document.getElementById('gdpr-checkbox');
+  const finalizeBtn = document.getElementById('finalize-btn');
+  const gdprConsentCard = document.getElementById('gdpr-consent-card');
+
+  if (!gdprCheckbox || !finalizeBtn) return;
+
+  const isChecked = gdprCheckbox.checked;
+  finalizeBtn.disabled = !isChecked;
+
+  if (gdprConsentCard) {
+    gdprConsentCard.classList.toggle('is-checked', isChecked);
+  }
+}
+
 // GDPR checkbox kezelése
 document.addEventListener('DOMContentLoaded', function() {
   const gdprCheckbox = document.getElementById('gdpr-checkbox');
   const finalizeBtn = document.getElementById('finalize-btn');
   
   if (gdprCheckbox && finalizeBtn) {
-    gdprCheckbox.addEventListener('change', function() {
-      finalizeBtn.disabled = !this.checked;
-    });
+    gdprCheckbox.addEventListener('change', gdprChangeHandler);
+    syncFinalizeConsentState();
   }
 });
 
@@ -163,30 +177,34 @@ function showStep(idx, direction = 1) {
       finalizeBtn.addEventListener('click', finalizeBtnClickHandler);
       
       // Kezdeti állapot beállítása
-      finalizeBtn.disabled = !gdprCheckbox.checked;
+      syncFinalizeConsentState();
     }
   }
 }
 
 // GDPR checkbox change handler függvény
 function gdprChangeHandler() {
-  const finalizeBtn = document.getElementById('finalize-btn');
-  if (finalizeBtn) {
-    finalizeBtn.disabled = !this.checked;
-  }
+  syncFinalizeConsentState();
 }
 
 // GDPR checkbox felvillantása, ha a véglegesítés gombra kattintanak
 function highlightGdprCheckbox() {
   const gdprCheckbox = document.getElementById('gdpr-checkbox');
+  const gdprConsentCard = document.getElementById('gdpr-consent-card');
   if (gdprCheckbox) {
     // Animáció hozzáadása
-    gdprCheckbox.style.animation = 'highlight 1s ease-in-out';
+    if (gdprConsentCard) {
+      gdprConsentCard.classList.add('needs-attention');
+      gdprConsentCard.style.animation = 'highlight 1s ease-in-out';
+    }
     gdprCheckbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
     
     // Animáció eltávolítása 1 másodperc után
     setTimeout(() => {
-      gdprCheckbox.style.animation = '';
+      if (gdprConsentCard) {
+        gdprConsentCard.style.animation = '';
+        gdprConsentCard.classList.remove('needs-attention');
+      }
     }, 1000);
   }
 }
@@ -628,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Mentés a backendre
   async function saveForm(auto=false) {
       const form = document.getElementById(FORM_ID);
-      if (!form) return;
+      if (!form) return false;
       const data = getFormData(form);
       let session_id = localStorage.getItem(SESSION_KEY);
       // Ha az URL-ben van session_id, azt is elfogadjuk
@@ -652,11 +670,14 @@ document.addEventListener('DOMContentLoaded', function() {
                   // Manuális mentésnél visszajelzés
                   showToast("Sikeres mentés!", "success");
               }
+              return true;
           } else {
               if (!auto) showToast("Hiba a mentés során!", "danger");
+              return false;
           }
       } catch (e) {
           if (!auto) showToast("Hálózati hiba a mentés során!", "danger");
+          return false;
       }
   }
 
@@ -710,6 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
               window.isLoadingForm = true;
               setFormData(form, res.data);
               window.isLoadingForm = false;
+              syncFinalizeConsentState();
               console.log('loadForm: setFormData befejezve');
               
               // Dinamikusan generált mezők adatainak betöltése késleltetéssel
@@ -916,6 +938,10 @@ document.addEventListener("DOMContentLoaded", () => {
     finalizeBtn.addEventListener("click", async function(e) {
       console.log("[FINALIZE] Esemény indult");
       e.preventDefault();
+
+      if (!finalizeBtnClickHandler()) {
+        return;
+      }
       
       // Először minden mezőről eltávolítjuk a required attribútumot
       document.querySelectorAll("input, select, textarea").forEach(el => {
@@ -932,15 +958,27 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("[FINALIZE] session_id:", session_id);
       if (session_id) {
         try {
+          const latestSaveSucceeded = await saveForm(true);
+          if (!latestSaveSucceeded) {
+            showToast("A véglegesítés előtt nem sikerült elmenteni a legfrissebb állapotot. Próbáld újra.", "danger");
+            syncFinalizeConsentState();
+            return;
+          }
           const resp = await fetch(`${API_BASE}/submit/${session_id}`, { method: "POST" });
           console.log("[FINALIZE] Backend válasz status:", resp.status);
           const respText = await resp.text();
           console.log("[FINALIZE] Backend válasz body:", respText);
         } catch (err) {
           console.error("[FINALIZE] Backend submit hiba:", err);
+          showToast("Hiba történt a véglegesítés során.", "danger");
+          syncFinalizeConsentState();
+          return;
         }
       } else {
         console.warn("[FINALIZE] Nincs session_id!");
+        showToast("Hiányzó munkamenet miatt nem sikerült a véglegesítés.", "danger");
+        syncFinalizeConsentState();
+        return;
       }
 
       // --- Köszönőképernyő mutatása ---

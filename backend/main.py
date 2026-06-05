@@ -73,6 +73,18 @@ def init_db():
                     submitted INTEGER DEFAULT 0
                 )
             ''')
+
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS schools (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT,
+                    password_hash TEXT,
+                    form_id TEXT,
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+            ''')
             
             # Add pdf_file_path column if it doesn't exist
             try:
@@ -260,11 +272,15 @@ def admin_list():
     try:
         with psycopg2.connect(DATABASE_URL) as conn:
             with conn.cursor() as c:
-                c.execute("SELECT id, data, created_at, submitted, pdf_file_path FROM forms ORDER BY created_at DESC")
+                c.execute("""
+                    SELECT id, data, created_at, updated_at, submitted, pdf_file_path
+                    FROM forms
+                    ORDER BY LOWER(COALESCE(data->>'palyazo_iskola_neve', '')), created_at DESC
+                """)
                 rows = c.fetchall()
         result = []
         for row in rows:
-            id, data_json, created_at, submitted, pdf_file_path = row
+            id, data_json, created_at, updated_at, submitted, pdf_file_path = row
             data = {}
             if isinstance(data_json, dict):
                 data = data_json
@@ -280,12 +296,54 @@ def admin_list():
                 "id": id,
                 "iskola_nev": iskola_nev,
                 "created_at": created_at,
+                "updated_at": updated_at,
                 "submitted": submitted,
                 "has_pdf": pdf_file_path is not None
             })
         return result
     except Exception as e:
         print(f"Database error: {e}")
+        return {"error": str(e), "database_url": DATABASE_URL}
+
+@app.get("/api/admin/schools")
+def admin_schools():
+    try:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as c:
+                c.execute("""
+                    SELECT
+                        s.id,
+                        s.name,
+                        s.email,
+                        s.form_id,
+                        s.created_at,
+                        s.updated_at,
+                        f.created_at AS form_created_at,
+                        f.updated_at AS form_updated_at,
+                        f.submitted
+                    FROM schools s
+                    LEFT JOIN forms f ON f.id = s.form_id
+                    ORDER BY LOWER(s.name), s.created_at DESC
+                """)
+                rows = c.fetchall()
+
+        result = []
+        for row in rows:
+            school_id, name, email, form_id, created_at, updated_at, form_created_at, form_updated_at, submitted = row
+            result.append({
+                "id": school_id,
+                "name": name,
+                "email": email,
+                "form_id": form_id,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "form_created_at": form_created_at,
+                "form_updated_at": form_updated_at,
+                "submitted": submitted if submitted is not None else 0
+            })
+        return result
+    except Exception as e:
+        print(f"Schools database error: {e}")
         return {"error": str(e), "database_url": DATABASE_URL}
 
 @app.get("/api/admin/result/{session_id}")

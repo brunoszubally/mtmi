@@ -37,24 +37,115 @@
       <div class="admin-list-card card shadow-lg border-0">
         <div class="card-body p-5">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="fw-bold text-primary text-center mb-0">Kitöltések listája</h2>
+            <div>
+              <h2 class="fw-bold text-primary text-center mb-1">MTMI Admin</h2>
+              <p class="text-muted mb-0">Kereshető és rendezhető pályázat- és iskolalista</p>
+            </div>
             <button id="admin-logout-btn" class="btn btn-outline-danger">Kilépés</button>
           </div>
-          <div class="table-responsive">
-            <table class="table table-bordered table-hover align-middle bg-white w-100" style="min-width: 900px;">
-              <thead class="table-light">
-                <tr>
-                  <th>Pályázó iskola neve</th>
-                  <th>Dátum</th>
-                  <th>Státusz</th>
-                  <th>PDF</th>
-                  <th>Excel</th>
-                  <th>Űrlap</th>
-                </tr>
-              </thead>
-              <tbody id="admin-list-tbody">
-              </tbody>
-            </table>
+          <div class="admin-tabs mb-4">
+            <button type="button" class="admin-tab-btn active" data-admin-view="submissions">
+              Pályázatok
+              <span class="admin-tab-count" id="admin-submissions-count">0</span>
+            </button>
+            <button type="button" class="admin-tab-btn" data-admin-view="schools">
+              Iskolák
+              <span class="admin-tab-count" id="admin-schools-count">0</span>
+            </button>
+          </div>
+
+          <div class="admin-view active" id="admin-view-submissions">
+            <div class="admin-toolbar mb-3">
+              <div class="admin-toolbar-grid">
+                <div>
+                  <label class="form-label">Keresés iskolanévre</label>
+                  <input type="search" id="admin-submissions-search" class="form-control" placeholder="Kezdj el gépelni...">
+                </div>
+                <div>
+                  <label class="form-label">Státusz</label>
+                  <select id="admin-submissions-status-filter" class="form-select">
+                    <option value="all">Összes</option>
+                    <option value="submitted">Véglegesítve</option>
+                    <option value="in_progress">Folyamatban</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">Rendezés</label>
+                  <select id="admin-submissions-sort" class="form-select">
+                    <option value="name_asc">Név szerint A-Z</option>
+                    <option value="name_desc">Név szerint Z-A</option>
+                    <option value="created_desc">Létrehozva: legfrissebb elöl</option>
+                    <option value="created_asc">Létrehozva: legrégebbi elöl</option>
+                    <option value="updated_desc">Utoljára módosítva: legfrissebb elöl</option>
+                  </select>
+                </div>
+              </div>
+              <p class="admin-toolbar-note mb-0">Itt a dátum a pályázati rekord létrehozásának ideje.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover align-middle bg-white w-100" style="min-width: 1100px;">
+                <thead class="table-light">
+                  <tr>
+                    <th>Pályázó iskola neve</th>
+                    <th>Pályázat létrehozva</th>
+                    <th>Utoljára módosítva</th>
+                    <th>Státusz</th>
+                    <th>PDF</th>
+                    <th>Excel</th>
+                    <th>Űrlap</th>
+                    <th>Törlés</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-list-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="admin-view" id="admin-view-schools">
+            <div class="admin-toolbar mb-3">
+              <div class="admin-toolbar-grid">
+                <div>
+                  <label class="form-label">Keresés iskolanévre vagy e-mailre</label>
+                  <input type="search" id="admin-schools-search" class="form-control" placeholder="Kezdj el gépelni...">
+                </div>
+                <div>
+                  <label class="form-label">Űrlap státusz</label>
+                  <select id="admin-schools-status-filter" class="form-select">
+                    <option value="all">Összes</option>
+                    <option value="submitted">Véglegesítve</option>
+                    <option value="in_progress">Folyamatban</option>
+                    <option value="no_form">Nincs űrlap</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">Rendezés</label>
+                  <select id="admin-schools-sort" class="form-select">
+                    <option value="name_asc">Név szerint A-Z</option>
+                    <option value="name_desc">Név szerint Z-A</option>
+                    <option value="school_created_desc">Iskola létrehozva: legfrissebb elöl</option>
+                    <option value="school_created_asc">Iskola létrehozva: legrégebbi elöl</option>
+                    <option value="form_created_desc">Kapcsolt pályázat: legfrissebb elöl</option>
+                  </select>
+                </div>
+              </div>
+              <p class="admin-toolbar-note mb-0">Itt külön látszik az iskola létrehozási ideje és a kapcsolt pályázat létrejötte, hogy ne keveredjen a kettő.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover align-middle bg-white w-100" style="min-width: 1200px;">
+                <thead class="table-light">
+                  <tr>
+                    <th>Iskola neve</th>
+                    <th>E-mail</th>
+                    <th>Iskola létrehozva</th>
+                    <th>Kapcsolt pályázat</th>
+                    <th>Pályázat létrehozva</th>
+                    <th>Űrlap státusz</th>
+                    <th>Megnyitás</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-schools-tbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

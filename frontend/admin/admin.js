@@ -74,6 +74,7 @@ function showAdminListBlock() {
   const listCard = document.querySelector(".admin-list-card");
   if (listCard) listCard.classList.add("wide-admin");
   loadAdminList();
+  loadAdminSchools();
   console.log("Lista nézet: osztályok", listBlock, listCard);
 }
 function showAdminLoginBlock() {
@@ -131,11 +132,127 @@ document.addEventListener("DOMContentLoaded", function() {
       showAdminLoginBlock();
     });
   }
-  
 
+  document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      setAdminView(btn.dataset.adminView);
+    });
+  });
+
+  const submissionsSearch = document.getElementById("admin-submissions-search");
+  const submissionsStatus = document.getElementById("admin-submissions-status-filter");
+  const submissionsSort = document.getElementById("admin-submissions-sort");
+  const schoolsSearch = document.getElementById("admin-schools-search");
+  const schoolsStatus = document.getElementById("admin-schools-status-filter");
+  const schoolsSort = document.getElementById("admin-schools-sort");
+
+  if (submissionsSearch) {
+    submissionsSearch.addEventListener("input", () => {
+      adminSubmissionFilters.search = submissionsSearch.value;
+      renderAdminList();
+    });
+  }
+  if (submissionsStatus) {
+    submissionsStatus.addEventListener("change", () => {
+      adminSubmissionFilters.status = submissionsStatus.value;
+      renderAdminList();
+    });
+  }
+  if (submissionsSort) {
+    submissionsSort.addEventListener("change", () => {
+      adminSubmissionFilters.sort = submissionsSort.value;
+      renderAdminList();
+    });
+  }
+
+  if (schoolsSearch) {
+    schoolsSearch.addEventListener("input", () => {
+      adminSchoolFilters.search = schoolsSearch.value;
+      renderAdminSchools();
+    });
+  }
+  if (schoolsStatus) {
+    schoolsStatus.addEventListener("change", () => {
+      adminSchoolFilters.status = schoolsStatus.value;
+      renderAdminSchools();
+    });
+  }
+  if (schoolsSort) {
+    schoolsSort.addEventListener("change", () => {
+      adminSchoolFilters.sort = schoolsSort.value;
+      renderAdminSchools();
+    });
+  }
+
+  setAdminView("submissions");
 });
 
 let deleteSessionId = null;
+let adminCurrentView = "submissions";
+let adminSubmissions = [];
+let adminSchools = [];
+
+const adminSubmissionFilters = {
+  search: "",
+  status: "all",
+  sort: "name_asc"
+};
+
+const adminSchoolFilters = {
+  search: "",
+  status: "all",
+  sort: "name_asc"
+};
+
+function formatAdminDate(value, { dateOnly = false } = {}) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("hu-HU", {
+    timeZone: "Europe/Budapest",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    ...(dateOnly ? {} : { hour: "2-digit", minute: "2-digit" })
+  }).format(date);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sortByDate(a, b, key, direction = "desc") {
+  const aTime = a[key] ? new Date(a[key]).getTime() : 0;
+  const bTime = b[key] ? new Date(b[key]).getTime() : 0;
+  return direction === "asc" ? aTime - bTime : bTime - aTime;
+}
+
+function sortByName(a, b, key, direction = "asc") {
+  const multiplier = direction === "asc" ? 1 : -1;
+  return multiplier * String(a[key] || "").localeCompare(String(b[key] || ""), "hu", { sensitivity: "base" });
+}
+
+function updateAdminCounters() {
+  const submissionsCount = document.getElementById("admin-submissions-count");
+  const schoolsCount = document.getElementById("admin-schools-count");
+  if (submissionsCount) submissionsCount.textContent = adminSubmissions.length;
+  if (schoolsCount) schoolsCount.textContent = adminSchools.length;
+}
+
+function setAdminView(viewName) {
+  adminCurrentView = viewName;
+  document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.adminView === viewName);
+  });
+  document.querySelectorAll(".admin-view").forEach(view => {
+    view.classList.toggle("active", view.id === `admin-view-${viewName}`);
+  });
+}
 
 function normalizeAdminListResponse(payload) {
   if (Array.isArray(payload)) return payload;
@@ -145,25 +262,106 @@ function normalizeAdminListResponse(payload) {
   return null;
 }
 
-// --- Kitöltések listázása ---
-async function loadAdminList() {
-  const resp = await adminFetch(`${API_BASE}/admin/list`);
-  if (!resp) return;
-  if (!resp.ok) {
-    alert("Nem sikerült betölteni a kitöltéseket.");
-    return;
+function getSubmissionStatusValue(row) {
+  return row.submitted ? "submitted" : "in_progress";
+}
+
+function getSchoolStatusValue(row) {
+  if (!row.form_id) return "no_form";
+  return row.submitted ? "submitted" : "in_progress";
+}
+
+function renderSchoolStatusBadge(row) {
+  if (!row.form_id) {
+    return `<span class="status-badge neutral"><i class="bi bi-dash-circle"></i> Nincs űrlap</span>`;
   }
-  const listRaw = await resp.json();
-  const list = normalizeAdminListResponse(listRaw);
-  if (!list) {
-    alert("Nem sikerült betölteni a kitöltéseket.");
-    return;
+  return renderStatusIcon(row.submitted);
+}
+
+function getFilteredAndSortedSubmissions() {
+  const search = adminSubmissionFilters.search.trim().toLowerCase();
+  let rows = [...adminSubmissions];
+
+  if (search) {
+    rows = rows.filter(row => (row.iskola_nev || "").toLowerCase().includes(search));
   }
+
+  if (adminSubmissionFilters.status !== "all") {
+    rows = rows.filter(row => getSubmissionStatusValue(row) === adminSubmissionFilters.status);
+  }
+
+  switch (adminSubmissionFilters.sort) {
+    case "name_desc":
+      rows.sort((a, b) => sortByName(a, b, "iskola_nev", "desc"));
+      break;
+    case "created_desc":
+      rows.sort((a, b) => sortByDate(a, b, "created_at", "desc"));
+      break;
+    case "created_asc":
+      rows.sort((a, b) => sortByDate(a, b, "created_at", "asc"));
+      break;
+    case "updated_desc":
+      rows.sort((a, b) => sortByDate(a, b, "updated_at", "desc"));
+      break;
+    case "name_asc":
+    default:
+      rows.sort((a, b) => sortByName(a, b, "iskola_nev", "asc"));
+      break;
+  }
+
+  return rows;
+}
+
+function getFilteredAndSortedSchools() {
+  const search = adminSchoolFilters.search.trim().toLowerCase();
+  let rows = [...adminSchools];
+
+  if (search) {
+    rows = rows.filter(row =>
+      (row.name || "").toLowerCase().includes(search) ||
+      (row.email || "").toLowerCase().includes(search)
+    );
+  }
+
+  if (adminSchoolFilters.status !== "all") {
+    rows = rows.filter(row => getSchoolStatusValue(row) === adminSchoolFilters.status);
+  }
+
+  switch (adminSchoolFilters.sort) {
+    case "name_desc":
+      rows.sort((a, b) => sortByName(a, b, "name", "desc"));
+      break;
+    case "school_created_desc":
+      rows.sort((a, b) => sortByDate(a, b, "created_at", "desc"));
+      break;
+    case "school_created_asc":
+      rows.sort((a, b) => sortByDate(a, b, "created_at", "asc"));
+      break;
+    case "form_created_desc":
+      rows.sort((a, b) => sortByDate(a, b, "form_created_at", "desc"));
+      break;
+    case "name_asc":
+    default:
+      rows.sort((a, b) => sortByName(a, b, "name", "asc"));
+      break;
+  }
+
+  return rows;
+}
+
+function renderAdminList() {
   const tbody = document.getElementById("admin-list-tbody");
+  if (!tbody) return;
   tbody.innerHTML = "";
-  for (const row of list) {
+
+  const rows = getFilteredAndSortedSubmissions();
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">Nincs találat a jelenlegi szűrőkre.</td></tr>`;
+    return;
+  }
+
+  for (const row of rows) {
     const tr = document.createElement("tr");
-    // Iskola neve kattintható
     const tdNev = document.createElement("td");
     const link = document.createElement("a");
     link.href = "#";
@@ -174,15 +372,19 @@ async function loadAdminList() {
     });
     tdNev.appendChild(link);
     tr.appendChild(tdNev);
-    // Dátum
-    const tdDatum = document.createElement("td");
-    tdDatum.textContent = row.created_at ? new Date(row.created_at).toLocaleString("hu-HU") : "";
-    tr.appendChild(tdDatum);
-    // Státusz
+
+    const tdCreated = document.createElement("td");
+    tdCreated.textContent = formatAdminDate(row.created_at);
+    tr.appendChild(tdCreated);
+
+    const tdUpdated = document.createElement("td");
+    tdUpdated.textContent = formatAdminDate(row.updated_at);
+    tr.appendChild(tdUpdated);
+
     const tdStatus = document.createElement("td");
     tdStatus.innerHTML = renderStatusIcon(row.submitted);
     tr.appendChild(tdStatus);
-    // PDF ikon
+
     const tdPdf = document.createElement("td");
     if (row.has_pdf) {
       const pdfLink = document.createElement("a");
@@ -193,7 +395,6 @@ async function loadAdminList() {
       pdfLink.style.cursor = "pointer";
       pdfLink.addEventListener("click", function(e) {
         e.preventDefault();
-        // Lekérjük a pontos PDF fájl nevét
         adminFetch(`${API_BASE}/admin/result/${row.id}`)
           .then(resp => {
             if (!resp) return null;
@@ -202,9 +403,7 @@ async function loadAdminList() {
           .then(data => {
             if (!data) return;
             if (data.pdf_file_path) {
-              // FTP szerver URL használata
               const pdfUrl = `https://mtmi-iskola.hu/fileupload/${data.pdf_file_path}`;
-              console.log("PDF URL:", pdfUrl);
               window.open(pdfUrl, '_blank');
             } else {
               alert("PDF fájl nem található!");
@@ -221,8 +420,7 @@ async function loadAdminList() {
       tdPdf.title = "Nincs PDF";
     }
     tr.appendChild(tdPdf);
-    
-    // Excel export gomb
+
     const tdExcel = document.createElement("td");
     const excelBtn = document.createElement("button");
     excelBtn.className = "btn btn-outline-success btn-sm";
@@ -233,8 +431,7 @@ async function loadAdminList() {
     });
     tdExcel.appendChild(excelBtn);
     tr.appendChild(tdExcel);
-    
-    // ÚJ: Megtekintés gomb
+
     const tdView = document.createElement("td");
     const viewBtn = document.createElement("a");
     viewBtn.href = `/kitoltes/${row.id}?adminview=1`;
@@ -243,7 +440,7 @@ async function loadAdminList() {
     viewBtn.textContent = "Megnyitás";
     tdView.appendChild(viewBtn);
     tr.appendChild(tdView);
-    // ÚJ: Törlés gomb
+
     const tdDelete = document.createElement("td");
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "btn btn-outline-danger btn-sm";
@@ -260,6 +457,68 @@ async function loadAdminList() {
   }
 }
 
+function renderAdminSchools() {
+  const tbody = document.getElementById("admin-schools-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const rows = getFilteredAndSortedSchools();
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">Nincs találat a jelenlegi szűrőkre.</td></tr>`;
+    return;
+  }
+
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(row.name)}</td>
+      <td>${row.email ? escapeHtml(row.email) : '<span class="text-muted">—</span>'}</td>
+      <td>${formatAdminDate(row.created_at)}</td>
+      <td>${row.form_id ? `<code>${escapeHtml(row.form_id)}</code>` : '<span class="text-muted">Nincs kapcsolva</span>'}</td>
+      <td>${row.form_created_at ? formatAdminDate(row.form_created_at) : '<span class="text-muted">—</span>'}</td>
+      <td>${renderSchoolStatusBadge(row)}</td>
+      <td>${row.form_id ? `<a href="/kitoltes/${encodeURIComponent(row.form_id)}?adminview=1" target="_blank" class="btn btn-outline-primary btn-sm">Megnyitás</a>` : '<span class="text-muted">—</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// --- Kitöltések listázása ---
+async function loadAdminList() {
+  const resp = await adminFetch(`${API_BASE}/admin/list`);
+  if (!resp) return;
+  if (!resp.ok) {
+    alert("Nem sikerült betölteni a kitöltéseket.");
+    return;
+  }
+  const listRaw = await resp.json();
+  const list = normalizeAdminListResponse(listRaw);
+  if (!list) {
+    alert("Nem sikerült betölteni a kitöltéseket.");
+    return;
+  }
+  adminSubmissions = list;
+  updateAdminCounters();
+  renderAdminList();
+}
+
+async function loadAdminSchools() {
+  const resp = await adminFetch(`${API_BASE}/admin/schools`);
+  if (!resp) return;
+  if (!resp.ok) {
+    alert("Nem sikerült betölteni az iskolákat.");
+    return;
+  }
+  const list = await resp.json();
+  if (!Array.isArray(list)) {
+    alert("Nem sikerült betölteni az iskolákat.");
+    return;
+  }
+  adminSchools = list;
+  updateAdminCounters();
+  renderAdminSchools();
+}
+
 // Modal megerősítés gomb esemény
 if (document.getElementById('confirmDeleteBtn')) {
   document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
@@ -271,6 +530,7 @@ if (document.getElementById('confirmDeleteBtn')) {
         const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
         modal.hide();
         loadAdminList();
+        loadAdminSchools();
       } else {
         alert("Hiba történt a törlés során!");
       }
