@@ -4,15 +4,66 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
   : "https://mtmi.onrender.com/api";
 
 // --- Admin session kezelés ---
+const ADMIN_LOGIN_STATE_KEY = "mtmi_admin_logged_in";
+
 function setAdminSession(loggedIn) {
   if (loggedIn) {
-    localStorage.setItem("mtmi_admin_logged_in", "1");
+    localStorage.setItem(ADMIN_LOGIN_STATE_KEY, "1");
   } else {
-    localStorage.removeItem("mtmi_admin_logged_in");
+    localStorage.removeItem(ADMIN_LOGIN_STATE_KEY);
   }
 }
+
 function isAdminLoggedIn() {
-  return localStorage.getItem("mtmi_admin_logged_in") === "1";
+  return localStorage.getItem(ADMIN_LOGIN_STATE_KEY) === "1";
+}
+
+function setAdminLoginError(message = "") {
+  const errorEl = document.getElementById("admin-login-error");
+  if (!errorEl) return;
+  if (message) {
+    errorEl.textContent = message;
+    errorEl.style.display = "block";
+  } else {
+    errorEl.textContent = "";
+    errorEl.style.display = "none";
+  }
+}
+
+function handleAdminUnauthorized(message = "A munkamenet lejárt. Kérjük, jelentkezz be újra.") {
+  setAdminSession(false);
+  showAdminLoginBlock();
+  setAdminLoginError(message);
+}
+
+async function adminFetch(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: "include",
+    ...options
+  });
+  if (response.status === 401 || response.status === 403) {
+    handleAdminUnauthorized();
+    return null;
+  }
+  return response;
+}
+
+async function restoreAdminSession() {
+  if (!isAdminLoggedIn()) {
+    showAdminLoginBlock();
+    return;
+  }
+
+  const response = await adminFetch(`${API_BASE}/admin/list`);
+  if (!response) return;
+
+  if (!response.ok) {
+    setAdminSession(false);
+    showAdminLoginBlock();
+    return;
+  }
+
+  showAdminListBlock();
 }
 
 function showAdminListBlock() {
@@ -35,16 +86,13 @@ function showAdminLoginBlock() {
   if (listCard) listCard.classList.remove("wide-admin");
   document.getElementById("admin-login-block").style.display = "";
   document.getElementById("admin-login-form").reset();
+  setAdminLoginError("");
   console.log("Login nézet: osztályok", listBlock, listCol, listCard);
 }
 
-// --- Oldal betöltéskor: ha már be van lépve, automatikusan a listát mutatjuk ---
+// --- Oldal betöltéskor: csak érvényes sessionnel mutatjuk a listát ---
 document.addEventListener("DOMContentLoaded", function() {
-  if (isAdminLoggedIn()) {
-    showAdminListBlock();
-  } else {
-    showAdminLoginBlock();
-  }
+  restoreAdminSession();
 });
 
 // --- Admin login ---
@@ -54,23 +102,23 @@ document.getElementById("admin-login-form").addEventListener("submit", async fun
   const pw = document.getElementById("admin-password").value;
   // Csak "admin" felhasználónév engedélyezett
   if (user !== "admin") {
-    document.getElementById("admin-login-error").textContent = "Hibás felhasználónév vagy jelszó!";
-    document.getElementById("admin-login-error").style.display = "block";
+    setAdminLoginError("Hibás felhasználónév vagy jelszó!");
     return;
   }
   const resp = await fetch(`${API_BASE}/admin/login`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password: pw })
   });
   const res = await resp.json();
   if (res.success) {
     setAdminSession(true);
+    setAdminLoginError("");
     showAdminListBlock();
   } else {
     setAdminSession(false);
-    document.getElementById("admin-login-error").textContent = "Hibás felhasználónév vagy jelszó!";
-    document.getElementById("admin-login-error").style.display = "block";
+    setAdminLoginError("Hibás felhasználónév vagy jelszó!");
   }
 });
 
@@ -99,7 +147,12 @@ function normalizeAdminListResponse(payload) {
 
 // --- Kitöltések listázása ---
 async function loadAdminList() {
-  const resp = await fetch(`${API_BASE}/admin/list`);
+  const resp = await adminFetch(`${API_BASE}/admin/list`);
+  if (!resp) return;
+  if (!resp.ok) {
+    alert("Nem sikerült betölteni a kitöltéseket.");
+    return;
+  }
   const listRaw = await resp.json();
   const list = normalizeAdminListResponse(listRaw);
   if (!list) {
@@ -141,9 +194,13 @@ async function loadAdminList() {
       pdfLink.addEventListener("click", function(e) {
         e.preventDefault();
         // Lekérjük a pontos PDF fájl nevét
-        fetch(`${API_BASE}/admin/result/${row.id}`)
-          .then(resp => resp.json())
+        adminFetch(`${API_BASE}/admin/result/${row.id}`)
+          .then(resp => {
+            if (!resp) return null;
+            return resp.json();
+          })
           .then(data => {
+            if (!data) return;
             if (data.pdf_file_path) {
               // FTP szerver URL használata
               const pdfUrl = `https://mtmi-iskola.hu/fileupload/${data.pdf_file_path}`;
@@ -207,7 +264,8 @@ async function loadAdminList() {
 if (document.getElementById('confirmDeleteBtn')) {
   document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
     if (deleteSessionId) {
-      const resp = await fetch(`${API_BASE}/admin/delete/${deleteSessionId}`, { method: "DELETE" });
+      const resp = await adminFetch(`${API_BASE}/admin/delete/${deleteSessionId}`, { method: "DELETE" });
+      if (!resp) return;
       if (resp.ok) {
         // Modal bezárása
         const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
@@ -238,7 +296,8 @@ function renderStatusIcon(submitted) {
 
 // --- Összefoglaló nézet megjelenítése ---
 async function showSummary(session_id) {
-  const resp = await fetch(`${API_BASE}/admin/result/${session_id}`);
+  const resp = await adminFetch(`${API_BASE}/admin/result/${session_id}`);
+  if (!resp) return;
   if (!resp.ok) {
     alert("Nem sikerült letölteni az eredményeket a szerverről.");
     return;
@@ -574,7 +633,12 @@ async function showSummary(session_id) {
 async function exportToExcel() {
   try {
     // Lekérjük az összes kitöltést
-    const resp = await fetch(`${API_BASE}/admin/list`);
+    const resp = await adminFetch(`${API_BASE}/admin/list`);
+    if (!resp) return;
+    if (!resp.ok) {
+      alert("Nem sikerült betölteni a kitöltéseket.");
+      return;
+    }
     const submissionsRaw = await resp.json();
     const submissions = normalizeAdminListResponse(submissionsRaw);
     if (!submissions) {
@@ -595,7 +659,12 @@ async function exportToExcel() {
     const headers = new Set();
     
     for (const submission of submissions) {
-      const detailResp = await fetch(`${API_BASE}/admin/result/${submission.id}`);
+      const detailResp = await adminFetch(`${API_BASE}/admin/result/${submission.id}`);
+      if (!detailResp) return;
+      if (!detailResp.ok) {
+        alert("Nem sikerült betölteni az egyik kitöltés részleteit.");
+        return;
+      }
       const detail = await detailResp.json();
       
       // A 'data' objektumból vesszük az űrlap adatokat
@@ -672,7 +741,8 @@ async function exportToExcel() {
 async function exportSingleToExcel(sessionId) {
   try {
     // Lekérjük a kitöltés részletes adatait
-    const resp = await fetch(`${API_BASE}/admin/result/${sessionId}`);
+    const resp = await adminFetch(`${API_BASE}/admin/result/${sessionId}`);
+    if (!resp) return;
     if (!resp.ok) {
       alert('Nem sikerült letölteni a kitöltés adatait!');
       return;
