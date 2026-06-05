@@ -1,6 +1,7 @@
 // API_BASE dinamikus meghatározása
 const API_BASE = "/api";
 const ADMIN_TOKEN_KEY = "mtmi_admin_token";
+let adminAuthExpiredNotified = false;
 
 // --- Admin session kezelés ---
 function setAdminSession(token) {
@@ -32,7 +33,17 @@ async function adminFetch(url, options = {}) {
     ...(options.headers || {}),
     ...adminHeaders(false)
   };
-  return fetch(url, { ...options, headers });
+  const resp = await fetch(url, { ...options, headers });
+  if (resp.status === 401 || resp.status === 403) {
+    setAdminSession(null);
+    showAdminLoginBlock();
+    if (!adminAuthExpiredNotified) {
+      showAdminToast("Az admin munkamenet lejárt. Lépj be újra.", "error");
+      adminAuthExpiredNotified = true;
+    }
+    throw new Error(`AUTH ${resp.status}`);
+  }
+  return resp;
 }
 
 function utcIsoToDatetimeLocalBp(iso) {
@@ -49,6 +60,38 @@ function utcIsoToDatetimeLocalBp(iso) {
   }).formatToParts(d);
   const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
   return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
+}
+
+function formatAdminDate(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("hu-HU", {
+    timeZone: "Europe/Budapest",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(d);
+}
+
+function compareText(a, b) {
+  return String(a || "").localeCompare(String(b || ""), "hu", { sensitivity: "base" });
+}
+
+function compareDate(a, b) {
+  const left = a ? new Date(a).getTime() : 0;
+  const right = b ? new Date(b).getTime() : 0;
+  return left - right;
+}
+
+function normalizeAdminListResponse(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.results)) return payload.results;
+  return [];
 }
 
 function renderSubmissionStatusText(status) {
@@ -254,6 +297,7 @@ document.getElementById("admin-login-form").addEventListener("submit", async fun
   });
   const res = await resp.json();
   if (res.success) {
+    adminAuthExpiredNotified = false;
     setAdminSession(res.access_token);
     showAdminListBlock();
   } else {
@@ -287,13 +331,15 @@ let adminSchoolsRows = [];
 function getFormsFilterState() {
   const q = (document.getElementById("forms-search-input")?.value || "").trim().toLowerCase();
   const status = document.getElementById("forms-status-filter")?.value || "all";
-  return { q, status };
+  const sort = document.getElementById("forms-sort-select")?.value || "created_desc";
+  return { q, status, sort };
 }
 
 function getSchoolsFilterState() {
   const q = (document.getElementById("schools-search-input")?.value || "").trim().toLowerCase();
   const status = document.getElementById("schools-status-filter")?.value || "all";
-  return { q, status };
+  const sort = document.getElementById("schools-sort-select")?.value || "name_asc";
+  return { q, status, sort };
 }
 
 function setStatValue(id, value) {
@@ -410,6 +456,10 @@ function addIndexedLinksToSummary(formClone, data) {
 function renderAdminFormsTable(rows) {
   const tbody = document.getElementById("admin-list-tbody");
   tbody.innerHTML = "";
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Nincs találat a szűrés alapján.</td></tr>';
+    return;
+  }
   for (const row of rows) {
     const tr = document.createElement("tr");
     const tdSelect = document.createElement("td");
@@ -432,10 +482,14 @@ function renderAdminFormsTable(rows) {
     });
     tdNev.appendChild(link);
     tr.appendChild(tdNev);
-    // Dátum
-    const tdDatum = document.createElement("td");
-    tdDatum.textContent = row.created_at ? new Date(row.created_at).toLocaleString("hu-HU") : "";
-    tr.appendChild(tdDatum);
+    const tdCreatedAt = document.createElement("td");
+    tdCreatedAt.className = "text-nowrap small text-muted";
+    tdCreatedAt.textContent = formatAdminDate(row.created_at);
+    tr.appendChild(tdCreatedAt);
+    const tdUpdatedAt = document.createElement("td");
+    tdUpdatedAt.className = "text-nowrap small text-muted";
+    tdUpdatedAt.textContent = formatAdminDate(row.updated_at || row.created_at);
+    tr.appendChild(tdUpdatedAt);
     // Státusz
     const tdStatus = document.createElement("td");
     tdStatus.innerHTML = renderStatusIcon(row.submitted);
@@ -516,7 +570,7 @@ function renderAdminFormsTable(rows) {
 }
 
 function applyFormsFilters() {
-  const { q, status } = getFormsFilterState();
+  const { q, status, sort } = getFormsFilterState();
   const filtered = adminFormRows.filter((row) => {
     const matchesText = !q || String(row.iskola_nev || "").toLowerCase().includes(q);
     const isSubmitted = Number(row.submitted) === 1;
@@ -525,6 +579,13 @@ function applyFormsFilters() {
       (status === "submitted" && isSubmitted) ||
       (status === "in_progress" && !isSubmitted);
     return matchesText && matchesStatus;
+  });
+  filtered.sort((a, b) => {
+    if (sort === "name_asc") return compareText(a.iskola_nev, b.iskola_nev);
+    if (sort === "name_desc") return compareText(b.iskola_nev, a.iskola_nev);
+    if (sort === "created_asc") return compareDate(a.created_at, b.created_at);
+    if (sort === "updated_desc") return compareDate(b.updated_at || b.created_at, a.updated_at || a.created_at);
+    return compareDate(b.created_at, a.created_at);
   });
   resetFormSelections();
   renderAdminFormsTable(filtered);
@@ -536,14 +597,12 @@ async function loadAdminList() {
     if (!resp.ok) {
       throw new Error(`HTTP ${resp.status}`);
     }
-    const list = await resp.json();
-    if (!Array.isArray(list)) {
-      throw new Error("Unexpected response format");
-    }
+    const list = normalizeAdminListResponse(await resp.json());
     adminFormRows = list;
   } catch (e) {
     console.error("loadAdminList error:", e);
     adminFormRows = [];
+    if (String(e.message || "").startsWith("AUTH")) return;
     alert("Nem sikerült betölteni a kitöltéseket.");
   }
   refreshAdminStats();
@@ -1248,11 +1307,14 @@ document.addEventListener("DOMContentLoaded", function () {
   if (formsSearchInput) formsSearchInput.addEventListener("input", applyFormsFilters);
   const formsStatusFilter = document.getElementById("forms-status-filter");
   if (formsStatusFilter) formsStatusFilter.addEventListener("change", applyFormsFilters);
+  const formsSortSelect = document.getElementById("forms-sort-select");
+  if (formsSortSelect) formsSortSelect.addEventListener("change", applyFormsFilters);
   const formsClearBtn = document.getElementById("forms-clear-filters-btn");
   if (formsClearBtn) {
     formsClearBtn.addEventListener("click", () => {
       if (formsSearchInput) formsSearchInput.value = "";
       if (formsStatusFilter) formsStatusFilter.value = "all";
+      if (formsSortSelect) formsSortSelect.value = "created_desc";
       applyFormsFilters();
     });
   }
@@ -1261,11 +1323,14 @@ document.addEventListener("DOMContentLoaded", function () {
   if (schoolsSearchInput) schoolsSearchInput.addEventListener("input", applySchoolsFilters);
   const schoolsStatusFilter = document.getElementById("schools-status-filter");
   if (schoolsStatusFilter) schoolsStatusFilter.addEventListener("change", applySchoolsFilters);
+  const schoolsSortSelect = document.getElementById("schools-sort-select");
+  if (schoolsSortSelect) schoolsSortSelect.addEventListener("change", applySchoolsFilters);
   const schoolsClearBtn = document.getElementById("schools-clear-filters-btn");
   if (schoolsClearBtn) {
     schoolsClearBtn.addEventListener("click", () => {
       if (schoolsSearchInput) schoolsSearchInput.value = "";
       if (schoolsStatusFilter) schoolsStatusFilter.value = "all";
+      if (schoolsSortSelect) schoolsSortSelect.value = "name_asc";
       applySchoolsFilters();
     });
   }
@@ -1326,7 +1391,7 @@ function renderSchoolsTable(schools) {
   const tbody = document.getElementById('schools-list-tbody');
   tbody.innerHTML = '';
   if (schools.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nincs találat a szűrés alapján.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nincs találat a szűrés alapján.</td></tr>';
     return;
   }
 
@@ -1352,6 +1417,8 @@ function renderSchoolsTable(schools) {
           <td>${emailHtml}</td>
           <td>${passwordHtml}</td>
           <td>${statusHtml}</td>
+          <td class="text-nowrap small text-muted">${formatAdminDate(s.created_at)}</td>
+          <td class="text-nowrap small text-muted">${formatAdminDate(s.form_created_at)}</td>
           <td>
             <button class="btn btn-sm btn-outline-primary me-1" onclick="openSchoolModal('${s.id}', '${s.name.replace(/'/g, "\\'")}', '${(s.email || '').replace(/'/g, "\\'")}')">
               <i class="bi bi-pencil"></i> Szerkesztés
@@ -1366,13 +1433,20 @@ function renderSchoolsTable(schools) {
 }
 
 function applySchoolsFilters() {
-  const { q, status } = getSchoolsFilterState();
+  const { q, status, sort } = getSchoolsFilterState();
   const filtered = adminSchoolsRows.filter((s) => {
-    const text = `${s.name || ""} ${s.email || ""}`.toLowerCase();
+    const text = `${s.name || ""} ${s.email || ""} ${s.effective_email || ""}`.toLowerCase();
     const matchesText = !q || text.includes(q);
     const state = !s.form_id ? "no_form" : (Number(s.submitted) === 1 ? "submitted" : "in_progress");
     const matchesStatus = status === "all" || status === state;
     return matchesText && matchesStatus;
+  });
+  filtered.sort((a, b) => {
+    if (sort === "name_desc") return compareText(b.name, a.name);
+    if (sort === "school_created_desc") return compareDate(b.created_at, a.created_at);
+    if (sort === "school_created_asc") return compareDate(a.created_at, b.created_at);
+    if (sort === "form_created_desc") return compareDate(b.form_created_at, a.form_created_at);
+    return compareText(a.name, b.name);
   });
   renderSchoolsTable(filtered);
 }

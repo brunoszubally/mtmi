@@ -780,11 +780,11 @@ def admin_list(request: Request):
     try:
         with db_connection() as conn:
             with conn.cursor() as c:
-                c.execute("SELECT id, data, created_at, submitted, pdf_file_path FROM forms ORDER BY created_at DESC")
+                c.execute("SELECT id, data, created_at, updated_at, submitted, pdf_file_path FROM forms ORDER BY created_at DESC")
                 rows = c.fetchall()
         result = []
         for row in rows:
-            id, data_json, created_at, submitted, pdf_file_path = row
+            id, data_json, created_at, updated_at, submitted, pdf_file_path = row
             if isinstance(data_json, dict):
                 data = data_json
             elif isinstance(data_json, str):
@@ -798,7 +798,8 @@ def admin_list(request: Request):
             result.append({
                 "id": id,
                 "iskola_nev": iskola_nev,
-                "created_at": created_at,
+                "created_at": created_at.isoformat() if created_at else None,
+                "updated_at": updated_at.isoformat() if updated_at else None,
                 "submitted": submitted,
                 "has_pdf": pdf_file_path is not None
             })
@@ -984,8 +985,9 @@ def admin_list_schools(request: Request):
     with db_connection() as conn:
         with conn.cursor() as c:
             c.execute("""
-                SELECT s.id, s.name, s.email, s.password_hash IS NOT NULL as has_password, 
-                       s.form_id, f.submitted, s.created_at, f.data
+                SELECT s.id, s.name, s.email, s.password_hash IS NOT NULL as has_password,
+                       s.form_id, f.submitted, s.created_at, s.updated_at,
+                       f.created_at, f.updated_at, f.data
                 FROM schools s
                 LEFT JOIN forms f ON s.form_id = f.id
                 ORDER BY s.name ASC
@@ -993,7 +995,7 @@ def admin_list_schools(request: Request):
             rows = c.fetchall()
     result = []
     for row in rows:
-        form_data = row[7] if len(row) > 7 and row[7] else {}
+        form_data = row[10] if len(row) > 10 and row[10] else {}
         form_email = None
         if isinstance(form_data, dict):
             form_email = (
@@ -1013,7 +1015,10 @@ def admin_list_schools(request: Request):
             "has_password": row[3],
             "form_id": row[4],
             "submitted": row[5],
-            "created_at": row[6]
+            "created_at": row[6].isoformat() if row[6] else None,
+            "updated_at": row[7].isoformat() if row[7] else None,
+            "form_created_at": row[8].isoformat() if row[8] else None,
+            "form_updated_at": row[9].isoformat() if row[9] else None
         })
     return result
 

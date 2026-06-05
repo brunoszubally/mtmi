@@ -1282,6 +1282,67 @@ input[type="number"] {
   }
 }
 
+.consent-card {
+  border: 1px solid #b9d1ff;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f4f8ff 0%, #ffffff 100%);
+  box-shadow: 0 10px 24px rgba(31, 76, 150, 0.08);
+  padding: 16px 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.consent-card.is-checked {
+  border-color: #53b987;
+  background: linear-gradient(135deg, #eefbf4 0%, #ffffff 100%);
+}
+
+.consent-check {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 0;
+  cursor: pointer;
+}
+
+.consent-check .form-check-input {
+  width: 26px;
+  height: 26px;
+  margin: 2px 0 0;
+  border: 2px solid #1f6bff;
+  box-shadow: 0 0 0 4px rgba(31, 107, 255, 0.12);
+  cursor: pointer;
+}
+
+.consent-check .form-check-input:checked {
+  background-color: #1f6bff;
+  border-color: #1f6bff;
+}
+
+.consent-copy {
+  color: #233040;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.consent-card-attention {
+  animation: consentPulse 1s ease-in-out;
+  border-color: #dc3545;
+  box-shadow: 0 0 0 5px rgba(220, 53, 69, 0.14), 0 12px 26px rgba(220, 53, 69, 0.16);
+}
+
+@keyframes consentPulse {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.018);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .submission-closed-screen {
   background: radial-gradient(circle at 16% 20%, #ecf4ff 0%, #dbe8ff 34%, #eef3fb 100%);
   overflow: hidden;

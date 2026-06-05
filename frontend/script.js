@@ -784,15 +784,23 @@ function formatPhoneNumber(phone) {
 let currentStep = 0;
 let steps = [];
 
+function syncFinalizeConsentState() {
+  const gdprCheckbox = document.getElementById('gdpr-checkbox');
+  const finalizeBtn = document.getElementById('finalize-btn');
+  const consentCard = document.getElementById('gdpr-consent-card');
+  const checked = Boolean(gdprCheckbox?.checked);
+
+  if (finalizeBtn) finalizeBtn.disabled = !checked;
+  if (consentCard) consentCard.classList.toggle('is-checked', checked);
+}
+
 // GDPR checkbox kezelése
 document.addEventListener('DOMContentLoaded', function () {
   const gdprCheckbox = document.getElementById('gdpr-checkbox');
-  const finalizeBtn = document.getElementById('finalize-btn');
 
-  if (gdprCheckbox && finalizeBtn) {
-    gdprCheckbox.addEventListener('change', function () {
-      finalizeBtn.disabled = !this.checked;
-    });
+  if (gdprCheckbox) {
+    gdprCheckbox.addEventListener('change', syncFinalizeConsentState);
+    syncFinalizeConsentState();
   }
 });
 
@@ -894,30 +902,27 @@ function showStep(idx, direction = 1) {
       finalizeBtn.addEventListener('click', finalizeBtnClickHandler);
 
       // Kezdeti állapot beállítása
-      finalizeBtn.disabled = !gdprCheckbox.checked;
+      syncFinalizeConsentState();
     }
   }
 }
 
 // GDPR checkbox change handler függvény
 function gdprChangeHandler() {
-  const finalizeBtn = document.getElementById('finalize-btn');
-  if (finalizeBtn) {
-    finalizeBtn.disabled = !this.checked;
-  }
+  syncFinalizeConsentState();
 }
 
 // GDPR checkbox felvillantása, ha a véglegesítés gombra kattintanak
 function highlightGdprCheckbox() {
   const gdprCheckbox = document.getElementById('gdpr-checkbox');
-  if (gdprCheckbox) {
-    // Animáció hozzáadása
-    gdprCheckbox.style.animation = 'highlight 1s ease-in-out';
-    gdprCheckbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const consentCard = document.getElementById('gdpr-consent-card');
+  const target = consentCard || gdprCheckbox;
+  if (target) {
+    target.classList.add('consent-card-attention');
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Animáció eltávolítása 1 másodperc után
     setTimeout(() => {
-      gdprCheckbox.style.animation = '';
+      target.classList.remove('consent-card-attention');
     }, 1000);
   }
 }
@@ -1298,6 +1303,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           });
         });
       }
+      setTimeout(syncFinalizeConsentState, 120);
 
       // --- ÚJ: Ha van csapat létszám adat, megjelenítjük a csapattagokat ---
       console.log('setFormData: Ellenőrzöm a csapat létszámot:', data.mtmi_csapat_letszam, typeof data.mtmi_csapat_letszam);
@@ -1436,20 +1442,21 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // Mentés a backendre
   async function saveForm(auto = false) {
-    if (window.forceReadonlyView) return;
+    if (window.forceReadonlyView) return true;
     if (saveInFlight) {
       if (auto) {
         pendingAutoSave = true;
-        return;
+        return false;
       }
       showToast("Mentés folyamatban, kérlek várj...", "info");
-      return;
+      return false;
     }
     saveInFlight = true;
+    let saveSucceeded = false;
     const form = document.getElementById(FORM_ID);
     if (!form) {
       saveInFlight = false;
-      return;
+      return false;
     }
     const data = getFormData(form);
     let session_id = localStorage.getItem(SESSION_KEY);
@@ -1473,6 +1480,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           filled_fields_count: Object.keys(data || {}).length
         });
         scheduleRequiredQuickfixRender();
+        saveSucceeded = true;
         // Ha nincs session_id az URL-ben, írjuk bele (csak első mentésnél)
         if (!getSessionIdFromUrl()) {
           history.replaceState({}, "", `/kitoltes/${res.session_id}`);
@@ -1510,6 +1518,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         saveForm(true);
       }
     }
+    return saveSucceeded;
   }
 
   function scheduleAutoSave() {
@@ -1687,6 +1696,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // Expose loadForm globally so login handler can call it
   window.loadForm = loadForm;
+  window.saveForm = saveForm;
+  window.showToast = showToast;
 
   // Toast üzenet (Bootstrap 5)
   function showToast(msg, type = "info") {
@@ -1951,6 +1962,25 @@ document.addEventListener("DOMContentLoaded", () => {
           first.scrollIntoView({ behavior: 'smooth', block: 'center' });
           if (typeof first.focus === 'function') first.focus();
           console.warn("[FINALIZE] missing required fields:", missingRequired.map(f => f.name));
+          return;
+        }
+      }
+
+      const gdprCheckbox = document.getElementById("gdpr-checkbox");
+      if (gdprCheckbox && !gdprCheckbox.checked) {
+        syncFinalizeConsentState();
+        highlightGdprCheckbox();
+        return;
+      }
+
+      if (typeof window.saveForm === "function") {
+        const savedBeforeSubmit = await window.saveForm(true);
+        if (!savedBeforeSubmit) {
+          if (typeof window.showToast === "function") {
+            window.showToast("A véglegesítés előtt nem sikerült menteni az aktuális adatokat.", "danger");
+          } else {
+            alert("A véglegesítés előtt nem sikerült menteni az aktuális adatokat.");
+          }
           return;
         }
       }
