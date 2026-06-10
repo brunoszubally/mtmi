@@ -511,9 +511,7 @@ function ensureSubmissionStatusUi() {
           <h1 class="fw-bold mb-2 submission-closed-title-main">MTMI Iskola Program</h1>
           <h2 id="submission-closed-title" class="submission-closed-title">Pályázati felület lezárva</h2>
           <p id="submission-closed-message" class="submission-closed-message">A pályázati felület jelenleg nem elérhető, bírálat zajlik.</p>
-          <div id="submission-closed-help" class="submission-closed-help">
-            A rendszer automatikusan engedélyezi a hozzáférést, amint új pályázati időszak indul.
-          </div>
+          <div id="submission-closed-help" class="submission-closed-help" style="display: none;"></div>
           <button id="submission-logout-btn" type="button" class="btn btn-outline-secondary btn-lg mt-3">Kilépés</button>
         </div>
       </div>
@@ -543,7 +541,7 @@ function getSubmissionClosedUiConfig(statusData) {
     badge: "Bírálat zajlik",
     title: "Pályázati felület lezárva",
     message: statusData?.message || "A pályázati felület jelenleg nem elérhető, bírálat zajlik.",
-    help: "Ha már véglegesítve beküldte a pályázatát, az továbbra is megtekinthető."
+    help: ""
   };
 }
 
@@ -581,7 +579,10 @@ function showSubmissionClosedScreen(statusOrMessage) {
     closedMessage.textContent = ui.message || "";
     closedMessage.style.display = ui.message ? "" : "none";
   }
-  if (closedHelp) closedHelp.textContent = ui.help;
+  if (closedHelp) {
+    closedHelp.textContent = ui.help || "";
+    closedHelp.style.display = ui.help ? "" : "none";
+  }
   if (logoutBtn) logoutBtn.style.display = getSchoolSession() ? "" : "none";
   hidePrimaryScreensForClosedState();
   if (closedScreen) closedScreen.style.display = "flex";
