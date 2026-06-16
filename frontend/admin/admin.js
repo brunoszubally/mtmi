@@ -1459,7 +1459,14 @@ function openSchoolModal(id, name, email) {
 
   document.getElementById('school-edit-id').value = id || '';
   document.getElementById('school-edit-name').value = name || '';
-  document.getElementById('school-edit-email').value = email || '';
+  const usernameInput = document.getElementById('school-edit-email');
+  const usernameLabel = usernameInput?.closest('.mb-3')?.querySelector('.form-label');
+  if (usernameLabel) usernameLabel.textContent = 'Felhasználónév';
+  if (usernameInput) {
+    usernameInput.type = 'text';
+    usernameInput.autocomplete = 'username';
+    usernameInput.value = email || '';
+  }
   document.getElementById('school-edit-password').value = '';
   setSchoolSaveButtonState("idle");
 

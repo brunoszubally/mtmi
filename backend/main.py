@@ -886,7 +886,7 @@ def school_login(data: dict):
     email = data.get("email", "").strip().lower()
     password = data.get("password", "")
     if not email or not password:
-        raise HTTPException(status_code=400, detail="Email és jelszó megadása kötelező!")
+        raise HTTPException(status_code=400, detail="Felhasználónév és jelszó megadása kötelező!")
     
     with db_connection() as conn:
         with conn.cursor() as c:
@@ -894,7 +894,7 @@ def school_login(data: dict):
             row = c.fetchone()
     
     if not row:
-        raise HTTPException(status_code=401, detail="Hibás email vagy jelszó!")
+        raise HTTPException(status_code=401, detail="Hibás felhasználónév vagy jelszó!")
     
     school_id, school_name, password_hash, form_id = row
     
@@ -902,7 +902,7 @@ def school_login(data: dict):
         raise HTTPException(status_code=401, detail="Ehhez az iskolához még nincs jelszó beállítva. Kérd az adminisztrátort!")
     
     if not bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
-        raise HTTPException(status_code=401, detail="Hibás email vagy jelszó!")
+        raise HTTPException(status_code=401, detail="Hibás felhasználónév vagy jelszó!")
     
     # Get form status if form exists
     form_status = None
@@ -1087,7 +1087,7 @@ def admin_create_school(data: dict, request: Request):
             if email:
                 c.execute("SELECT id FROM schools WHERE LOWER(email) = %s", (email,))
                 if c.fetchone():
-                    raise HTTPException(status_code=400, detail="Ez az email cím már használatban van!")
+                    raise HTTPException(status_code=400, detail="Ez a felhasználónév már használatban van!")
             
             c.execute(
                 "INSERT INTO schools (id, name, email, password_hash, form_id, created_at, updated_at) VALUES (%s, %s, %s, %s, NULL, %s, %s)",
@@ -1117,7 +1117,7 @@ def admin_update_school(school_id: str, data: dict, request: Request):
             if email:
                 c.execute("SELECT id FROM schools WHERE LOWER(email) = %s AND id != %s", (email, school_id))
                 if c.fetchone():
-                    raise HTTPException(status_code=400, detail="Ez az email cím már használatban van!")
+                    raise HTTPException(status_code=400, detail="Ez a felhasználónév már használatban van!")
             
             # Build update query
             if password:

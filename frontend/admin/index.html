@@ -194,7 +194,7 @@
               <div class="card-body">
                 <div class="row g-2">
                   <div class="col-md-4">
-                    <label class="form-label mb-1">Keresés (név/email)</label>
+                    <label class="form-label mb-1">Keresés (név/felhasználónév)</label>
                     <input id="schools-search-input" type="text" class="form-control" placeholder="Keresés...">
                   </div>
                   <div class="col-md-3">
@@ -227,7 +227,7 @@
                 <thead class="table-light">
                   <tr>
                     <th>Iskola neve</th>
-                    <th>Email</th>
+                    <th>Felhasználónév</th>
                     <th>Jelszó</th>
                     <th>Űrlap státusz</th>
                     <th>Iskola létrehozva</th>
@@ -260,8 +260,8 @@
               <input type="text" class="form-control" id="school-edit-name" required>
             </div>
             <div class="mb-3">
-              <label class="form-label">Email cím</label>
-              <input type="email" class="form-control" id="school-edit-email">
+              <label class="form-label">Felhasználónév</label>
+              <input type="text" class="form-control" id="school-edit-email" autocomplete="username">
             </div>
             <div class="mb-3">
               <label class="form-label">Jelszó <small class="text-muted">(hagyd üresen, ha nem akarod

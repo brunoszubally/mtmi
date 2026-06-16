@@ -666,7 +666,7 @@ async function handleSchoolLogin(email, password) {
     if (!resp.ok) {
       const err = await resp.json();
       console.warn('[LOGIN] backend rejected login', err);
-      errorEl.textContent = err.detail || 'Hib\u00e1s email vagy jelsz\u00f3!';
+      errorEl.textContent = err.detail || 'Hib\u00e1s felhaszn\u00e1l\u00f3n\u00e9v vagy jelsz\u00f3!';
       errorEl.style.display = 'block';
       setSchoolLoginUiState(false);
       return;
