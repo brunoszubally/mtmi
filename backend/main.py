@@ -81,13 +81,24 @@ def delete_from_ftp(filename: str) -> bool:
         return False
 
 
+# TCP keepalive, hogy a pooler/tűzfal ne dobja csendben az inaktív kapcsolatokat
+DB_CONNECT_KWARGS = {
+    "connect_timeout": 10,
+    "keepalives": 1,
+    "keepalives_idle": 30,
+    "keepalives_interval": 10,
+    "keepalives_count": 3,
+}
+
+
 def init_db_pool():
     global DB_POOL
     try:
         DB_POOL = SimpleConnectionPool(
             minconn=max(1, DB_POOL_MIN_CONN),
             maxconn=max(DB_POOL_MIN_CONN, DB_POOL_MAX_CONN),
-            dsn=DATABASE_URL
+            dsn=DATABASE_URL,
+            **DB_CONNECT_KWARGS
         )
         print(f"DB pool initialized (min={DB_POOL_MIN_CONN}, max={DB_POOL_MAX_CONN})")
     except Exception as e:
@@ -95,26 +106,73 @@ def init_db_pool():
         print(f"DB pool init failed, falling back to direct connections: {e}")
 
 
+def _connection_is_alive(conn) -> bool:
+    """A poolban álló kapcsolatot a szerver észrevétlenül lezárhatta - ellenőrizzük."""
+    if conn is None or conn.closed:
+        return False
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT 1")
+        conn.rollback()
+        return True
+    except Exception:
+        return False
+
+
+def _acquire_connection():
+    """Élő kapcsolatot ad vissza: (conn, poolbol_jott)."""
+    if DB_POOL is None:
+        return psycopg2.connect(DATABASE_URL, **DB_CONNECT_KWARGS), False
+
+    for _ in range(max(1, DB_POOL_MAX_CONN)):
+        conn = DB_POOL.getconn()
+        if _connection_is_alive(conn):
+            return conn, True
+        # Halott kapcsolat: eldobjuk, hogy a pool újat nyithasson helyette
+        print("DB pool: halott kapcsolat eldobva, új kapcsolat nyitása")
+        try:
+            DB_POOL.putconn(conn, close=True)
+        except Exception as e:
+            print(f"DB pool putconn(close=True) hiba: {e}")
+
+    # A pool nem tudott élő kapcsolatot adni - közvetlen kapcsolat végső esetként
+    print("DB pool: nem sikerült élő kapcsolatot szerezni, közvetlen kapcsolat")
+    return psycopg2.connect(DATABASE_URL, **DB_CONNECT_KWARGS), False
+
+
 @contextmanager
 def db_connection():
     conn = None
+    from_pool = False
+    broken = False
     try:
-        if DB_POOL is not None:
-            conn = DB_POOL.getconn()
-        else:
-            conn = psycopg2.connect(DATABASE_URL)
+        conn, from_pool = _acquire_connection()
         yield conn
         conn.commit()
-    except Exception:
-        if conn:
-            conn.rollback()
+    except Exception as e:
+        # Csak a tényleg sérült kapcsolatot dobjuk el (HTTPException miatt ne)
+        broken = isinstance(e, (psycopg2.InterfaceError, psycopg2.OperationalError))
+        if isinstance(e, psycopg2.Error):
+            print(f"DB hiba: {type(e).__name__}: {e}")
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                # Ha a rollback is elhasal, a kapcsolat halott - ne fedje el az eredeti hibát
+                broken = True
         raise
     finally:
-        if conn:
-            if DB_POOL is not None:
-                DB_POOL.putconn(conn)
+        if conn is not None:
+            if from_pool and DB_POOL is not None:
+                try:
+                    DB_POOL.putconn(conn, close=broken or bool(conn.closed))
+                except Exception as e:
+                    print(f"DB pool putconn hiba: {e}")
             else:
-                conn.close()
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
 def init_db():
     with db_connection() as conn:
@@ -189,6 +247,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/api/health")
+def health():
+    """Gyors ellenőrzés: fut-e az app, és él-e az adatbázis-kapcsolat."""
+    try:
+        with db_connection() as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+        return {"status": "ok", "db": "ok", "pool": DB_POOL is not None}
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "db": f"{type(e).__name__}: {str(e)[:200]}"}
+        )
 
 # --- Pydantic modellek ---
 class SaveRequest(BaseModel):
