@@ -23,6 +23,11 @@ window.submissionStatusData = null;
 window.forceReadonlyView = false;
 window.mtmiDashboardData = null;
 let requiredQuickfixRaf = null;
+// Friss, még érintetlen űrlapon ne villanjon fel a "Hiányzó kötelezők" panel.
+// Csak akkor kapcsol be, ha a felhasználó már dolgozott az űrlapon (szerkesztés,
+// mentés, korábbi adatok betöltése, véglegesítési kísérlet, vagy Frissítés gomb).
+let requiredQuickfixArmed = false;
+let requiredQuickfixSignature = "";
 let autoSaveTimer = null;
 let saveInFlight = false;
 let pendingAutoSave = false;
@@ -119,6 +124,8 @@ function performSchoolLogout() {
   }
   pendingAutoSave = false;
   saveInFlight = false;
+  requiredQuickfixArmed = false;
+  requiredQuickfixSignature = "";
   clearSchoolSession();
   window.forceReadonlyView = false;
   window.currentLoadedFormSchoolId = null;
@@ -972,7 +979,10 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   const quickfixRefreshBtn = document.getElementById("required-quickfix-refresh-btn");
   if (quickfixRefreshBtn) {
-    quickfixRefreshBtn.addEventListener("click", () => renderRequiredQuickfixPanel());
+    quickfixRefreshBtn.addEventListener("click", () => {
+      armRequiredQuickfixPanel("refresh-button");
+      renderRequiredQuickfixPanel();
+    });
   }
 
   // --- Adminview bypass: ha adminview=1 paraméter van, kihagyjuk a logint ---
@@ -1009,8 +1019,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
   } else if (window.mtmiPublicGateLocked) {
     showSubmissionClosedScreen(window.submissionStatusData);
+  } else {
+    // Ha nincs belépve → login screen. Explicit beállítjuk, hogy ne a HTML
+    // kezdeti állapotára támaszkodjunk (a welcome-screen ott is felvillanhat).
+    setPrimaryScreen('login');
   }
-  // Ha nincs belépve → login screen (alapértelmezett)
 
   var startBtn = document.getElementById('start-form-btn');
   if (startBtn) {
@@ -1480,6 +1493,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           updated_at: res.updated_at || new Date().toISOString(),
           filled_fields_count: Object.keys(data || {}).length
         });
+        armRequiredQuickfixPanel("save-success");
         scheduleRequiredQuickfixRender();
         saveSucceeded = true;
         // Ha nincs session_id az URL-ben, írjuk bele (csak első mentésnél)
@@ -1638,6 +1652,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         setFormData(form, res.data);
         window.isLoadingForm = false;
         syncSchoolNameField('after-load-form-data');
+        // Már elmentett (nem üres) űrlapnál rögtön látszódhat a hiánylista
+        if (res.data && Object.keys(res.data).length > 0) {
+          armRequiredQuickfixPanel("loaded-existing-data");
+        }
         scheduleRequiredQuickfixRender();
         console.log('loadForm: setFormData befejezve');
 
@@ -1782,12 +1800,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     form.addEventListener("input", () => {
       if (!window.isLoadingForm) {
         scheduleAutoSave();
+        armRequiredQuickfixPanel("user-input");
         scheduleRequiredQuickfixRender();
       }
     });
     form.addEventListener("change", () => {
       if (!window.isLoadingForm) {
         scheduleAutoSave();
+        armRequiredQuickfixPanel("user-change");
         scheduleRequiredQuickfixRender();
       }
     });
@@ -1839,8 +1859,13 @@ document.addEventListener('DOMContentLoaded', async function () {
 // Véglegesítés gomb eseménykezelő
 function isFieldVisibleForValidation(el) {
   if (!el) return false;
+  if (el.type === "hidden") return false;
   const step = el.closest(".form-step");
   if (step && step.style.display === "none") return false;
+  // A lépésen belül feltételesen elrejtett blokkok (pl. csapat-tag-N, feltételes
+  // leírás mezők) tartalma nem kötelező - ne kerüljön a hiánylistára olyan mező,
+  // amit a felhasználó nem is lát.
+  if (el.offsetParent === null) return false;
   return true;
 }
 
@@ -1908,15 +1933,29 @@ function renderRequiredQuickfixPanel() {
     return;
   }
 
+  if (!requiredQuickfixArmed) {
+    panel.style.display = "none";
+    listEl.textContent = "";
+    return;
+  }
+
   const missing = getMissingOriginalRequiredFields(form);
   countEl.textContent = String(missing.length);
   if (missing.length === 0) {
+    requiredQuickfixSignature = "";
     panel.style.display = "none";
     listEl.textContent = "";
     return;
   }
 
   panel.style.display = "";
+
+  // A lista minden billentyűleütésre újraépülne; csak akkor rajzoljuk újra,
+  // ha a hiányzó mezők halmaza ténylegesen változott.
+  const signature = missing.slice(0, 25).map(f => f.name || f.id || "").join("|");
+  if (signature === requiredQuickfixSignature) return;
+  requiredQuickfixSignature = signature;
+
   listEl.innerHTML = "";
   missing.slice(0, 25).forEach((field) => {
     const item = document.createElement("span");
@@ -1938,6 +1977,13 @@ function renderRequiredQuickfixPanel() {
   });
 }
 
+function armRequiredQuickfixPanel(reason) {
+  if (requiredQuickfixArmed) return;
+  requiredQuickfixArmed = true;
+  console.log("[QUICKFIX] panel bekapcsolva:", reason);
+  scheduleRequiredQuickfixRender();
+}
+
 function scheduleRequiredQuickfixRender() {
   if (requiredQuickfixRaf) cancelAnimationFrame(requiredQuickfixRaf);
   requiredQuickfixRaf = requestAnimationFrame(() => {
@@ -1956,6 +2002,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const form = document.getElementById(FORM_ID);
       if (form) {
         const missingRequired = getMissingOriginalRequiredFields(form);
+        // Véglegesítési kísérlettől kezdve mindig mutatjuk a hiánylistát
+        armRequiredQuickfixPanel("finalize-attempt");
         if (missingRequired.length > 0) {
           const first = missingRequired[0];
           const label = first.closest('.mb-2, .mb-3, .mb-4, .row')?.querySelector('label')?.textContent?.trim() || first.name || 'ismeretlen mező';
@@ -2871,12 +2919,18 @@ function setupFormatValidation() {
 
 // Textarea automatikus méretezés beállítása
 function setupTextareaAutoResize() {
-  // ResizeObserver a szélesség változás figyelésére
+  // ResizeObserver a szélesség változás figyelésére.
+  // Fontos: az autoResizeTextarea magasságot állít, ami újra megütné az observert -
+  // ezért csak akkor méretezünk, ha a SZÉLESSÉG változott (végtelen kör elkerülése).
+  const lastWidths = new WeakMap();
   const resizeObserver = new ResizeObserver(entries => {
     entries.forEach(entry => {
-      if (entry.target.tagName === 'TEXTAREA') {
-        autoResizeTextarea(entry.target);
-      }
+      const el = entry.target;
+      if (el.tagName !== 'TEXTAREA') return;
+      const width = entry.contentRect ? entry.contentRect.width : el.clientWidth;
+      if (lastWidths.get(el) === width) return;
+      lastWidths.set(el, width);
+      autoResizeTextarea(el);
     });
   });
 
@@ -2913,21 +2967,24 @@ function setupTextareaAutoResize() {
     });
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  // Csak az űrlapot figyeljük, nem az egész body-t: így a panelek/listák
+  // újrarajzolása nem indít feleslegesen mutation-feldolgozást.
+  const mutationRoot = document.getElementById(FORM_ID) || document.body;
+  observer.observe(mutationRoot, { childList: true, subtree: true });
 }
 
 // Textarea automatikus méretezés függvény
 function autoResizeTextarea(textarea) {
-  // Először eltávolítjuk a beállított magasságot, hogy mérni tudjuk a tartalmat
-  textarea.style.height = 'auto';
+  if (!textarea) return;
 
-  // Kiszámítjuk a szükséges magasságot
-  const scrollHeight = textarea.scrollHeight;
+  // A rejtett lépések textarea-i 0 magasságot mérnének; őket úgyis átméretezi
+  // a ResizeObserver, amikor a lépés láthatóvá válik.
+  if (textarea.offsetParent === null) return;
+
   const minHeight = 80; // Minimum magasság (CSS-ben is ez van beállítva)
 
-  // Beállítjuk a magasságot a tartalom alapján
-  const newHeight = Math.max(scrollHeight, minHeight);
-  textarea.style.height = newHeight + 'px';
-
-  console.log('Textarea resized:', textarea.name, 'scrollHeight:', scrollHeight, 'newHeight:', newHeight);
-} 
+  // Először eltávolítjuk a beállított magasságot, hogy mérni tudjuk a tartalmat
+  textarea.style.height = 'auto';
+  const target = Math.max(textarea.scrollHeight, minHeight) + 'px';
+  textarea.style.height = target;
+}

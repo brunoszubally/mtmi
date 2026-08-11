@@ -48,9 +48,11 @@
       </div>
     </div>
   </div>
+  <!-- A .d-flex Bootstrap utility display:flex !important-ot tesz, ezért itt is !important kell,
+       különben a welcome-screen a login előtt is látszik, amíg a JS le nem fut. -->
   <div id="welcome-screen"
     class="d-flex flex-column align-items-center justify-content-center min-vh-100 animate__animated animate__fadeIn"
-    style="display:none;">
+    style="display:none !important;">
     <img src="/logo.png" alt="MTMI Iskola Program logó" style="max-width: 180px; margin-bottom: 24px;">
     <h1 class="fw-bold text-center mb-2" style="font-size:2.2rem;">MTMI Iskola Program<br><span
         class="text-primary">Pályázati űrlap</span></h1>

@@ -203,6 +203,12 @@ def init_db():
                 )
             ''')
 
+            # Indexek a gyakori lekérdezésekhez (idempotens)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_forms_created_at ON forms (created_at DESC)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_forms_school_id ON forms (school_id)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_schools_form_id ON schools (form_id)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_schools_lower_email ON schools (LOWER(email))")
+
             # App szintű pályázati időzítés és állapot
             c.execute('''
                 CREATE TABLE IF NOT EXISTS app_settings (
@@ -837,37 +843,36 @@ def reopen_form(session_id: str, request: Request):
             conn.commit()
     return {"status": "reopened"}
 
-ADMIN_PASSWORDS = ["admin", "Suli2025!"]
+# Környezeti változóból (vesszővel elválasztva), hogy ne a kódban álljon a jelszó.
+ADMIN_PASSWORDS = [
+    p.strip() for p in (os.environ.get("ADMIN_PASSWORDS") or "admin,Suli2025!").split(",") if p.strip()
+]
 
 @app.post("/api/admin/login")
 def admin_login(data: dict):
     password = data.get("password")
-    if password in ADMIN_PASSWORDS:
+    if isinstance(password, str) and any(hmac.compare_digest(password, valid) for valid in ADMIN_PASSWORDS):
         return {"success": True, "access_token": issue_auth_token("admin", ADMIN_TOKEN_TTL_SECONDS)}
     return {"success": False}
 
 @app.get("/api/admin/list")
 def admin_list(request: Request):
     require_admin_auth(request)
-    import json as _json
     try:
         with db_connection() as conn:
             with conn.cursor() as c:
-                c.execute("SELECT id, data, created_at, updated_at, submitted, pdf_file_path FROM forms ORDER BY created_at DESC")
+                # Csak az iskolanevet kérjük le a JSONB-ből, nem a teljes űrlap-adatot
+                c.execute("""
+                    SELECT id,
+                           COALESCE(data->>'palyazo_iskola_neve', '(nincs megadva)'),
+                           created_at, updated_at, submitted, pdf_file_path
+                    FROM forms
+                    ORDER BY created_at DESC
+                """)
                 rows = c.fetchall()
         result = []
         for row in rows:
-            id, data_json, created_at, updated_at, submitted, pdf_file_path = row
-            if isinstance(data_json, dict):
-                data = data_json
-            elif isinstance(data_json, str):
-                try:
-                    data = _json.loads(data_json)
-                except Exception:
-                    data = {}
-            else:
-                data = {}
-            iskola_nev = data.get("palyazo_iskola_neve", "(nincs megadva)")
+            id, iskola_nev, created_at, updated_at, submitted, pdf_file_path = row
             result.append({
                 "id": id,
                 "iskola_nev": iskola_nev,
@@ -1057,10 +1062,18 @@ def admin_list_schools(request: Request):
     require_admin_auth(request)
     with db_connection() as conn:
         with conn.cursor() as c:
+            # A teljes f.data helyett csak az első kitöltött kapcsolattartói e-mailt
+            # kérjük le - így nem húzzuk át iskolánként a teljes űrlap-JSON-t.
             c.execute("""
                 SELECT s.id, s.name, s.email, s.password_hash IS NOT NULL as has_password,
                        s.form_id, f.submitted, s.created_at, s.updated_at,
-                       f.created_at, f.updated_at, f.data
+                       f.created_at, f.updated_at,
+                       COALESCE(
+                           NULLIF(f.data->>'mtmi_felelos_kapcsolattarto_email1', ''),
+                           NULLIF(f.data->>'mtmi_felelos_kapcsolattarto_email2', ''),
+                           NULLIF(f.data->>'intezmenyvezeto_kapcsolattarto_email1', ''),
+                           NULLIF(f.data->>'intezmenyvezeto_kapcsolattarto_email2', '')
+                       ) AS form_email
                 FROM schools s
                 LEFT JOIN forms f ON s.form_id = f.id
                 ORDER BY s.name ASC
@@ -1068,16 +1081,7 @@ def admin_list_schools(request: Request):
             rows = c.fetchall()
     result = []
     for row in rows:
-        form_data = row[10] if len(row) > 10 and row[10] else {}
-        form_email = None
-        if isinstance(form_data, dict):
-            form_email = (
-                form_data.get("mtmi_felelos_kapcsolattarto_email1")
-                or form_data.get("mtmi_felelos_kapcsolattarto_email2")
-                or form_data.get("intezmenyvezeto_kapcsolattarto_email1")
-                or form_data.get("intezmenyvezeto_kapcsolattarto_email2")
-            )
-
+        form_email = row[10]
         effective_email = row[2] or form_email
         result.append({
             "id": row[0],
@@ -1292,37 +1296,53 @@ def export_submission_pdf(session_id: str, request: Request):
 
 from fastapi.responses import FileResponse
 
+FRONTEND_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+
+
+def _resolve_frontend_file(relative_path: str) -> Optional[str]:
+    """A frontend mappán belüli fájl feloldása.
+
+    Bármilyen kiszökési kísérlet (../, %2e%2e%2f, symlink) None-t ad vissza,
+    így nem lehet a frontend mappán kívüli fájlt (pl. backend/.env) letölteni.
+    """
+    if not relative_path:
+        return None
+    candidate = os.path.realpath(os.path.join(FRONTEND_DIR, relative_path))
+    if candidate != FRONTEND_DIR and not candidate.startswith(FRONTEND_DIR + os.sep):
+        return None
+    return candidate if os.path.isfile(candidate) else None
+
+
 # Kiszolgálni a kért fájlt, ha létezik, különben index.html (SPA routing)
 @app.get("/{full_path:path}")
 async def serve_static_or_spa(full_path: str):
-    frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+    def html_headers():
+        # no-store helyett no-cache: a böngésző eltárolhatja, de mindig
+        # revalidál (304), így a deploy azonnal látszik, de nem tölt újra mindent.
+        return {"Cache-Control": "no-cache, must-revalidate"}
 
-    def no_cache_headers():
-        return {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
-    
+    index_html = os.path.join(FRONTEND_DIR, "index.html")
+
     # 1. Ha üres az útvonal, az index.html-t adjuk
     if not full_path or full_path == "/":
-        return FileResponse(os.path.join(frontend_dir, "index.html"), headers=no_cache_headers())
-        
+        return FileResponse(index_html, headers=html_headers())
+
+    file_path = _resolve_frontend_file(full_path)
+
     # 2. Ha az admin alá próbál navigálni:
     if full_path.startswith("admin"):
-        # Ha fájlt kér az admin mappából:
-        file_path = os.path.join(frontend_dir, full_path)
-        if os.path.isfile(file_path):
-            file_name = os.path.basename(file_path).lower()
-            if file_name.endswith((".js", ".css", ".html")):
-                return FileResponse(file_path, headers=no_cache_headers())
+        if file_path:
+            if file_path.lower().endswith((".js", ".css", ".html")):
+                return FileResponse(file_path, headers=html_headers())
             return FileResponse(file_path)
         # SPA routing az admin részre
-        return FileResponse(os.path.join(frontend_dir, "admin", "index.html"), headers=no_cache_headers())
-        
+        return FileResponse(os.path.join(FRONTEND_DIR, "admin", "index.html"), headers=html_headers())
+
     # 3. Keresés a frontend gyökerében lévő fájlokként (pl. style.css)
-    file_path = os.path.join(frontend_dir, full_path)
-    if os.path.isfile(file_path):
-        file_name = os.path.basename(file_path).lower()
-        if file_name.endswith((".js", ".css", ".html")):
-            return FileResponse(file_path, headers=no_cache_headers())
+    if file_path:
+        if file_path.lower().endswith((".js", ".css", ".html")):
+            return FileResponse(file_path, headers=html_headers())
         return FileResponse(file_path)
-    
+
     # 4. Fallback: index.html (SPA routing a public részre)
-    return FileResponse(os.path.join(frontend_dir, "index.html"), headers=no_cache_headers())
+    return FileResponse(index_html, headers=html_headers())
