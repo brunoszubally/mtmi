@@ -193,6 +193,11 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
+  ["admin-period-mode", "admin-period-start", "admin-period-end"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderPeriodModeWarning(adminPeriodState));
+  });
+
   const periodReloadBtn = document.getElementById("admin-period-reload-btn");
   if (periodReloadBtn) {
     periodReloadBtn.addEventListener("click", () => loadAdminPeriod());
@@ -201,7 +206,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const periodClearBtn = document.getElementById("admin-period-clear-btn");
   if (periodClearBtn) {
     periodClearBtn.addEventListener("click", async () => {
-      if (!confirm("Biztosan törlöd az időkorlátot? Ezután a felület korlátlanul nyitva marad.")) return;
+      if (!confirm("Biztosan törlöd a beállított dátumokat? A működési mód nem változik.")) return;
       await clearAdminPeriod();
     });
   }
@@ -571,15 +576,36 @@ function setPeriodFeedback(message, type = "info") {
   box.style.display = "block";
 }
 
+const PERIOD_MODE_LABELS = {
+  auto: "Időszak szerint",
+  forced_open: "Mindig nyitva (dátumtól függetlenül)",
+  forced_closed: "Mindig zárva"
+};
+
+function periodRangeText(state) {
+  if (!state.configured) return "nincs megadva dátum";
+  return `${state.start_label || "nincs megadva"} – ${state.end_label || "nincs megadva"}`;
+}
+
 function describePeriod(state) {
   if (!state) return { text: "Az időszak beállítása nem elérhető.", type: "secondary" };
-  if (!state.configured) {
-    return {
-      text: "Nincs beállítva pályázati időszak – a felület korlátlanul nyitva van.",
-      type: "secondary"
-    };
+  const range = periodRangeText(state);
+
+  if (state.status === "forced_open") {
+    const extra = state.dates_ignored
+      ? ` FIGYELEM: a beállított dátumok (${range}) most NEM érvényesülnek!`
+      : "";
+    return { text: `A felület NYITVA – „Mindig nyitva” módban.${extra}`, type: state.dates_ignored ? "warning" : "success" };
   }
-  const range = `${state.start_label || "nincs megadva"} – ${state.end_label || "nincs megadva"}`;
+  if (state.status === "forced_closed") {
+    const extra = state.dates_ignored
+      ? ` A beállított dátumok (${range}) most nem érvényesülnek.`
+      : "";
+    return { text: `A felület ZÁRVA – „Mindig zárva” módban.${extra}`, type: "danger" };
+  }
+  if (!state.configured) {
+    return { text: "Időszak szerinti mód, de nincs megadva dátum – a felület korlátlanul nyitva van.", type: "secondary" };
+  }
   if (state.status === "before") {
     return { text: `A felület ZÁRVA. Nyitás: ${state.start_label}. Beállított időszak: ${range}`, type: "warning" };
   }
@@ -601,31 +627,59 @@ function renderAdminPeriod(state, { fillInputs = true } = {}) {
   }
 
   if (fillInputs) {
+    const modeInput = document.getElementById("admin-period-mode");
     const startInput = document.getElementById("admin-period-start");
     const endInput = document.getElementById("admin-period-end");
     const messageInput = document.getElementById("admin-period-message");
+    if (modeInput) modeInput.value = (state && state.mode) || "auto";
     if (startInput) startInput.value = isoToDatetimeLocalValue(state && state.start);
     if (endInput) endInput.value = isoToDatetimeLocalValue(state && state.end);
     if (messageInput) messageInput.value = (state && state.custom_message) || "";
   }
 
+  renderPeriodModeWarning(state);
+
   const stateEl = document.getElementById("admin-period-state");
+  const modeLabelEl = document.getElementById("admin-period-mode-label");
+  if (modeLabelEl) modeLabelEl.textContent = (state && PERIOD_MODE_LABELS[state.mode]) || "—";
   const startLabelEl = document.getElementById("admin-period-start-label");
   const endLabelEl = document.getElementById("admin-period-end-label");
   const updatedEl = document.getElementById("admin-period-updated");
-  if (stateEl) stateEl.textContent = state && state.configured
-    ? (state.is_open ? "Nyitva" : "Zárva")
-    : "Nincs időkorlát (mindig nyitva)";
+  if (stateEl) stateEl.textContent = state ? (state.is_open ? "Nyitva" : "Zárva") : "—";
   if (startLabelEl) startLabelEl.textContent = (state && state.start_label) || "—";
   if (endLabelEl) endLabelEl.textContent = (state && state.end_label) || "—";
   if (updatedEl) {
     if (state && state.updated_at) {
-      const who = state.updated_by ? ` – ${state.updated_by}` : "";
-      updatedEl.textContent = `${formatAdminDate(state.updated_at)}${who}`;
+      updatedEl.textContent = formatAdminDate(state.updated_at);
     } else {
       updatedEl.textContent = "—";
     }
   }
+}
+
+function renderPeriodModeWarning(state) {
+  const warning = document.getElementById("admin-period-mode-warning");
+  if (!warning) return;
+  const modeInput = document.getElementById("admin-period-mode");
+  const startInput = document.getElementById("admin-period-start");
+  const endInput = document.getElementById("admin-period-end");
+  const mode = modeInput ? modeInput.value : ((state && state.mode) || "auto");
+  const hasDates = Boolean((startInput && startInput.value) || (endInput && endInput.value));
+
+  if (mode === "forced_open" && hasDates) {
+    warning.className = "alert alert-warning mt-3 mb-0";
+    warning.textContent = "„Mindig nyitva” módban a megadott dátumok elmentődnek, de NEM zárják le a felületet. Ha azt szeretnéd, hogy a dátumok érvényesüljenek, válaszd az „Időszak szerint” módot.";
+    warning.style.display = "block";
+    return;
+  }
+  if (mode === "forced_closed") {
+    warning.className = "alert alert-danger mt-3 mb-0";
+    warning.textContent = "„Mindig zárva” módban a kitöltő felület senkinek nem érhető el, a megadott dátumoktól függetlenül.";
+    warning.style.display = "block";
+    return;
+  }
+  warning.style.display = "none";
+  warning.textContent = "";
 }
 
 async function loadAdminPeriod() {
@@ -647,6 +701,8 @@ async function saveAdminPeriod() {
   const messageInput = document.getElementById("admin-period-message");
   const saveBtn = document.getElementById("admin-period-save-btn");
 
+  const modeInput = document.getElementById("admin-period-mode");
+  const mode = modeInput ? modeInput.value : "auto";
   const start = startInput ? startInput.value : "";
   const end = endInput ? endInput.value : "";
   if (start && end && end <= start) {
@@ -660,10 +716,10 @@ async function saveAdminPeriod() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        mode: mode,
         start: start || null,
         end: end || null,
-        message: messageInput ? messageInput.value : null,
-        updated_by: "admin"
+        message: messageInput ? messageInput.value : null
       })
     });
     if (!resp) return;
@@ -691,12 +747,12 @@ async function clearAdminPeriod() {
   const resp = await adminFetch(`${API_BASE}/admin/period`, { method: "DELETE" });
   if (!resp) return;
   if (!resp.ok) {
-    setPeriodFeedback("Nem sikerült törölni az időkorlátot.", "danger");
+    setPeriodFeedback("Nem sikerült törölni a beállított dátumokat.", "danger");
     return;
   }
   const state = await resp.json();
   renderAdminPeriod(state);
-  setPeriodFeedback("Az időkorlát törölve, a felület korlátlanul nyitva van.", "success");
+  setPeriodFeedback(`A dátumok törölve. ${describePeriod(state).text}`, "success");
 }
 
 // Modal megerősítés gomb esemény

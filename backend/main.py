@@ -62,6 +62,8 @@ def delete_from_ftp(filename: str) -> bool:
 
 def init_db():
     with psycopg2.connect(DATABASE_URL) as conn:
+        # Autocommit: egy sikertelen ALTER ne vonja vissza a többi lépést is
+        conn.autocommit = True
         with conn.cursor() as c:
             # Create table if not exists
             c.execute('''
@@ -86,22 +88,35 @@ def init_db():
                 )
             ''')
             
+            # Beállítások tábla (az éles adatbázisban már létező szerkezettel egyezik)
             c.execute('''
                 CREATE TABLE IF NOT EXISTS app_settings (
-                    key TEXT PRIMARY KEY,
-                    value JSONB NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    id INTEGER PRIMARY KEY,
+                    submission_mode TEXT NOT NULL DEFAULT 'auto',
+                    submission_start_at TIMESTAMPTZ,
+                    submission_end_at TIMESTAMPTZ,
+                    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                 )
+            ''')
+
+            # Opcionális, nem kötelező mező a zárt felületen megjelenő üzenethez
+            try:
+                c.execute('ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS closed_message TEXT')
+            except Exception as e:
+                print(f"app_settings.closed_message: {e}")
+
+            # Az egyetlen beállítássor biztosítása
+            c.execute('''
+                INSERT INTO app_settings (id, submission_mode, updated_at)
+                VALUES (1, 'auto', NOW())
+                ON CONFLICT (id) DO NOTHING
             ''')
 
             # Add pdf_file_path column if it doesn't exist
             try:
-                c.execute('ALTER TABLE forms ADD COLUMN pdf_file_path TEXT')
-                print("Added pdf_file_path column")
+                c.execute('ALTER TABLE forms ADD COLUMN IF NOT EXISTS pdf_file_path TEXT')
             except Exception as e:
-                print(f"Column might already exist: {e}")
-            
-            conn.commit()
+                print(f"forms.pdf_file_path: {e}")
 
 init_db()
 
@@ -125,7 +140,6 @@ app.add_middleware(
 )
 
 # --- Pályázati időszak (a felület nyitása/zárása) ---
-PERIOD_SETTING_KEY = "application_period"
 
 try:
     from zoneinfo import ZoneInfo
@@ -163,65 +177,85 @@ def format_local(dt: Optional[datetime]) -> Optional[str]:
     return dt.astimezone(LOCAL_TZ).strftime("%Y. %m. %d. %H:%M")
 
 
+SUBMISSION_MODES = ("auto", "forced_open", "forced_closed")
+
+
 def read_period_setting():
-    """A DB-ben tárolt időszak-beállítás kiolvasása (érték, mentés ideje)."""
+    """A beállítássor kiolvasása az app_settings táblából (id = 1)."""
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
-            c.execute("SELECT value, updated_at FROM app_settings WHERE key = %s", (PERIOD_SETTING_KEY,))
+            c.execute("""
+                SELECT submission_mode, submission_start_at, submission_end_at, updated_at, closed_message
+                FROM app_settings
+                WHERE id = 1
+            """)
             row = c.fetchone()
     if not row:
-        return {}, None
-    value = row[0]
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except Exception:
-            value = {}
-    if not isinstance(value, dict):
-        value = {}
-    return value, row[1]
+        return {"submission_mode": "auto", "start": None, "end": None, "updated_at": None, "closed_message": None}
+    return {
+        "submission_mode": row[0] or "auto",
+        "start": row[1],
+        "end": row[2],
+        "updated_at": row[3],
+        "closed_message": row[4],
+    }
 
 
-def build_period_state(value: dict, updated_at):
+def build_period_state(setting: dict):
     """A tárolt beállításból felépíti a teljes állapotot (nyitva/zárva + szövegek)."""
-    start = parse_datetime_input(value.get("start"))
-    end = parse_datetime_input(value.get("end"))
+    mode = setting.get("submission_mode") or "auto"
+    start = parse_datetime_input(setting.get("start"))
+    end = parse_datetime_input(setting.get("end"))
     now = datetime.now(timezone.utc)
 
-    if start and now < start:
+    if mode == "forced_open":
+        status = "forced_open"
+    elif mode == "forced_closed":
+        status = "forced_closed"
+    elif start and now < start:
         status = "before"
     elif end and now > end:
         status = "after"
     else:
         status = "open"
 
-    custom_message = (value.get("message") or "").strip() or None
+    is_open = status in ("open", "forced_open")
+
+    custom_message = (setting.get("closed_message") or "").strip() or None
     if status == "before":
         default_message = f"A pályázati felület {format_local(start)} időponttól lesz elérhető."
     elif status == "after":
         default_message = f"A pályázati időszak {format_local(end)} időpontban lezárult."
+    elif status == "forced_closed":
+        default_message = "A pályázati felület jelenleg zárva van."
     else:
         default_message = None
 
+    updated_at = setting.get("updated_at")
+    if isinstance(updated_at, datetime) and updated_at.tzinfo is None:
+        # A tábla updated_at mezője időzóna nélküli, a kód UTC-ben írja
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+
     return {
+        "mode": mode,
         "start": start.astimezone(LOCAL_TZ).isoformat() if start else None,
         "end": end.astimezone(LOCAL_TZ).isoformat() if end else None,
         "start_label": format_local(start),
         "end_label": format_local(end),
         "configured": bool(start or end),
-        "is_open": status == "open",
+        # Igaz, ha vannak elmentett dátumok, de a mód miatt nem érvényesülnek
+        "dates_ignored": mode != "auto" and bool(start or end),
+        "is_open": is_open,
         "status": status,
         "message": custom_message or default_message,
         "custom_message": custom_message,
         "server_time": now.astimezone(LOCAL_TZ).isoformat(),
-        "updated_at": updated_at.isoformat() if updated_at else None,
-        "updated_by": value.get("updated_by") or None,
+        "updated_at": updated_at.isoformat() if isinstance(updated_at, datetime) else None,
     }
 
 
 def get_period_state():
-    value, updated_at = read_period_setting()
-    return build_period_state(value, updated_at)
+    return build_period_state(read_period_setting())
 
 
 def ensure_period_open():
@@ -392,10 +426,10 @@ def admin_login(data: dict):
 # --- Pályázati időszak végpontok ---
 
 class PeriodUpdate(BaseModel):
+    mode: Optional[str] = None          # auto | forced_open | forced_closed
     start: Optional[str] = None
     end: Optional[str] = None
     message: Optional[str] = None
-    updated_by: Optional[str] = None
 
 
 @app.get("/api/period")
@@ -412,27 +446,31 @@ def admin_get_period():
 
 @app.post("/api/admin/period")
 def admin_set_period(req: PeriodUpdate):
+    mode = (req.mode or "auto").strip()
+    if mode not in SUBMISSION_MODES:
+        raise HTTPException(status_code=400, detail=f"Ismeretlen mód: {mode}")
+
     start = parse_datetime_input(req.start)
     end = parse_datetime_input(req.end)
     if start and end and end <= start:
         raise HTTPException(status_code=400, detail="A záró időpont nem lehet korábbi a kezdő időpontnál!")
 
-    value = {
-        "start": start.astimezone(LOCAL_TZ).isoformat() if start else None,
-        "end": end.astimezone(LOCAL_TZ).isoformat() if end else None,
-        "message": (req.message or "").strip() or None,
-        "updated_by": (req.updated_by or "").strip() or None,
-    }
+    message = (req.message or "").strip() or None
 
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
             c.execute(
                 """
-                INSERT INTO app_settings (key, value, updated_at)
-                VALUES (%s, %s, NOW())
-                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+                INSERT INTO app_settings (id, submission_mode, submission_start_at, submission_end_at, closed_message, updated_at)
+                VALUES (1, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                    submission_mode = EXCLUDED.submission_mode,
+                    submission_start_at = EXCLUDED.submission_start_at,
+                    submission_end_at = EXCLUDED.submission_end_at,
+                    closed_message = EXCLUDED.closed_message,
+                    updated_at = EXCLUDED.updated_at
                 """,
-                (PERIOD_SETTING_KEY, Json(value))
+                (mode, start, end, message, datetime.utcnow())
             )
             conn.commit()
 
@@ -442,10 +480,20 @@ def admin_set_period(req: PeriodUpdate):
 
 @app.delete("/api/admin/period")
 def admin_clear_period():
-    """Időkorlát törlése: a felület korlátlanul nyitva marad."""
+    """Időkorlát törlése: marad a beállított mód, de dátumok nélkül."""
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
-            c.execute("DELETE FROM app_settings WHERE key = %s", (PERIOD_SETTING_KEY,))
+            c.execute(
+                """
+                UPDATE app_settings
+                SET submission_start_at = NULL,
+                    submission_end_at = NULL,
+                    closed_message = NULL,
+                    updated_at = %s
+                WHERE id = 1
+                """,
+                (datetime.utcnow(),)
+            )
             conn.commit()
     return get_period_state()
 
