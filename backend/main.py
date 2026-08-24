@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
 import psycopg2
 from psycopg2.extras import Json
@@ -86,6 +86,14 @@ def init_db():
                 )
             ''')
             
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    key TEXT PRIMARY KEY,
+                    value JSONB NOT NULL,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            ''')
+
             # Add pdf_file_path column if it doesn't exist
             try:
                 c.execute('ALTER TABLE forms ADD COLUMN pdf_file_path TEXT')
@@ -116,6 +124,116 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Pályázati időszak (a felület nyitása/zárása) ---
+PERIOD_SETTING_KEY = "application_period"
+
+try:
+    from zoneinfo import ZoneInfo
+    LOCAL_TZ = ZoneInfo("Europe/Budapest")
+except Exception:  # ha nincs tzdata a konténerben, fix közép-európai eltolás
+    LOCAL_TZ = timezone(timedelta(hours=1))
+
+
+def parse_datetime_input(value):
+    """ISO 8601 szöveget időzóna-tudatos datetime-má alakít. Üres érték -> None."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(text)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Érvénytelen dátumformátum: {value}")
+    if dt.tzinfo is None:
+        # Időzóna nélküli érték esetén magyar helyi időként értelmezzük
+        dt = dt.replace(tzinfo=LOCAL_TZ)
+    return dt
+
+
+def format_local(dt: Optional[datetime]) -> Optional[str]:
+    """Magyar olvasható formátum a visszajelzésekhez (pl. 2026. 08. 24. 08:00)."""
+    if not dt:
+        return None
+    return dt.astimezone(LOCAL_TZ).strftime("%Y. %m. %d. %H:%M")
+
+
+def read_period_setting():
+    """A DB-ben tárolt időszak-beállítás kiolvasása (érték, mentés ideje)."""
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT value, updated_at FROM app_settings WHERE key = %s", (PERIOD_SETTING_KEY,))
+            row = c.fetchone()
+    if not row:
+        return {}, None
+    value = row[0]
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except Exception:
+            value = {}
+    if not isinstance(value, dict):
+        value = {}
+    return value, row[1]
+
+
+def build_period_state(value: dict, updated_at):
+    """A tárolt beállításból felépíti a teljes állapotot (nyitva/zárva + szövegek)."""
+    start = parse_datetime_input(value.get("start"))
+    end = parse_datetime_input(value.get("end"))
+    now = datetime.now(timezone.utc)
+
+    if start and now < start:
+        status = "before"
+    elif end and now > end:
+        status = "after"
+    else:
+        status = "open"
+
+    custom_message = (value.get("message") or "").strip() or None
+    if status == "before":
+        default_message = f"A pályázati felület {format_local(start)} időponttól lesz elérhető."
+    elif status == "after":
+        default_message = f"A pályázati időszak {format_local(end)} időpontban lezárult."
+    else:
+        default_message = None
+
+    return {
+        "start": start.astimezone(LOCAL_TZ).isoformat() if start else None,
+        "end": end.astimezone(LOCAL_TZ).isoformat() if end else None,
+        "start_label": format_local(start),
+        "end_label": format_local(end),
+        "configured": bool(start or end),
+        "is_open": status == "open",
+        "status": status,
+        "message": custom_message or default_message,
+        "custom_message": custom_message,
+        "server_time": now.astimezone(LOCAL_TZ).isoformat(),
+        "updated_at": updated_at.isoformat() if updated_at else None,
+        "updated_by": value.get("updated_by") or None,
+    }
+
+
+def get_period_state():
+    value, updated_at = read_period_setting()
+    return build_period_state(value, updated_at)
+
+
+def ensure_period_open():
+    """403-mal elutasítja a beküldést/mentést, ha a felület éppen zárva van."""
+    state = get_period_state()
+    if not state["is_open"]:
+        raise HTTPException(
+            status_code=403,
+            detail=state["message"] or "A pályázati felület jelenleg zárva van."
+        )
+
+
 # --- Pydantic modellek ---
 class SaveRequest(BaseModel):
     data: dict
@@ -134,6 +252,7 @@ class LoadResponse(BaseModel):
 # --- API végpontok ---
 @app.post("/api/save", response_model=SaveResponse)
 def save_form(req: SaveRequest, request: Request):
+    ensure_period_open()
     now = datetime.utcnow()
     session_id = req.session_id or str(uuid4())
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -169,6 +288,7 @@ def load_form(session_id: str):
 # PDF feltöltés végpont
 @app.post("/api/upload-pdf/{session_id}")
 async def upload_pdf(session_id: str, file: UploadFile = File(...)):
+    ensure_period_open()
     # Ellenőrizzük, hogy a fájl PDF-e
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Csak PDF fájlok tölthetők fel!")
@@ -227,6 +347,7 @@ async def upload_pdf(session_id: str, file: UploadFile = File(...)):
 # PDF törlés végpont
 @app.delete("/api/delete-pdf/{session_id}")
 def delete_pdf(session_id: str):
+    ensure_period_open()
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
             # Lekérjük a jelenlegi PDF fájl nevét
@@ -252,6 +373,7 @@ def root():
 
 @app.post("/api/submit/{session_id}")
 def submit_form(session_id: str):
+    ensure_period_open()
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as c:
             c.execute("UPDATE forms SET submitted = 1, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
@@ -266,6 +388,67 @@ def admin_login(data: dict):
     if password in ADMIN_PASSWORDS:
         return {"success": True}
     return {"success": False}
+
+# --- Pályázati időszak végpontok ---
+
+class PeriodUpdate(BaseModel):
+    start: Optional[str] = None
+    end: Optional[str] = None
+    message: Optional[str] = None
+    updated_by: Optional[str] = None
+
+
+@app.get("/api/period")
+def public_period():
+    """Publikus végpont: nyitva van-e a felület, és meddig."""
+    return get_period_state()
+
+
+@app.get("/api/admin/period")
+def admin_get_period():
+    """Az admin felület mindig a ténylegesen elmentett beállítást kapja vissza."""
+    return get_period_state()
+
+
+@app.post("/api/admin/period")
+def admin_set_period(req: PeriodUpdate):
+    start = parse_datetime_input(req.start)
+    end = parse_datetime_input(req.end)
+    if start and end and end <= start:
+        raise HTTPException(status_code=400, detail="A záró időpont nem lehet korábbi a kezdő időpontnál!")
+
+    value = {
+        "start": start.astimezone(LOCAL_TZ).isoformat() if start else None,
+        "end": end.astimezone(LOCAL_TZ).isoformat() if end else None,
+        "message": (req.message or "").strip() or None,
+        "updated_by": (req.updated_by or "").strip() or None,
+    }
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                INSERT INTO app_settings (key, value, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+                """,
+                (PERIOD_SETTING_KEY, Json(value))
+            )
+            conn.commit()
+
+    # Visszaolvasás az adatbázisból, hogy az admin tényleg a mentett állapotot lássa
+    return get_period_state()
+
+
+@app.delete("/api/admin/period")
+def admin_clear_period():
+    """Időkorlát törlése: a felület korlátlanul nyitva marad."""
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("DELETE FROM app_settings WHERE key = %s", (PERIOD_SETTING_KEY,))
+            conn.commit()
+    return get_period_state()
+
 
 @app.get("/api/admin/list")
 def admin_list():

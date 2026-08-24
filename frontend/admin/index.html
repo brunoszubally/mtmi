@@ -52,6 +52,15 @@
               Iskolák
               <span class="admin-tab-count" id="admin-schools-count">0</span>
             </button>
+            <button type="button" class="admin-tab-btn" data-admin-view="settings">
+              Pályázati időszak
+            </button>
+          </div>
+
+          <!-- Mindig látható állapotsáv: mikortól meddig van nyitva a felület -->
+          <div id="admin-period-banner" class="alert d-flex flex-wrap align-items-center gap-2 mb-4" role="status">
+            <span id="admin-period-banner-text">Időszak betöltése...</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-admin-view="settings" id="admin-period-banner-btn">Beállítás</button>
           </div>
 
           <div class="admin-view active" id="admin-view-submissions">
@@ -145,6 +154,60 @@
                 </thead>
                 <tbody id="admin-schools-tbody"></tbody>
               </table>
+            </div>
+          </div>
+
+          <div class="admin-view" id="admin-view-settings">
+            <div class="row g-4">
+              <div class="col-xl-7 col-lg-8 col-12">
+                <div class="card border-0 shadow-sm">
+                  <div class="card-body p-4">
+                    <h5 class="fw-bold mb-1">Pályázati időszak beállítása</h5>
+                    <p class="text-muted">Itt adható meg, hogy a kitöltő felület mettől meddig legyen nyitva. Az időpontok magyar idő szerint értendők, és a mentés után azonnal érvényesek.</p>
+                    <form id="admin-period-form">
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label" for="admin-period-start">Nyitás időpontja</label>
+                          <input type="datetime-local" class="form-control" id="admin-period-start">
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label" for="admin-period-end">Zárás időpontja</label>
+                          <input type="datetime-local" class="form-control" id="admin-period-end">
+                        </div>
+                        <div class="col-12">
+                          <label class="form-label" for="admin-period-message">Zárt felületen megjelenő üzenet (opcionális)</label>
+                          <textarea class="form-control" id="admin-period-message" rows="2" placeholder="Ha üresen hagyod, automatikus szöveg jelenik meg a dátumokkal."></textarea>
+                        </div>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" id="admin-period-save-btn">Beállítás mentése</button>
+                        <button type="button" class="btn btn-outline-secondary" id="admin-period-reload-btn">Mentett érték visszatöltése</button>
+                        <button type="button" class="btn btn-outline-danger ms-auto" id="admin-period-clear-btn">Időkorlát törlése (mindig nyitva)</button>
+                      </div>
+                      <div id="admin-period-feedback" class="mt-3" style="display:none;"></div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-5 col-lg-4 col-12">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3">Jelenleg elmentett állapot</h6>
+                    <dl class="mb-0">
+                      <dt class="text-muted small">Állapot</dt>
+                      <dd id="admin-period-state">—</dd>
+                      <dt class="text-muted small">Nyitás</dt>
+                      <dd id="admin-period-start-label">—</dd>
+                      <dt class="text-muted small">Zárás</dt>
+                      <dd id="admin-period-end-label">—</dd>
+                      <dt class="text-muted small">Utoljára mentve</dt>
+                      <dd id="admin-period-updated" class="mb-0">—</dd>
+                    </dl>
+                    <hr>
+                    <p class="text-muted small mb-0">Ezek az adatok közvetlenül az adatbázisból jönnek vissza mentés után, tehát amit itt látsz, az van élesben is beállítva.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

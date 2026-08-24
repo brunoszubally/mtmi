@@ -672,6 +672,12 @@ document.addEventListener('DOMContentLoaded', function() {
               }
               return true;
           } else {
+              if (resp.status === 403) {
+                  const detail = await readErrorDetail(resp);
+                  showPeriodClosedScreen(detail);
+                  showToast(detail || "A pályázati felület jelenleg zárva van.", "danger");
+                  return false;
+              }
               if (!auto) showToast("Hiba a mentés során!", "danger");
               return false;
           }
@@ -968,6 +974,14 @@ document.addEventListener("DOMContentLoaded", () => {
           console.log("[FINALIZE] Backend válasz status:", resp.status);
           const respText = await resp.text();
           console.log("[FINALIZE] Backend válasz body:", respText);
+          if (resp.status === 403) {
+            let detail = "";
+            try { detail = (JSON.parse(respText) || {}).detail || ""; } catch (e) { /* nem JSON */ }
+            showPeriodClosedScreen(detail);
+            showToast(detail || "A pályázati felület jelenleg zárva van.", "danger");
+            syncFinalizeConsentState();
+            return;
+          }
         } catch (err) {
           console.error("[FINALIZE] Backend submit hiba:", err);
           showToast("Hiba történt a véglegesítés során.", "danger");
@@ -1853,3 +1867,53 @@ function autoResizeTextarea(textarea) {
 
   console.log('Textarea resized:', textarea.name, 'scrollHeight:', scrollHeight, 'newHeight:', newHeight);
 } 
+
+// --- Pályázati időszak ellenőrzése (mikortól meddig nyitva a felület) ---
+async function readErrorDetail(resp) {
+  try {
+    const data = await resp.clone().json();
+    return (data && data.detail) ? data.detail : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function isAdminPreview() {
+  return new URLSearchParams(window.location.search).has("adminview");
+}
+
+function showPeriodClosedScreen(message) {
+  if (isAdminPreview()) return;
+  const closedScreen = document.getElementById("period-closed-screen");
+  if (!closedScreen) return;
+  const messageEl = document.getElementById("period-closed-message");
+  if (messageEl && message) messageEl.textContent = message;
+
+  const welcome = document.getElementById("welcome-screen");
+  const mainContent = document.getElementById("main-form-content");
+  const thankyou = document.getElementById("thankyou-fullscreen");
+  if (welcome) welcome.style.display = "none";
+  if (mainContent) mainContent.style.display = "none";
+  if (thankyou) thankyou.style.display = "none";
+  closedScreen.style.display = "block";
+  document.body.style.overflow = "auto";
+  window.scrollTo(0, 0);
+}
+
+async function checkApplicationPeriod() {
+  // Admin előnézetben (adminview) sosem zárjuk le a felületet
+  if (isAdminPreview()) return;
+  try {
+    const resp = await fetch(`${API_BASE}/period`);
+    if (!resp.ok) return; // hiba esetén nem zárjuk le a felületet
+    const state = await resp.json();
+    if (state && state.is_open === false) {
+      showPeriodClosedScreen(state.message);
+    }
+  } catch (e) {
+    // Hálózati hiba esetén marad a normál működés
+    console.warn("Nem sikerült lekérni a pályázati időszakot:", e);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", checkApplicationPeriod);

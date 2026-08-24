@@ -3,4 +3,5 @@ uvicorn
 psycopg2-binary
 python-multipart
 reportlab
-jinja2 
+jinja2
+tzdata

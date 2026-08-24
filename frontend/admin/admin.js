@@ -75,6 +75,7 @@ function showAdminListBlock() {
   if (listCard) listCard.classList.add("wide-admin");
   loadAdminList();
   loadAdminSchools();
+  loadAdminPeriod();
   console.log("Lista nézet: osztályok", listBlock, listCard);
 }
 function showAdminLoginBlock() {
@@ -184,6 +185,32 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
+  const periodForm = document.getElementById("admin-period-form");
+  if (periodForm) {
+    periodForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await saveAdminPeriod();
+    });
+  }
+
+  const periodReloadBtn = document.getElementById("admin-period-reload-btn");
+  if (periodReloadBtn) {
+    periodReloadBtn.addEventListener("click", () => loadAdminPeriod());
+  }
+
+  const periodClearBtn = document.getElementById("admin-period-clear-btn");
+  if (periodClearBtn) {
+    periodClearBtn.addEventListener("click", async () => {
+      if (!confirm("Biztosan törlöd az időkorlátot? Ezután a felület korlátlanul nyitva marad.")) return;
+      await clearAdminPeriod();
+    });
+  }
+
+  const periodBannerBtn = document.getElementById("admin-period-banner-btn");
+  if (periodBannerBtn) {
+    periodBannerBtn.addEventListener("click", () => setAdminView("settings"));
+  }
+
   setAdminView("submissions");
 });
 
@@ -246,6 +273,7 @@ function updateAdminCounters() {
 
 function setAdminView(viewName) {
   adminCurrentView = viewName;
+  if (viewName === "settings") loadAdminPeriod();
   document.querySelectorAll(".admin-tab-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.adminView === viewName);
   });
@@ -517,6 +545,158 @@ async function loadAdminSchools() {
   adminSchools = list;
   updateAdminCounters();
   renderAdminSchools();
+}
+
+// --- Pályázati időszak (nyitás/zárás) kezelése ---
+let adminPeriodState = null;
+
+// A szerver magyar idő szerinti ISO stringet ad vissza (pl. 2026-09-01T08:00:00+02:00),
+// ezért szövegesen vágjuk le a datetime-local mezőnek, hogy böngésző-időzónától
+// függetlenül pontosan azt lássa az admin, ami el van mentve.
+function isoToDatetimeLocalValue(isoString) {
+  if (!isoString || typeof isoString !== "string") return "";
+  return isoString.slice(0, 16);
+}
+
+function setPeriodFeedback(message, type = "info") {
+  const box = document.getElementById("admin-period-feedback");
+  if (!box) return;
+  if (!message) {
+    box.style.display = "none";
+    box.textContent = "";
+    return;
+  }
+  box.className = `alert alert-${type} mb-0`;
+  box.textContent = message;
+  box.style.display = "block";
+}
+
+function describePeriod(state) {
+  if (!state) return { text: "Az időszak beállítása nem elérhető.", type: "secondary" };
+  if (!state.configured) {
+    return {
+      text: "Nincs beállítva pályázati időszak – a felület korlátlanul nyitva van.",
+      type: "secondary"
+    };
+  }
+  const range = `${state.start_label || "nincs megadva"} – ${state.end_label || "nincs megadva"}`;
+  if (state.status === "before") {
+    return { text: `A felület ZÁRVA. Nyitás: ${state.start_label}. Beállított időszak: ${range}`, type: "warning" };
+  }
+  if (state.status === "after") {
+    return { text: `A felület ZÁRVA, az időszak lezárult. Beállított időszak: ${range}`, type: "danger" };
+  }
+  return { text: `A felület NYITVA. Beállított időszak: ${range}`, type: "success" };
+}
+
+function renderAdminPeriod(state, { fillInputs = true } = {}) {
+  adminPeriodState = state;
+
+  const banner = document.getElementById("admin-period-banner");
+  const bannerText = document.getElementById("admin-period-banner-text");
+  const info = describePeriod(state);
+  if (banner && bannerText) {
+    banner.className = `alert alert-${info.type} d-flex flex-wrap align-items-center gap-2 mb-4`;
+    bannerText.textContent = info.text;
+  }
+
+  if (fillInputs) {
+    const startInput = document.getElementById("admin-period-start");
+    const endInput = document.getElementById("admin-period-end");
+    const messageInput = document.getElementById("admin-period-message");
+    if (startInput) startInput.value = isoToDatetimeLocalValue(state && state.start);
+    if (endInput) endInput.value = isoToDatetimeLocalValue(state && state.end);
+    if (messageInput) messageInput.value = (state && state.custom_message) || "";
+  }
+
+  const stateEl = document.getElementById("admin-period-state");
+  const startLabelEl = document.getElementById("admin-period-start-label");
+  const endLabelEl = document.getElementById("admin-period-end-label");
+  const updatedEl = document.getElementById("admin-period-updated");
+  if (stateEl) stateEl.textContent = state && state.configured
+    ? (state.is_open ? "Nyitva" : "Zárva")
+    : "Nincs időkorlát (mindig nyitva)";
+  if (startLabelEl) startLabelEl.textContent = (state && state.start_label) || "—";
+  if (endLabelEl) endLabelEl.textContent = (state && state.end_label) || "—";
+  if (updatedEl) {
+    if (state && state.updated_at) {
+      const who = state.updated_by ? ` – ${state.updated_by}` : "";
+      updatedEl.textContent = `${formatAdminDate(state.updated_at)}${who}`;
+    } else {
+      updatedEl.textContent = "—";
+    }
+  }
+}
+
+async function loadAdminPeriod() {
+  const resp = await adminFetch(`${API_BASE}/admin/period`);
+  if (!resp) return;
+  if (!resp.ok) {
+    renderAdminPeriod(null, { fillInputs: false });
+    setPeriodFeedback("Nem sikerült betölteni a pályázati időszak beállítását.", "danger");
+    return;
+  }
+  const state = await resp.json();
+  renderAdminPeriod(state);
+  setPeriodFeedback("");
+}
+
+async function saveAdminPeriod() {
+  const startInput = document.getElementById("admin-period-start");
+  const endInput = document.getElementById("admin-period-end");
+  const messageInput = document.getElementById("admin-period-message");
+  const saveBtn = document.getElementById("admin-period-save-btn");
+
+  const start = startInput ? startInput.value : "";
+  const end = endInput ? endInput.value : "";
+  if (start && end && end <= start) {
+    setPeriodFeedback("A záró időpont nem lehet korábbi a kezdő időpontnál!", "danger");
+    return;
+  }
+
+  if (saveBtn) saveBtn.disabled = true;
+  try {
+    const resp = await adminFetch(`${API_BASE}/admin/period`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        start: start || null,
+        end: end || null,
+        message: messageInput ? messageInput.value : null,
+        updated_by: "admin"
+      })
+    });
+    if (!resp) return;
+    if (!resp.ok) {
+      let detail = "Nem sikerült menteni a pályázati időszakot.";
+      try {
+        const err = await resp.json();
+        if (err && err.detail) detail = err.detail;
+      } catch (e) { /* marad az alapértelmezett szöveg */ }
+      setPeriodFeedback(detail, "danger");
+      return;
+    }
+    // A backend a ténylegesen elmentett állapotot olvassa vissza az adatbázisból
+    const state = await resp.json();
+    renderAdminPeriod(state);
+    setPeriodFeedback(`Mentve. ${describePeriod(state).text}`, "success");
+  } catch (e) {
+    setPeriodFeedback("Hálózati hiba a mentés során!", "danger");
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function clearAdminPeriod() {
+  const resp = await adminFetch(`${API_BASE}/admin/period`, { method: "DELETE" });
+  if (!resp) return;
+  if (!resp.ok) {
+    setPeriodFeedback("Nem sikerült törölni az időkorlátot.", "danger");
+    return;
+  }
+  const state = await resp.json();
+  renderAdminPeriod(state);
+  setPeriodFeedback("Az időkorlát törölve, a felület korlátlanul nyitva van.", "success");
 }
 
 // Modal megerősítés gomb esemény

@@ -41,6 +41,19 @@
     </div>
     <button id="start-form-btn" class="btn btn-primary btn-lg px-5 py-3 shadow animate__animated animate__pulse animate__infinite mt-2">Tovább az űrlaphoz</button>
   </div>
+  <!-- Zárt pályázati időszak esetén ez a képernyő jelenik meg -->
+  <div id="period-closed-screen" style="display:none;">
+    <div class="d-flex flex-column align-items-center justify-content-center min-vh-100">
+      <img src="/logo.png" alt="MTMI Iskola Program logó" style="max-width: 180px; margin-bottom: 24px;">
+      <h1 class="fw-bold text-center mb-2" style="font-size:2.2rem;">MTMI Iskola Program<br><span class="text-primary">Pályázati űrlap</span></h1>
+      <div class="card shadow-lg border-0 mt-3 mb-3" style="max-width: 600px;">
+        <div class="card-body p-4 text-center">
+          <p id="period-closed-message" class="mb-3 fs-5">A pályázati felület jelenleg nem érhető el.</p>
+          <p class="mb-0">Kérdés esetén írjon a <a href="mailto:program@mtmi-iskola.hu" class="text-primary fw-bold">program@mtmi-iskola.hu</a> címre.</p>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="main-form-content" style="display:none; min-height: 100vh;">
     <div class="container py-5">
       <div class="row justify-content-center">
