@@ -2,6 +2,8 @@
 const API_BASE = "/api";
 const ADMIN_TOKEN_KEY = "mtmi_admin_token";
 let adminAuthExpiredNotified = false;
+// Igaz, ha a beadási időzítés mentett értéke már betöltődött a mezőkbe
+let submissionWindowLoaded = false;
 
 // --- Admin session kezelés ---
 function setAdminSession(token) {
@@ -183,23 +185,32 @@ function setSchoolSaveButtonState(state = "idle") {
 }
 
 async function loadSubmissionWindowSettings() {
+  const statusEl = document.getElementById("submission-window-status");
   try {
     const resp = await adminFetch(`${API_BASE}/admin/submission-window`);
-    if (!resp.ok) return;
+    if (!resp.ok) {
+      submissionWindowLoaded = false;
+      if (statusEl) statusEl.textContent = "A mentett beállítást nem sikerült betölteni – frissítsd az oldalt.";
+      return false;
+    }
     const status = await resp.json();
 
     const modeEl = document.getElementById("submission-mode");
     const startEl = document.getElementById("submission-start-at");
     const endEl = document.getElementById("submission-end-at");
-    const statusEl = document.getElementById("submission-window-status");
-    if (!modeEl || !startEl || !endEl || !statusEl) return;
+    if (!modeEl || !startEl || !endEl || !statusEl) return false;
 
     modeEl.value = status.mode === "auto" ? "forced_inactive" : (status.mode || "forced_inactive");
     startEl.value = utcIsoToDatetimeLocalBp(status.start_at);
     endEl.value = utcIsoToDatetimeLocalBp(status.end_at);
     statusEl.textContent = renderSubmissionStatusText(status);
+    submissionWindowLoaded = true;
+    return true;
   } catch (e) {
+    submissionWindowLoaded = false;
+    if (statusEl) statusEl.textContent = "A mentett beállítást nem sikerült betölteni – frissítsd az oldalt.";
     console.error("Submission window load error:", e);
+    return false;
   }
 }
 
@@ -212,6 +223,20 @@ async function saveSubmissionWindowSettings() {
   if (!modeEl || !startEl || !endEl || !errorEl || !statusEl) return;
 
   errorEl.style.display = "none";
+
+  // Amíg a mentett beállítás nem töltődött be, a mentés felülírná üres
+  // dátumokkal a korábbi időszakot - ezért előbb újratöltjük.
+  if (!submissionWindowLoaded) {
+    const reloaded = await loadSubmissionWindowSettings();
+    if (!reloaded) {
+      errorEl.textContent = "A mentett beállítás még nem töltődött be, ezért a mentés kimaradt. Frissítsd az oldalt, és próbáld újra.";
+      errorEl.style.display = "block";
+      showAdminToast(errorEl.textContent, "error");
+      setSubmissionSaveButtonState("idle");
+      return;
+    }
+  }
+
   const body = {
     mode: modeEl.value,
     start_at: startEl.value || null,
@@ -255,6 +280,7 @@ function showAdminListBlock() {
   if (listCard) listCard.classList.add("wide-admin");
   loadAdminList();
   loadSchoolsList();
+  loadSubmissionWindowSettings();
   console.log("Lista nézet: osztályok", listBlock, listCard);
 }
 function showAdminLoginBlock() {
@@ -1371,7 +1397,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   updateBulkToolbarState();
-  loadSubmissionWindowSettings();
+  if (isAdminLoggedIn()) loadSubmissionWindowSettings();
 });
 
 // --- Iskolák listázása ---
