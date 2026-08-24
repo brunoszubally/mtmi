@@ -4,4 +4,5 @@ psycopg2-binary
 python-multipart
 reportlab
 jinja2
-tzdata
+bcrypt
+python-dotenv
