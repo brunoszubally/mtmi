@@ -399,6 +399,15 @@ def _to_utc_iso(dt):
     return dt.astimezone(timezone.utc).isoformat()
 
 
+def _format_bp(dt):
+    """Időpont magyar idő szerinti, olvasható formában (pl. 2026. 08. 24. 08:00)."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BUDAPEST_TZ).strftime("%Y. %m. %d. %H:%M")
+
+
 def get_submission_settings():
     with db_connection() as conn:
         with conn.cursor() as c:
@@ -443,6 +452,14 @@ def compute_submission_status():
     elif mode != "forced_open":
         status = "inactive"
         message = "Jelenleg nincs aktív pályázati időszak."
+    elif start_at and now_utc < start_at:
+        # Nyitott módban a megadott kezdés előtt még nem érhető el a felület
+        status = "inactive"
+        message = f"A pályázati felület {_format_bp(start_at)} időponttól lesz elérhető."
+    elif end_at and now_utc >= end_at:
+        # Nyitott módban a megadott lezárás után zárva van a felület
+        status = "inactive"
+        message = f"A pályázati időszak {_format_bp(end_at)} időpontban lezárult."
     elif end_at:
         seconds_left = (end_at - now_utc).total_seconds()
         if seconds_left > 0:
