@@ -20,7 +20,7 @@ load_dotenv()
 
 import psycopg2
 from psycopg2.extras import Json
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import SimpleConnectionPool, PoolError
 import shutil
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
@@ -161,7 +161,15 @@ def _acquire_connection():
         return psycopg2.connect(DATABASE_URL, **DB_CONNECT_KWARGS), False
 
     for _ in range(max(1, DB_POOL_MAX_CONN)):
-        conn = DB_POOL.getconn()
+        try:
+            conn = DB_POOL.getconn()
+        except PoolError as e:
+            # A SimpleConnectionPool nem vár, ha minden kapcsolat foglalt, hanem
+            # azonnal hibát dob. Az uvicorn viszont 40 szálon szolgál ki, tehát
+            # egy nagyobb egyidejű löket simán túllépi a maxconn-t - ilyenkor
+            # 500 helyett közvetlen kapcsolattal szolgáljuk ki a kérést.
+            print(f"DB pool: kifogyott ({e}), közvetlen kapcsolat")
+            return psycopg2.connect(DATABASE_URL, **DB_CONNECT_KWARGS), False
         if conn is not None and not conn.closed and not _needs_liveness_check(conn):
             return conn, True
         if _connection_is_alive(conn):
