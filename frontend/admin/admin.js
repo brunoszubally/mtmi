@@ -1006,6 +1006,32 @@ async function showSummary(session_id) {
 }
 
 // --- Excel export funkció ---
+// Az xlsx könyvtár (~900 KB) csak az első exportáláskor töltődik be, nem
+// minden admin oldalbetöltéskor. A Promise-t eltároljuk, így párhuzamos
+// kattintásnál sem indul két letöltés.
+const XLSX_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+let xlsxLoadPromise = null;
+
+function ensureXlsxLoaded() {
+  if (window.XLSX) return Promise.resolve();
+  if (xlsxLoadPromise) return xlsxLoadPromise;
+
+  xlsxLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = XLSX_SCRIPT_URL;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      // Újrapróbálhatóvá tesszük, ha a letöltés elhasalt
+      xlsxLoadPromise = null;
+      script.remove();
+      reject(new Error("Az Excel-exporthoz szükséges könyvtárat nem sikerült betölteni."));
+    };
+    document.head.appendChild(script);
+  });
+
+  return xlsxLoadPromise;
+}
+
 // Az export részletlekérései korlátozott párhuzamossággal futnak: soros
 // await helyett egyszerre több kérés megy ki, a visszaadott tömb sorrendje
 // viszont megegyezik a kapott azonosítókéval.
@@ -1036,6 +1062,7 @@ async function fetchResultsConcurrently(ids, concurrency = EXPORT_FETCH_CONCURRE
 
 async function exportToExcel() {
   try {
+    await ensureXlsxLoaded();
     // Lekérjük az összes kitöltést
     const resp = await adminFetch(`${API_BASE}/admin/list`);
     const submissions = await resp.json();
@@ -1131,6 +1158,7 @@ async function exportToExcel() {
 // --- Egyetlen kitöltés Excel exportja ---
 async function exportSingleToExcel(sessionId) {
   try {
+    await ensureXlsxLoaded();
     // Lekérjük a kitöltés részletes adatait
     const resp = await adminFetch(`${API_BASE}/admin/result/${sessionId}`);
     if (!resp.ok) {
@@ -1271,6 +1299,7 @@ async function exportSelectedToExcel() {
   const ids = getSelectedFormIds();
   if (!ids.length) return;
   try {
+    await ensureXlsxLoaded();
     const workbook = XLSX.utils.book_new();
     // A részleteket párhuzamosan kérjük le, a lapok sorrendje megmarad
     const results = await fetchResultsConcurrently(ids);
