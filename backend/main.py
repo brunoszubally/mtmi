@@ -13,14 +13,13 @@ import json
 import base64
 import hmac
 import hashlib
-import time
 from email.utils import formatdate
 from dotenv import load_dotenv
 load_dotenv()
 
 import psycopg2
 from psycopg2.extras import Json
-from psycopg2.pool import SimpleConnectionPool, PoolError
+from psycopg2.pool import SimpleConnectionPool
 import shutil
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
@@ -38,18 +37,8 @@ from contextlib import contextmanager
 # --- Adatbázis inicializálás ---
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
+DB_POOL_MIN_CONN = int(os.environ.get("DB_POOL_MIN_CONN", "1"))
 DB_POOL_MAX_CONN = int(os.environ.get("DB_POOL_MAX_CONN", "8"))
-# FIGYELEM: a SimpleConnectionPool elengedéskor csak akkor tartja meg a
-# kapcsolatot, ha a poolban minconn-nál kevesebb van (psycopg2/pool.py,
-# _putconn), a többit lezárja. minconn=1 mellett tehát gyakorlatilag nem volt
-# pooling: párhuzamos kérésnél szinte minden kérés új TCP+TLS kapcsolatot
-# nyitott. Ezért a minconn alapból a maxconn-nal egyezik.
-# Kevesebb induló kapcsolat kell? DB_POOL_MIN_CONN=1 visszaállítja a régit.
-DB_POOL_MIN_CONN = int(os.environ.get("DB_POOL_MIN_CONN", str(DB_POOL_MAX_CONN)))
-# Ennyi másodpercnél régebben elengedett kapcsolatot ellenőrzünk csak SELECT 1-gyel.
-# A frissen visszaadott kapcsolatot nem valószínű, hogy közben eldobta a pooler,
-# így a gyakori kéréseknél megspóroljuk a plusz oda-vissza utat.
-DB_CONN_VALIDATE_AFTER_SECONDS = float(os.environ.get("DB_CONN_VALIDATE_AFTER_SECONDS", "30"))
 DB_POOL: Optional[SimpleConnectionPool] = None
 AUTH_SECRET = (os.environ.get("AUTH_SECRET") or DATABASE_URL or "mtmi-dev-auth-secret").encode("utf-8")
 SCHOOL_TOKEN_TTL_SECONDS = int(os.environ.get("SCHOOL_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 14)))
@@ -119,29 +108,6 @@ def init_db_pool():
         print(f"DB pool init failed, falling back to direct connections: {e}")
 
 
-# Kapcsolatonként (id szerint) az utolsó poolba visszaadás időpontja.
-# A psycopg2 connection nem enged saját attribútumot, ezért külön tábla.
-_CONN_LAST_RELEASED = {}
-
-
-def _mark_connection_released(conn):
-    if conn is not None:
-        _CONN_LAST_RELEASED[id(conn)] = time.monotonic()
-
-
-def _forget_connection(conn):
-    if conn is not None:
-        _CONN_LAST_RELEASED.pop(id(conn), None)
-
-
-def _needs_liveness_check(conn) -> bool:
-    """Csak a régóta álló kapcsolatot érdemes SELECT 1-gyel ellenőrizni."""
-    last_released = _CONN_LAST_RELEASED.get(id(conn))
-    if last_released is None:
-        return True
-    return (time.monotonic() - last_released) >= DB_CONN_VALIDATE_AFTER_SECONDS
-
-
 def _connection_is_alive(conn) -> bool:
     """A poolban álló kapcsolatot a szerver észrevétlenül lezárhatta - ellenőrizzük."""
     if conn is None or conn.closed:
@@ -161,22 +127,11 @@ def _acquire_connection():
         return psycopg2.connect(DATABASE_URL, **DB_CONNECT_KWARGS), False
 
     for _ in range(max(1, DB_POOL_MAX_CONN)):
-        try:
-            conn = DB_POOL.getconn()
-        except PoolError as e:
-            # A SimpleConnectionPool nem vár, ha minden kapcsolat foglalt, hanem
-            # azonnal hibát dob. Az uvicorn viszont 40 szálon szolgál ki, tehát
-            # egy nagyobb egyidejű löket simán túllépi a maxconn-t - ilyenkor
-            # 500 helyett közvetlen kapcsolattal szolgáljuk ki a kérést.
-            print(f"DB pool: kifogyott ({e}), közvetlen kapcsolat")
-            return psycopg2.connect(DATABASE_URL, **DB_CONNECT_KWARGS), False
-        if conn is not None and not conn.closed and not _needs_liveness_check(conn):
-            return conn, True
+        conn = DB_POOL.getconn()
         if _connection_is_alive(conn):
             return conn, True
         # Halott kapcsolat: eldobjuk, hogy a pool újat nyithasson helyette
         print("DB pool: halott kapcsolat eldobva, új kapcsolat nyitása")
-        _forget_connection(conn)
         try:
             DB_POOL.putconn(conn, close=True)
         except Exception as e:
@@ -211,17 +166,11 @@ def db_connection():
     finally:
         if conn is not None:
             if from_pool and DB_POOL is not None:
-                discard = broken or bool(conn.closed)
-                if discard:
-                    _forget_connection(conn)
-                else:
-                    _mark_connection_released(conn)
                 try:
-                    DB_POOL.putconn(conn, close=discard)
+                    DB_POOL.putconn(conn, close=broken or bool(conn.closed))
                 except Exception as e:
                     print(f"DB pool putconn hiba: {e}")
             else:
-                _forget_connection(conn)
                 try:
                     conn.close()
                 except Exception:
