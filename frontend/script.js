@@ -16,7 +16,7 @@ const LINKED_FORM_ID_KEY = "mtmi_linked_form_id";
 const GUIDE_PAGE_PATH = "/kitoltesi-utmutato.html";
 const GUIDE_RETURN_KEY = "mtmi_guide_return_to";
 const MAX_LINK_FIELDS_PER_GROUP = 10;
-const AUTO_SAVE_DEBOUNCE_MS = 1000;
+const AUTO_SAVE_DEBOUNCE_MS = 3000;
 window.currentLoadedFormSchoolId = null;
 window.mtmiPublicGateLocked = false;
 window.submissionStatusData = null;
@@ -31,6 +31,9 @@ let requiredQuickfixSignature = "";
 let autoSaveTimer = null;
 let saveInFlight = false;
 let pendingAutoSave = false;
+// A legutóbb sikeresen elmentett kérés törzse, hogy a változatlan
+// állapotot ne küldjük el újra automatikus mentéskor.
+let lastSavedPayload = null;
 
 // --- Iskolai login kezelés ---
 function getSchoolSession() {
@@ -1477,14 +1480,27 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Ha az URL-ben van session_id, azt is elfogadjuk
     const urlSession = getSessionIdFromUrl();
     if (urlSession) session_id = urlSession;
+
+    // Automatikus mentésnél kihagyjuk a kérést, ha a legutóbb sikeresen
+    // elmentett állapothoz képest semmi nem változott. A "Mentés" gomb
+    // (auto = false) mindig küld, hogy a kézi mentés visszajelzése biztos legyen.
+    const payload = JSON.stringify({ data, session_id });
+    if (auto && lastSavedPayload !== null && payload === lastSavedPayload) {
+      saveInFlight = false;
+      return true;
+    }
+
     try {
       const resp = await fetch(`${API_BASE}/save`, {
         method: "POST",
         headers: buildAuthorizedHeaders({ json: true }),
-        body: JSON.stringify({ data, session_id })
+        body: payload
       });
       if (resp.ok) {
         const res = await resp.json();
+        // A szerver által visszaadott azonosítóval tároljuk, így a következő
+        // változatlan mentés már felismerhetően azonos lesz.
+        lastSavedPayload = JSON.stringify({ data, session_id: res.session_id });
         localStorage.setItem(SESSION_KEY, res.session_id);
         showLink(res.session_id);
         updateSchoolDashboardCard({
