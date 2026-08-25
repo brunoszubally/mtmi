@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -281,6 +282,12 @@ init_db_pool()
 
 # --- FastAPI app ---
 app = FastAPI()
+
+# Tömörítés a hostingtól függetlenül. A statikus fájlokat a Railway edge már
+# gzipeli, az API JSON-válaszait viszont így biztosan tömörítve küldjük:
+# /admin/schools 62 KB -> 9 KB, /admin/result/{id} 65 KB -> 20 KB.
+# Az 1 KB alatti válaszokon nem éri meg, azokat kihagyjuk.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # CORS beállítás (frontend fejlesztéshez)
 app.add_middleware(
