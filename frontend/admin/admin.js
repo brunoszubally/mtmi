@@ -1006,6 +1006,34 @@ async function showSummary(session_id) {
 }
 
 // --- Excel export funkció ---
+// Az export részletlekérései korlátozott párhuzamossággal futnak: soros
+// await helyett egyszerre több kérés megy ki, a visszaadott tömb sorrendje
+// viszont megegyezik a kapott azonosítókéval.
+const EXPORT_FETCH_CONCURRENCY = 8;
+
+async function fetchResultsConcurrently(ids, concurrency = EXPORT_FETCH_CONCURRENCY) {
+  const results = new Array(ids.length).fill(null);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= ids.length) return;
+      try {
+        const resp = await adminFetch(`${API_BASE}/admin/result/${ids[index]}`);
+        if (!resp.ok) continue;
+        results[index] = await resp.json();
+      } catch (e) {
+        console.error("Export részletlekérés hiba:", ids[index], e);
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, ids.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
+
 async function exportToExcel() {
   try {
     // Lekérjük az összes kitöltést
@@ -1024,12 +1052,14 @@ async function exportToExcel() {
     const allData = [];
     const headers = new Set();
 
-    for (const submission of submissions) {
-      const detailResp = await adminFetch(`${API_BASE}/admin/result/${submission.id}`);
-      const detail = await detailResp.json();
+    // A részleteket párhuzamosan kérjük le, a sorrend megmarad
+    const details = await fetchResultsConcurrently(submissions.map((s) => s.id));
+
+    submissions.forEach((submission, index) => {
+      const detail = details[index];
 
       // A 'data' objektumból vesszük az űrlap adatokat
-      if (detail.data) {
+      if (detail && detail.data) {
         // Meta adatok hozzáadása
         const fullData = {
           session_id: submission.id,
@@ -1045,7 +1075,7 @@ async function exportToExcel() {
 
         allData.push(fullData);
       }
-    }
+    });
 
     // Headers rendezése
     const sortedHeaders = Array.from(headers).sort();
@@ -1242,10 +1272,12 @@ async function exportSelectedToExcel() {
   if (!ids.length) return;
   try {
     const workbook = XLSX.utils.book_new();
-    for (const sessionId of ids) {
-      const resp = await adminFetch(`${API_BASE}/admin/result/${sessionId}`);
-      if (!resp.ok) continue;
-      const result = await resp.json();
+    // A részleteket párhuzamosan kérjük le, a lapok sorrendje megmarad
+    const results = await fetchResultsConcurrently(ids);
+
+    ids.forEach((sessionId, index) => {
+      const result = results[index];
+      if (!result) return;
       const data = result.data || {};
       const rows = [["Mező", "Érték"]];
       Object.keys(data).sort().forEach((key) => {
@@ -1255,7 +1287,7 @@ async function exportSelectedToExcel() {
       });
       const sheet = XLSX.utils.aoa_to_sheet(rows);
       XLSX.utils.book_append_sheet(workbook, sheet, sessionId.substring(0, 31));
-    }
+    });
     XLSX.writeFile(workbook, `mtmi_kijelolt_kitoltesek_${new Date().toISOString().slice(0, 10)}.xlsx`);
   } catch (e) {
     console.error("Kijelölt export hiba:", e);
