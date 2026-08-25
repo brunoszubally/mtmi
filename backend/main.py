@@ -13,6 +13,7 @@ import base64
 import hmac
 import hashlib
 import time
+from email.utils import formatdate
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -1373,9 +1374,53 @@ def _resolve_frontend_file(relative_path: str) -> Optional[str]:
     return candidate if os.path.isfile(candidate) else None
 
 
+def _static_etag(stat_result) -> str:
+    """Ugyanaz az ETag, amit a Starlette FileResponse is számol."""
+    etag_base = f"{stat_result.st_mtime}-{stat_result.st_size}"
+    return f'"{hashlib.md5(etag_base.encode()).hexdigest()}"'
+
+
+def _if_none_match_matches(header_value: str, etag: str) -> bool:
+    """If-None-Match egyeztetés gyenge összehasonlítással (RFC 9110)."""
+    if not header_value:
+        return False
+    if header_value.strip() == "*":
+        return True
+    for candidate in header_value.split(","):
+        candidate = candidate.strip()
+        if candidate.startswith("W/"):
+            candidate = candidate[2:]
+        if candidate == etag:
+            return True
+    return False
+
+
+def _static_response(request: Request, path: str, headers=None):
+    """Statikus fájl kiszolgálása feltételes kérés (304) kezelésével.
+
+    A FileResponse kirakja az ETag-et és a Last-Modified-ot, de - a
+    StaticFiles-szal ellentétben - nem nézi az If-None-Match-et, ezért
+    magától sosem ad 304-et. A "no-cache, must-revalidate" mellett így minden
+    oldalbetöltés újratöltötte a teljes fájlt ahelyett, hogy revalidált volna.
+    """
+    try:
+        stat_result = os.stat(path)
+    except OSError:
+        return FileResponse(path, headers=headers)
+
+    etag = _static_etag(stat_result)
+    if _if_none_match_matches(request.headers.get("if-none-match"), etag):
+        not_modified_headers = dict(headers or {})
+        not_modified_headers["ETag"] = etag
+        not_modified_headers["Last-Modified"] = formatdate(stat_result.st_mtime, usegmt=True)
+        return Response(status_code=304, headers=not_modified_headers)
+
+    return FileResponse(path, stat_result=stat_result, headers=headers)
+
+
 # Kiszolgálni a kért fájlt, ha létezik, különben index.html (SPA routing)
 @app.get("/{full_path:path}")
-async def serve_static_or_spa(full_path: str):
+async def serve_static_or_spa(request: Request, full_path: str):
     def html_headers():
         # no-store helyett no-cache: a böngésző eltárolhatja, de mindig
         # revalidál (304), így a deploy azonnal látszik, de nem tölt újra mindent.
@@ -1385,7 +1430,7 @@ async def serve_static_or_spa(full_path: str):
 
     # 1. Ha üres az útvonal, az index.html-t adjuk
     if not full_path or full_path == "/":
-        return FileResponse(index_html, headers=html_headers())
+        return _static_response(request, index_html, html_headers())
 
     file_path = _resolve_frontend_file(full_path)
 
@@ -1393,16 +1438,16 @@ async def serve_static_or_spa(full_path: str):
     if full_path.startswith("admin"):
         if file_path:
             if file_path.lower().endswith((".js", ".css", ".html")):
-                return FileResponse(file_path, headers=html_headers())
-            return FileResponse(file_path)
+                return _static_response(request, file_path, html_headers())
+            return _static_response(request, file_path)
         # SPA routing az admin részre
-        return FileResponse(os.path.join(FRONTEND_DIR, "admin", "index.html"), headers=html_headers())
+        return _static_response(request, os.path.join(FRONTEND_DIR, "admin", "index.html"), html_headers())
 
     # 3. Keresés a frontend gyökerében lévő fájlokként (pl. style.css)
     if file_path:
         if file_path.lower().endswith((".js", ".css", ".html")):
-            return FileResponse(file_path, headers=html_headers())
-        return FileResponse(file_path)
+            return _static_response(request, file_path, html_headers())
+        return _static_response(request, file_path)
 
     # 4. Fallback: index.html (SPA routing a public részre)
-    return FileResponse(index_html, headers=html_headers())
+    return _static_response(request, index_html, html_headers())
