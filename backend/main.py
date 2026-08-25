@@ -13,14 +13,13 @@ import json
 import base64
 import hmac
 import hashlib
-import threading
 from email.utils import formatdate
 from dotenv import load_dotenv
 load_dotenv()
 
 import psycopg2
 from psycopg2.extras import Json
-from psycopg2.pool import ThreadedConnectionPool
+from psycopg2.pool import SimpleConnectionPool
 import shutil
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
@@ -40,8 +39,6 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
 DB_POOL_MIN_CONN = int(os.environ.get("DB_POOL_MIN_CONN", "1"))
 DB_POOL_MAX_CONN = int(os.environ.get("DB_POOL_MAX_CONN", "8"))
-# Meddig várjon egy kérés szabad kapcsolatra, mielőtt feladja.
-DB_POOL_ACQUIRE_TIMEOUT_SECONDS = float(os.environ.get("DB_POOL_ACQUIRE_TIMEOUT_SECONDS", "10"))
 DB_POOL: Optional[SimpleConnectionPool] = None
 AUTH_SECRET = (os.environ.get("AUTH_SECRET") or DATABASE_URL or "mtmi-dev-auth-secret").encode("utf-8")
 SCHOOL_TOKEN_TTL_SECONDS = int(os.environ.get("SCHOOL_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 14)))
@@ -96,32 +93,18 @@ DB_CONNECT_KWARGS = {
 }
 
 
-# Ennyi kérés tarthat egyszerre kapcsolatot. Nélküle a pool egyszerűen
-# hibát dob, ha minden kapcsolat foglalt (a psycopg2 pool nem várakozik),
-# és a kérés 500-zal végződik. A szemaforral a kérés inkább vár pár
-# ezredmásodpercet - és soha nem nyitunk a maxconn-nál több kapcsolatot,
-# tehát az adatbázis kapcsolatlimitjét sem léphetjük túl.
-DB_POOL_SLOTS = None
-
-
 def init_db_pool():
-    global DB_POOL, DB_POOL_SLOTS
+    global DB_POOL
     try:
-        max_conn = max(DB_POOL_MIN_CONN, DB_POOL_MAX_CONN)
-        # ThreadedConnectionPool, mert a SimpleConnectionPool nem szálbiztos
-        # ("can't be shared across different threads"), az uvicorn viszont
-        # szálakon futtatja a szinkron végpontokat.
-        DB_POOL = ThreadedConnectionPool(
+        DB_POOL = SimpleConnectionPool(
             minconn=max(1, DB_POOL_MIN_CONN),
-            maxconn=max_conn,
+            maxconn=max(DB_POOL_MIN_CONN, DB_POOL_MAX_CONN),
             dsn=DATABASE_URL,
             **DB_CONNECT_KWARGS
         )
-        DB_POOL_SLOTS = threading.BoundedSemaphore(max_conn)
-        print(f"DB pool initialized (min={DB_POOL_MIN_CONN}, max={max_conn})")
+        print(f"DB pool initialized (min={DB_POOL_MIN_CONN}, max={DB_POOL_MAX_CONN})")
     except Exception as e:
         DB_POOL = None
-        DB_POOL_SLOTS = None
         print(f"DB pool init failed, falling back to direct connections: {e}")
 
 
@@ -164,18 +147,7 @@ def db_connection():
     conn = None
     from_pool = False
     broken = False
-    slot_taken = False
     try:
-        if DB_POOL is not None and DB_POOL_SLOTS is not None:
-            # Megvárjuk, amíg felszabadul egy kapcsolat, ahelyett hogy a pool
-            # azonnal hibát dobna. Terhelési csúcson így a kérés lassabb lesz,
-            # de nem hiúsul meg.
-            if not DB_POOL_SLOTS.acquire(timeout=DB_POOL_ACQUIRE_TIMEOUT_SECONDS):
-                raise HTTPException(
-                    status_code=503,
-                    detail="A szerver pillanatnyilag túlterhelt, kérlek próbáld újra néhány másodperc múlva."
-                )
-            slot_taken = True
         conn, from_pool = _acquire_connection()
         yield conn
         conn.commit()
@@ -203,8 +175,6 @@ def db_connection():
                     conn.close()
                 except Exception:
                     pass
-        if slot_taken:
-            DB_POOL_SLOTS.release()
 
 def init_db():
     with db_connection() as conn:
