@@ -33,6 +33,7 @@ from xml.sax.saxutils import escape
 import tempfile
 import subprocess
 from contextlib import contextmanager
+import db_backup
 
 # --- Adatbázis inicializálás ---
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -236,6 +237,8 @@ def init_db():
 
 init_db()
 init_db_pool()
+# Napi adatbázis-mentés FTP-re. Saját kapcsolatot nyit, nem a poolt használja.
+db_backup.start_backup_scheduler(DATABASE_URL, FTP_HOST, FTP_USER, FTP_PASS)
 
 # --- FastAPI app ---
 app = FastAPI()
@@ -1122,6 +1125,41 @@ def admin_list_schools(request: Request):
             "form_created_at": row[8].isoformat() if row[8] else None,
             "form_updated_at": row[9].isoformat() if row[9] else None
         })
+    return result
+
+
+@app.get("/api/admin/backups")
+def admin_list_backups(request: Request):
+    require_admin_auth(request)
+    with db_connection() as conn:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT day, created_at, filename, size_bytes, ok, error
+                FROM db_backups ORDER BY day DESC LIMIT 30
+            """)
+            rows = c.fetchall()
+    return {
+        "backups": [
+            {
+                "day": r[0].isoformat() if r[0] else None,
+                "created_at": _to_utc_iso(r[1]),
+                "filename": r[2],
+                "size_bytes": r[3],
+                "ok": bool(r[4]),
+                "error": r[5],
+            }
+            for r in rows
+        ]
+    }
+
+
+@app.post("/api/admin/backups/run")
+def admin_run_backup(request: Request):
+    """Kézi mentés indítása - az ütemezett napi mentéstől függetlenül."""
+    require_admin_auth(request)
+    result = db_backup.run_backup(DATABASE_URL, FTP_HOST, FTP_USER, FTP_PASS)
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail="A mentés nem sikerült: %s" % result.get("error"))
     return result
 
 
