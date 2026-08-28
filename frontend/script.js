@@ -35,6 +35,272 @@ let pendingAutoSave = false;
 // állapotot ne küldjük el újra automatikus mentéskor.
 let lastSavedPayload = null;
 
+// --- A be nem mentett munka védelme --------------------------------------
+// A szerver felé menő mentés több okból meghiúsulhat (lejárt belépés, másik
+// iskolához tartozó űrlap-azonosító, hálózati vagy szerverhiba). Korábban az
+// automatikus mentés hibája néma volt, és a beírt szöveg sehol nem maradt meg,
+// így az oldal újratöltésekor nyomtalanul elveszett. Ezért minden gépeléskor
+// a böngészőbe is lementjük a piszkozatot, a hibát pedig láthatóvá tesszük.
+const LOCAL_DRAFT_KEY = "mtmi_local_draft";
+const SAVE_STATUS_ID = "mtmi-save-status";
+const AUTO_SAVE_RETRY_MS = 15000;
+let hasUnsavedChanges = false;
+let autoSaveRetryTimer = null;
+let saveStatusHideTimer = null;
+// Ha a korábbi tartalom betöltése elhasalt, tilos menteni: az üres űrlap
+// felülírná a szerveren már meglévő adatokat.
+let formLoadBlocked = false;
+
+function decodeTokenPayload(token) {
+  try {
+    const body = String(token).split(".")[0];
+    const padded = body + "=".repeat((4 - (body.length % 4)) % 4);
+    return JSON.parse(atob(padded.replace(/-/g, "+").replace(/_/g, "/")));
+  } catch (e) {
+    return null;
+  }
+}
+
+function isTokenExpired(token) {
+  const payload = decodeTokenPayload(token);
+  if (!payload || !payload.exp) return true;
+  // Fél perc ráhagyás, hogy ne pont a lejárat pillanatában induljon a kérés.
+  return (payload.exp * 1000) <= (Date.now() + 30000);
+}
+
+// Belépettnek csak akkor tekintjük a felhasználót, ha a tokenje is él.
+// Enélkül a lejárt munkamenet észrevétlen maradt: az űrlap üresen jött be,
+// minden mentés 401-gyel elhasalt, és a felhasználó ebből semmit nem látott.
+function hasValidSchoolSession() {
+  if (!getSchoolSession()) return false;
+  const token = getSchoolAccessToken();
+  return Boolean(token) && !isTokenExpired(token);
+}
+
+function readLocalDraft() {
+  try {
+    const raw = localStorage.getItem(LOCAL_DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    if (!draft || !draft.data || typeof draft.data !== "object") return null;
+    return draft;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeLocalDraft(data) {
+  const schoolSession = getSchoolSession();
+  if (!schoolSession || window.forceReadonlyView || isAdminViewActive()) return;
+  try {
+    localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({
+      school_id: schoolSession.school_id,
+      session_id: localStorage.getItem(SESSION_KEY) || getSessionIdFromUrl() || null,
+      data: data,
+      saved_at: new Date().toISOString()
+    }));
+  } catch (e) {
+    console.warn("[DRAFT] a helyi piszkozat mentése nem sikerült", e);
+  }
+}
+
+function clearLocalDraft() {
+  try {
+    localStorage.removeItem(LOCAL_DRAFT_KEY);
+  } catch (e) {
+    /* nem baj, a következő sikeres mentés úgyis felülírja */
+  }
+}
+
+// Piszkozat csak sikertelen mentés után marad a böngészőben, ezért ha van,
+// az mindig el nem mentett munka. Csak a saját iskola saját űrlapjához adjuk
+// vissza, hogy soha ne kerüljön át adat másik fiókba.
+function getRestorableLocalDraft() {
+  const draft = readLocalDraft();
+  const schoolSession = getSchoolSession();
+  if (!draft || !schoolSession) return null;
+  if (draft.school_id !== schoolSession.school_id) return null;
+  const currentSession = localStorage.getItem(SESSION_KEY) || getSessionIdFromUrl() || null;
+  if (draft.session_id && currentSession && draft.session_id !== currentSession) return null;
+  if (!Object.keys(draft.data).length) return null;
+  return draft;
+}
+
+function ensureSaveStatusBar() {
+  let bar = document.getElementById(SAVE_STATUS_ID);
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = SAVE_STATUS_ID;
+    bar.setAttribute("role", "status");
+    bar.style.position = "fixed";
+    bar.style.left = "16px";
+    bar.style.bottom = "16px";
+    bar.style.zIndex = "9998";
+    bar.style.maxWidth = "min(520px, calc(100vw - 32px))";
+    bar.style.padding = "12px 16px";
+    bar.style.borderRadius = "10px";
+    bar.style.border = "1px solid transparent";
+    bar.style.boxShadow = "0 8px 24px rgba(0, 0, 0, .18)";
+    bar.style.fontSize = "0.95rem";
+    bar.style.lineHeight = "1.35";
+    bar.style.display = "none";
+    document.body.appendChild(bar);
+  }
+  return bar;
+}
+
+const SAVE_STATUS_PALETTE = {
+  saving: { bg: "#e9ecef", fg: "#343a40", border: "#ced4da" },
+  saved: { bg: "#d1e7dd", fg: "#0f5132", border: "#a3cfbb" },
+  unsaved: { bg: "#fff3cd", fg: "#664d03", border: "#ffe69c" },
+  error: { bg: "#f8d7da", fg: "#842029", border: "#f1aeb5" }
+};
+
+function setSaveStatus(state, message, actions) {
+  if (isAdminViewActive()) return;
+  const bar = ensureSaveStatusBar();
+  if (saveStatusHideTimer) {
+    clearTimeout(saveStatusHideTimer);
+    saveStatusHideTimer = null;
+  }
+  if (!state) {
+    bar.style.display = "none";
+    return;
+  }
+  const colors = SAVE_STATUS_PALETTE[state] || SAVE_STATUS_PALETTE.saving;
+  bar.style.background = colors.bg;
+  bar.style.color = colors.fg;
+  bar.style.borderColor = colors.border;
+  bar.innerHTML = "";
+
+  const text = document.createElement("div");
+  text.textContent = message;
+  bar.appendChild(text);
+
+  (actions || []).forEach(action => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm btn-dark mt-2 me-2";
+    btn.textContent = action.label;
+    btn.addEventListener("click", action.onClick);
+    bar.appendChild(btn);
+  });
+
+  bar.style.display = "block";
+  if (state === "saved") {
+    saveStatusHideTimer = setTimeout(() => { bar.style.display = "none"; }, 4000);
+  }
+}
+
+function cancelAutoSaveRetry() {
+  if (autoSaveRetryTimer) {
+    clearTimeout(autoSaveRetryTimer);
+    autoSaveRetryTimer = null;
+  }
+}
+
+function scheduleAutoSaveRetry() {
+  if (autoSaveRetryTimer) return;
+  autoSaveRetryTimer = setTimeout(() => {
+    autoSaveRetryTimer = null;
+    if (typeof window.saveForm === "function") window.saveForm(true);
+  }, AUTO_SAVE_RETRY_MS);
+}
+
+// Lejárt belépés: a piszkozatot NEM dobjuk el, belépés után visszatöltjük.
+function goToLoginKeepingDraft(message) {
+  cancelAutoSaveRetry();
+  localStorage.removeItem(SCHOOL_TOKEN_KEY);
+  setPrimaryScreen("login");
+  const errorEl = document.getElementById("school-login-error");
+  if (errorEl) {
+    errorEl.textContent = message || "A bejelentkezésed lejárt. Lépj be újra - amit beírtál, nem veszett el, belépés után visszatöltjük.";
+    errorEl.style.display = "block";
+  }
+  // A sávot csak akkor mutatjuk, ha tényleg van megőrzött, el nem mentett munka.
+  if (getRestorableLocalDraft()) {
+    setSaveStatus("unsaved", "A mentéshez újra be kell lépned. A beírt szöveg megvan, belépés után visszatöltjük.");
+  } else {
+    setSaveStatus(null);
+  }
+  window.scrollTo(0, 0);
+}
+
+// Kimenekítés abból az állapotból, amikor a böngészőben tárolt űrlap-azonosító
+// egy másik iskola űrlapjára mutat: ilyenkor minden mentés 403-mal bukik.
+function startOwnFormFromDraft() {
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(LINKED_FORM_ID_KEY);
+  const draft = readLocalDraft();
+  if (draft) {
+    draft.session_id = null;
+    try {
+      localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(draft));
+    } catch (e) {
+      /* a piszkozat a memóriában lévő űrlapon úgyis ott van */
+    }
+  }
+  formLoadBlocked = false;
+  history.replaceState({}, "", "/");
+  setSaveStatus("saving", "Saját űrlap létrehozása...");
+  if (typeof window.saveForm === "function") window.saveForm(false);
+}
+
+// A böngészőben tárolt űrlap-azonosító nem ehhez a fiókhoz tartozik (vagy már
+// nincs meg). Kitakarítjuk, hogy a felhasználó tudjon saját űrlapon dolgozni.
+function dropForeignFormSession(message) {
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(LINKED_FORM_ID_KEY);
+  history.replaceState({}, "", "/");
+  window.currentLoadedFormSchoolId = null;
+  formLoadBlocked = false;
+  const thankyou = document.getElementById("thankyou-fullscreen");
+  const mainForm = document.getElementById("main-form-content");
+  const onThankyou = thankyou && thankyou.style.display !== "none";
+  const formHidden = !mainForm || mainForm.style.display === "none";
+  if (onThankyou || formHidden) setPrimaryScreen("welcome");
+  setSaveStatus("error", message);
+}
+
+function handleSaveFailure(status) {
+  hasUnsavedChanges = true;
+  const keep = "Amit beírtál, megvan a böngésződben, nem veszett el.";
+  if (status === 401) {
+    goToLoginKeepingDraft();
+    return;
+  }
+  if (status === 403) {
+    setSaveStatus("error", "Ez az űrlap egy másik iskolához tartozik, ezért nem lehet menteni. " + keep + " Indíts saját űrlapot, és a beírt szöveg átkerül bele.", [
+      { label: "Saját űrlap indítása", onClick: startOwnFormFromDraft }
+    ]);
+    return;
+  }
+  if (status === 423) {
+    setSaveStatus("error", "A pályázati felület jelenleg zárva, ezért a mentés nem sikerült. " + keep);
+    return;
+  }
+  const reason = status
+    ? "A szerver hibát adott a mentésre (" + status + ")."
+    : "Nem sikerült elérni a szervert.";
+  setSaveStatus("error", reason + " " + keep + " 15 másodpercenként automatikusan újrapróbáljuk.", [
+    {
+      label: "Mentés újra most",
+      onClick: () => {
+        cancelAutoSaveRetry();
+        if (typeof window.saveForm === "function") window.saveForm(false);
+      }
+    }
+  ]);
+  scheduleAutoSaveRetry();
+}
+
+// Az elnavigálás elleni utolsó védvonal, ha a szerver tartósan nem elérhető.
+window.addEventListener("beforeunload", function (e) {
+  if (!hasUnsavedChanges) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
 // --- Iskolai login kezelés ---
 function getSchoolSession() {
   const schoolId = localStorage.getItem(SCHOOL_ID_KEY);
@@ -127,6 +393,11 @@ function performSchoolLogout() {
   }
   pendingAutoSave = false;
   saveInFlight = false;
+  cancelAutoSaveRetry();
+  clearLocalDraft();
+  hasUnsavedChanges = false;
+  formLoadBlocked = false;
+  setSaveStatus(null);
   requiredQuickfixArmed = false;
   requiredQuickfixSignature = "";
   clearSchoolSession();
@@ -685,9 +956,17 @@ async function handleSchoolLogin(email, password) {
     const res = await resp.json();
     console.log('[LOGIN] login success payload', res);
     setSchoolSession(res.school_id, res.school_name, res.access_token);
+    // A böngészőben maradt űrlap-azonosítót a szerver válaszához igazítjuk.
+    // Enélkül egy korábbi (akár másik iskolához tartozó) azonosító bennragadt,
+    // és utána minden mentés 403-mal bukott, a betöltés pedig üres űrlapot adott.
     if (res.form_id) {
+      localStorage.setItem(SESSION_KEY, res.form_id);
       localStorage.setItem(LINKED_FORM_ID_KEY, res.form_id);
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(LINKED_FORM_ID_KEY);
     }
+    formLoadBlocked = false;
     syncSchoolNameField('after-login-success');
     updateSchoolDashboardCard({
       form_id: res.form_id || null,
@@ -726,6 +1005,9 @@ async function handleSchoolLogin(email, password) {
       updateThankyouEditButton();
       window.scrollTo(0, 0);
       console.log('[LOGIN] switched to submitted screen');
+      // A betöltés deríti ki, hogy az űrlap valóban ehhez az iskolához tartozik-e.
+      // Enélkül a felhasználó egy idegen űrlap "beküldve" képernyőjén ragadt.
+      if (typeof window.loadForm === 'function') window.loadForm();
     } else if (res.form_status === 'in_progress' && res.form_id) {
       // Folyamatban lévő kitöltés → betöltés és tovább
       localStorage.setItem(SESSION_KEY, res.form_id);
@@ -993,6 +1275,14 @@ document.addEventListener('DOMContentLoaded', async function () {
   const adminView = urlParams.get('adminview');
   if (adminView) {
     setPrimaryScreen('form');
+  }
+  // --- Lejárt vagy hiányzó token: vissza a belépéshez ---
+  // Korábban a felület belépettnek látta a felhasználót pusztán azért, mert az
+  // iskola azonosítója ott volt a böngészőben. A lejárt token miatt viszont
+  // minden hívás 401-et kapott: üres űrlap, néma mentési hibák.
+  else if (getSchoolSession() && !hasValidSchoolSession()) {
+    console.warn('[LOGIN] school session found, but the token is missing or expired');
+    goToLoginKeepingDraft();
   }
   // --- Ha már be van lépve, nem mutatjuk a logint ---
   else if (getSchoolSession()) {
@@ -1468,6 +1758,14 @@ document.addEventListener('DOMContentLoaded', async function () {
       showToast("Mentés folyamatban, kérlek várj...", "info");
       return false;
     }
+    if (formLoadBlocked) {
+      // A korábbi tartalmat nem sikerült betölteni: ha most mentenénk, a
+      // hiányos űrlappal írnánk felül a szerveren már meglévő adatokat.
+      setSaveStatus("error", "Az űrlap korábbi tartalmát nem sikerült betölteni, ezért a mentés le van tiltva, nehogy felülírjuk a szerveren tárolt adatokat. Frissítsd az oldalt.", [
+        { label: "Oldal frissítése", onClick: () => window.location.reload() }
+      ]);
+      return false;
+    }
     saveInFlight = true;
     let saveSucceeded = false;
     const form = document.getElementById(FORM_ID);
@@ -1489,6 +1787,11 @@ document.addEventListener('DOMContentLoaded', async function () {
       saveInFlight = false;
       return true;
     }
+
+    // Még a hálózatra indulás előtt a böngészőbe is lementjük: ha a kérés
+    // elhasal, a beírt szöveg az oldal újratöltése után is meglesz.
+    writeLocalDraft(data);
+    if (!auto) setSaveStatus("saving", "Mentés folyamatban...");
 
     try {
       const resp = await fetch(`${API_BASE}/save`, {
@@ -1512,6 +1815,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         armRequiredQuickfixPanel("save-success");
         scheduleRequiredQuickfixRender();
         saveSucceeded = true;
+        // A szerveren már megvan, a helyi piszkozatra nincs többé szükség.
+        clearLocalDraft();
+        hasUnsavedChanges = false;
+        cancelAutoSaveRetry();
+        setSaveStatus("saved", "Elmentve " + new Date().toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" }));
         // Ha nincs session_id az URL-ben, írjuk bele (csak első mentésnél)
         if (!getSessionIdFromUrl()) {
           history.replaceState({}, "", `/kitoltes/${res.session_id}`);
@@ -1538,9 +1846,13 @@ document.addEventListener('DOMContentLoaded', async function () {
           showToast("Sikeres mentés!", "success");
         }
       } else {
-        if (!auto) showToast("Hiba a mentés során!", "danger");
+        // Az automatikus mentés hibája is látszódjon: eddig néma volt, és a
+        // felhasználó csak akkor szembesült vele, amikor már mindent elvesztett.
+        handleSaveFailure(resp.status);
+        if (!auto) showToast("Hiba a mentés során! (" + resp.status + ")", "danger");
       }
     } catch (e) {
+      handleSaveFailure(0);
       if (!auto) showToast("Hálózati hiba a mentés során!", "danger");
     } finally {
       saveInFlight = false;
@@ -1588,6 +1900,42 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
   }
 
+  // A böngészőben maradt, még el nem mentett munka visszatöltése az űrlapra.
+  function restoreLocalDraftIntoForm(reason) {
+    if (window.forceReadonlyView || isAdminViewActive()) return false;
+    const draft = getRestorableLocalDraft();
+    if (!draft) return false;
+    const form = document.getElementById(FORM_ID);
+    if (!form) return false;
+
+    console.log('[DRAFT] restoring unsaved local draft', { reason: reason, savedAt: draft.saved_at });
+    window.isLoadingForm = true;
+    setFormData(form, draft.data);
+    window.isLoadingForm = false;
+    hasUnsavedChanges = true;
+    armRequiredQuickfixPanel("restored-local-draft");
+    scheduleRequiredQuickfixRender();
+    setTimeout(() => {
+      document.querySelectorAll('textarea').forEach(textarea => {
+        if (textarea.value && textarea.value.trim() !== '') autoResizeTextarea(textarea);
+      });
+    }, 50);
+
+    const savedAt = draft.saved_at ? new Date(draft.saved_at) : null;
+    const when = savedAt && !isNaN(savedAt.getTime())
+      ? savedAt.toLocaleString("hu-HU", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      : "korábban";
+    setSaveStatus("unsaved", "Visszatöltöttük a nem mentett módosításaidat (" + when + "). Kattints a Mentés gombra, hogy a szerverre is felkerüljenek.", [
+      {
+        label: "Mentés most",
+        onClick: () => {
+          if (typeof window.saveForm === "function") window.saveForm(false);
+        }
+      }
+    ]);
+    return true;
+  }
+
   // Betöltés a backendről
   async function loadForm() {
     console.log('loadForm: Kezdem a betöltést');
@@ -1597,6 +1945,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (!session_id) {
       console.log('loadForm: Nincs session_id');
       window.currentLoadedFormSchoolId = null;
+      // Még nincs szerveroldali űrlap, de a böngészőben lehet el nem mentett munka.
+      setTimeout(() => restoreLocalDraftIntoForm('no-session'), 100);
       return;
     }
     console.log('loadForm: Session_id:', session_id);
@@ -1718,14 +2068,42 @@ document.addEventListener('DOMContentLoaded', async function () {
         }, 200);
 
         showLink(session_id);
+        formLoadBlocked = false;
+        // A dinamikus mezők fenti, késleltetett betöltése után jöhet csak a
+        // piszkozat, különben a szerverről jött adat írná felül a friss munkát.
+        setTimeout(() => restoreLocalDraftIntoForm('after-server-load'), 450);
         // --- ADMINVIEW: minden mező readonly/disabled, mentés/véglegesítés gombok elrejtése ---
         if (adminView || window.forceReadonlyView) {
           console.log("Readonly view detected - making all fields readonly");
           applyReadOnlyMode(form);
         }
+      } else if (resp.status === 401) {
+        // Lejárt belépés: eddig néma volt, és a felhasználó üres űrlapot kapott.
+        console.warn('loadForm: 401, a belépés lejárt');
+        goToLoginKeepingDraft();
+      } else if (resp.status === 403 || resp.status === 404) {
+        // A böngészőben tárolt azonosító nem ehhez a fiókhoz tartozik (vagy már
+        // nem létezik). Ha bennhagynánk, utána minden mentés is elhasalna.
+        console.warn('loadForm: ' + resp.status + ', az űrlap-azonosító nem ehhez a fiókhoz tartozik');
+        dropForeignFormSession(resp.status === 403
+          ? "A hozzád rendelt űrlap egy másik iskolához tartozik, ezért nem tudtuk betölteni. Kezdd el a saját űrlapodat - amit beírsz, abba mentjük."
+          : "A hozzád rendelt űrlap már nem létezik. Kezdd el a saját űrlapodat - amit beírsz, abba mentjük.");
+        setTimeout(() => restoreLocalDraftIntoForm('load-rejected'), 100);
+      } else {
+        // Szerverhiba: amíg nem tudjuk, mi van a szerveren, tilos menteni,
+        // különben az üres űrlappal írnánk felül a meglévő pályázatot.
+        console.error('loadForm: sikertelen betöltés', resp.status);
+        formLoadBlocked = true;
+        setSaveStatus("error", "Az űrlap betöltése nem sikerült (" + resp.status + "). A biztonság kedvéért a mentés le van tiltva, hogy a korábbi tartalom ne sérüljön. Frissítsd az oldalt.", [
+          { label: "Oldal frissítése", onClick: () => window.location.reload() }
+        ]);
       }
     } catch (e) {
-      // Nincs adat vagy hiba
+      console.error('loadForm: hálózati hiba', e);
+      formLoadBlocked = true;
+      setSaveStatus("error", "Az űrlap betöltése hálózati hiba miatt nem sikerült. A biztonság kedvéért a mentés le van tiltva, hogy a korábbi tartalom ne sérüljön. Frissítsd az oldalt.", [
+        { label: "Oldal frissítése", onClick: () => window.location.reload() }
+      ]);
     }
   }
 
@@ -1812,9 +2190,26 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.log('[FORM_INIT] login hidden + session found -> main form visible');
       }
     }
+    // A gépelt szöveg azonnal a böngészőbe is bekerül, függetlenül attól,
+    // hogy a szerver felé menő mentés sikerül-e. Így az újratöltés nem visz el
+    // semmit akkor sem, ha a szerver órák óta hibát ad.
+    let localDraftTimer = null;
+    function scheduleLocalDraftSave() {
+      if (localDraftTimer) clearTimeout(localDraftTimer);
+      localDraftTimer = setTimeout(() => {
+        localDraftTimer = null;
+        hasUnsavedChanges = true;
+        writeLocalDraft(getFormData(form));
+        if (!saveInFlight) {
+          setSaveStatus("unsaved", "Nem mentett módosítások - hamarosan automatikusan mentjük.");
+        }
+      }, 600);
+    }
+
     // Automatikus mentés minden mező változásakor
     form.addEventListener("input", () => {
       if (!window.isLoadingForm) {
+        scheduleLocalDraftSave();
         scheduleAutoSave();
         armRequiredQuickfixPanel("user-input");
         scheduleRequiredQuickfixRender();
@@ -1822,6 +2217,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
     form.addEventListener("change", () => {
       if (!window.isLoadingForm) {
+        scheduleLocalDraftSave();
         scheduleAutoSave();
         armRequiredQuickfixPanel("user-change");
         scheduleRequiredQuickfixRender();
@@ -2436,6 +2832,16 @@ window.addEventListener('DOMContentLoaded', function() {
         headers: buildAuthorizedHeaders()
       });
       if (!resp.ok) {
+        if (resp.status === 403 || resp.status === 404) {
+          dropForeignFormSession(resp.status === 403
+            ? "A hozzád rendelt űrlap egy másik iskolához tartozik, ezért nem tudod szerkeszteni. Kezdd el a saját űrlapodat - amit beírsz, abba mentjük."
+            : "A hozzád rendelt űrlap már nem létezik. Kezdd el a saját űrlapodat - amit beírsz, abba mentjük.");
+          return;
+        }
+        if (resp.status === 401) {
+          goToLoginKeepingDraft();
+          return;
+        }
         const err = await resp.json().catch(() => ({}));
         alert(err.detail || "Nem sikerült megnyitni szerkesztésre a pályázatot.");
         return;
