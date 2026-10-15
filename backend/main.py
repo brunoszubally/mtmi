@@ -34,6 +34,7 @@ import tempfile
 import subprocess
 from contextlib import contextmanager
 import db_backup
+from form_writes import save_school_form, submit_school_form
 
 # --- Adatbázis inicializálás ---
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -284,6 +285,10 @@ def health():
 class SaveRequest(BaseModel):
     data: dict
     session_id: Optional[str] = None
+    expected_updated_at: Optional[datetime] = None
+
+class FormVersionRequest(BaseModel):
+    expected_updated_at: Optional[datetime] = None
 
 class SaveResponse(BaseModel):
     session_id: str
@@ -713,32 +718,10 @@ def _render_exact_pdf_via_chrome(url: str) -> Optional[bytes]:
 @app.post("/api/save", response_model=SaveResponse)
 def save_form(req: SaveRequest, request: Request):
     ensure_submission_available()
-    now = datetime.utcnow()
-    session_id = req.session_id or str(uuid4())
     school_auth = require_school_auth(request)
     school_id = school_auth.get("school_id")
     with db_connection() as conn:
-        with conn.cursor() as c:
-            c.execute("SELECT id, school_id FROM forms WHERE id = %s", (session_id,))
-            existing_row = c.fetchone()
-            if existing_row:
-                existing_school_id = existing_row[1]
-                if existing_school_id and existing_school_id != school_id:
-                    raise HTTPException(status_code=403, detail="Ez az űrlap nem ehhez az iskolához tartozik.")
-                c.execute(
-                    "UPDATE forms SET data = %s, updated_at = %s, school_id = COALESCE(school_id, %s) WHERE id = %s",
-                    (Json(req.data), now, school_id, session_id)
-                )
-            else:
-                c.execute(
-                    "INSERT INTO forms (id, data, created_at, updated_at, submitted, school_id) VALUES (%s, %s, %s, %s, 0, %s)",
-                    (session_id, Json(req.data), now, now, school_id)
-                )
-            c.execute(
-                "UPDATE schools SET form_id = %s, updated_at = %s WHERE id = %s",
-                (session_id, now, school_id)
-            )
-            conn.commit()
+        session_id, now = save_school_form(conn, school_id, req.session_id, req.data, req.expected_updated_at)
     url = str(request.base_url) + f"kitoltes/{session_id}"
     return SaveResponse(session_id=session_id, url=url, updated_at=now.isoformat())
 
@@ -851,14 +834,13 @@ def delete_pdf(session_id: str, request: Request):
 
 
 @app.post("/api/submit/{session_id}")
-def submit_form(session_id: str, request: Request):
+def submit_form(session_id: str, req: FormVersionRequest, request: Request):
     ensure_submission_available()
     require_form_access(request, session_id, allow_admin=False)
+    school_id = require_school_auth(request).get("school_id")
     with db_connection() as conn:
-        with conn.cursor() as c:
-            c.execute("UPDATE forms SET submitted = 1, updated_at = %s WHERE id = %s", (datetime.utcnow(), session_id))
-            conn.commit()
-    return {"status": "ok"} 
+        now = submit_school_form(conn, session_id, school_id, req.expected_updated_at)
+    return {"status": "ok", "updated_at": now.isoformat()}
 
 
 @app.post("/api/reopen/{session_id}")
