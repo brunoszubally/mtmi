@@ -27,8 +27,9 @@ A --backup lehet helyi fájl is (.sql vagy .sql.gz); ha nincs ilyen fájl, az
 FTP backups mappájából tölti le.
 
 Env: DATABASE_URL (find/diff/restore), FTP_HOST/FTP_USER/FTP_PASS (scan, és ha
-a mentést FTP-ről kell letölteni). BACKUP_FTP_DIR, BACKUP_FTP_TLS ugyanúgy
-működik, mint a db_backup.py-ban. Railway alatt: railway run python ...
+a mentést FTP-ről kell letölteni; ha nincs megadva, a main.py-ban rögzített
+értékeket használja). BACKUP_FTP_DIR, BACKUP_FTP_TLS ugyanúgy működik, mint a
+db_backup.py-ban. Railway alatt: railway run python ...
 """
 
 import argparse
@@ -182,10 +183,28 @@ def parse_dump(sql_text: str):
 
 # --- FTP --------------------------------------------------------------------
 
+def ftp_settings():
+    """Env-ből, ennek hiányában a mellette lévő main.py-ban rögzített értékekből."""
+    keys = ("FTP_HOST", "FTP_USER", "FTP_PASS")
+    values = {k: os.environ.get(k) for k in keys}
+    if not all(values.values()):
+        main_py = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
+        try:
+            with open(main_py, encoding="utf-8") as fh:
+                src = fh.read()
+        except OSError:
+            src = ""
+        for key in keys:
+            if not values[key]:
+                m = re.search(r'^%s\s*=\s*"([^"]*)"' % key, src, re.M)
+                values[key] = m.group(1) if m else None
+    return tuple(values[k] for k in keys)
+
+
 def ftp_connect():
-    host, user, password = (os.environ.get(k) for k in ("FTP_HOST", "FTP_USER", "FTP_PASS"))
+    host, user, password = ftp_settings()
     if not (host and user and password):
-        sys.exit("Hiányzik az FTP_HOST / FTP_USER / FTP_PASS környezeti változó.")
+        sys.exit("Hiányzik az FTP_HOST / FTP_USER / FTP_PASS (env-ben és a main.py-ban sincs).")
     if BACKUP_FTP_TLS:
         ftp = ftplib.FTP_TLS(host, timeout=60)
         ftp.login(user, password)
